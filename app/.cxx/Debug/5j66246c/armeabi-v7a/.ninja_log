@@ -1,5 +1,3 @@
 # ninja log v5
-1	2029	8102305578283873	CMakeFiles/aiclient.dir/aiclient.cpp.o	7b20b151ac2442e4
-2039	2333	8102305581323956	C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/build/intermediates/cxx/Debug/5j66246c/obj/armeabi-v7a/libaiclient.so	c9741979ffc78ce
-11	1915	8102313294911396	CMakeFiles/aiclient.dir/aiclient.cpp.o	7b20b151ac2442e4
-1917	2099	8102313296764344	C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/build/intermediates/cxx/Debug/5j66246c/obj/armeabi-v7a/libaiclient.so	c9741979ffc78ce
+1	12664	8109212927790490	CMakeFiles/aiclient.dir/aiclient.cpp.o	d2b8d92e2efe02d8
+12675	13079	8109212932290363	C:/Users/Alfred/AndroidStudioProjects/Sketchware-Plus-7.0.0/app/build/intermediates/cxx/Debug/5j66246c/obj/armeabi-v7a/libaiclient.so	f0a3e9bcd161dcd

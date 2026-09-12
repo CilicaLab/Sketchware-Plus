@@ -1,12 +1,22 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/root_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:paddingLeft="8dp"
-    android:paddingTop="0dp"
-    android:paddingRight="8dp">
+    android:layout_height="match_parent">
+
+    <sketchware.plus.lib.iconcreator.PatternBackgroundView
+        android:id="@+id/pattern_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/colorSurface" />
+
+    <LinearLayout
+        android:id="@+id/root_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="8dp"
+        android:paddingTop="0dp"
+        android:paddingRight="8dp">
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
@@ -76,13 +86,34 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/chat_recycler"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:padding="4dp" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/chat_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="4dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_gravity="top"
+            android:background="@drawable/shadow_gradient_top_bottom"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/bg_assistant_fade_bottom"
+            android:clickable="false"
+            android:focusable="false" />
+    </FrameLayout>
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/input_pill"
@@ -129,3 +160,4 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 </LinearLayout>
+</FrameLayout>

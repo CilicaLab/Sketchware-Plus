@@ -1,4 +1,4 @@
-                        -HC:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\src\main\cpp
+                        -HC:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\src\main\cpp
 -DCMAKE_SYSTEM_NAME=Android
 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 -DCMAKE_SYSTEM_VERSION=26
@@ -10,10 +10,10 @@
 -DCMAKE_TOOLCHAIN_FILE=C:\Users\Alfred\AppData\Local\Android\Sdk\ndk\27.3.13750724\build\cmake\android.toolchain.cmake
 -DCMAKE_MAKE_PROGRAM=C:\Users\Alfred\AppData\Local\Android\Sdk\cmake\3.22.1\bin\ninja.exe
 -DCMAKE_CXX_FLAGS=-std=c++17
--DCMAKE_LIBRARY_OUTPUT_DIRECTORY=C:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\build\intermediates\cxx\Debug\5j66246c\obj\armeabi-v7a
--DCMAKE_RUNTIME_OUTPUT_DIRECTORY=C:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\build\intermediates\cxx\Debug\5j66246c\obj\armeabi-v7a
+-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=C:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\build\intermediates\cxx\Debug\5j66246c\obj\armeabi-v7a
+-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=C:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\build\intermediates\cxx\Debug\5j66246c\obj\armeabi-v7a
 -DCMAKE_BUILD_TYPE=Debug
--BC:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\.cxx\Debug\5j66246c\armeabi-v7a
+-BC:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\.cxx\Debug\5j66246c\armeabi-v7a
 -GNinja
                         Build command args: []
                         Version: 2

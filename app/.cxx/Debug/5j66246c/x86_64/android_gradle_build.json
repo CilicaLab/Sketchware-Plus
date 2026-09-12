@@ -1,19 +1,19 @@
 {
   "buildFiles": [
-    "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\src\\main\\cpp\\CMakeLists.txt"
+    "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Plus-7.0.0\\app\\src\\main\\cpp\\CMakeLists.txt"
   ],
   "cleanCommandsComponents": [
     [
       "C:\\Users\\Alfred\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
       "-C",
-      "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\.cxx\\Debug\\5j66246c\\x86_64",
+      "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Plus-7.0.0\\app\\.cxx\\Debug\\5j66246c\\x86_64",
       "clean"
     ]
   ],
   "buildTargetsCommandComponents": [
     "C:\\Users\\Alfred\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
     "-C",
-    "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\.cxx\\Debug\\5j66246c\\x86_64",
+    "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Plus-7.0.0\\app\\.cxx\\Debug\\5j66246c\\x86_64",
     "{LIST_OF_TARGETS_TO_BUILD}"
   ],
   "libraries": {
@@ -21,7 +21,7 @@
       "toolchain": "toolchain",
       "abi": "x86_64",
       "artifactName": "aiclient",
-      "output": "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\build\\intermediates\\cxx\\Debug\\5j66246c\\obj\\x86_64\\libaiclient.so",
+      "output": "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Plus-7.0.0\\app\\build\\intermediates\\cxx\\Debug\\5j66246c\\obj\\x86_64\\libaiclient.so",
       "runtimeFiles": []
     }
   },

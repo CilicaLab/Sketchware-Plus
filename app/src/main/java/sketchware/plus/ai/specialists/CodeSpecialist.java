@@ -3,6 +3,9 @@ package sketchware.plus.ai.specialists;
 import android.app.Activity;
 import android.content.Context;
 
+import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
@@ -32,6 +35,16 @@ public class CodeSpecialist extends BaseSpecialist {
     private String originalPrompt = null;
     private String refinedGoal = null;
     private boolean isProcessing = false;
+
+    private List<String> stepHistory = new ArrayList<>();
+
+    private int iterationCount = 0;
+    private static final int MAX_ITERATIONS = 6;
+    private AlertDialog activePatchDialog = null;
+    private static final List<String> VALID_COMMANDS = List.of(
+            "insert", "add", "replace", "find-replace", "find-replace-first", "find-replace-all"
+    );
+
 
     public CodeSpecialist(SkAssistantFragment fragment) {
         super(fragment);
@@ -101,7 +114,12 @@ public class CodeSpecialist extends BaseSpecialist {
 
                 // Phase 2: Iterative Execution
                 log("CodeSpecialist: Requesting Next Step for: " + refinedGoal);
-                String systemPrompt = "You are the Iterative Code Specialist for Sketchware Plus.\n" +
+
+                String historyBlock = stepHistory.isEmpty() ? "None yet."
+                        : String.join("\n", stepHistory);
+
+                String systemPrompt = "You are the Iterative Code Specialist for Sketchware Plus.\n" +"RULES:\n" +
+                        "- MISSION_COMPLETE must be the ONLY action in its response. Never combine it with ADD_JAVA_COMMAND or any other action.\n" +
                         "MISSION: " + refinedGoal + "\n\n" +
                         "CAPABILITIES (Include these within the 'actions' array in your JSON):\n" +
                         "1. SEARCH_METHOD: Finds a method's content and line range. Needs 'javaName' and 'methodName'.\n" +
@@ -116,6 +134,7 @@ public class CodeSpecialist extends BaseSpecialist {
                         "STRATEGY:\n" +
                         "- If the user specifies a clear code snippet to replace (e.g., 'replace void test() { } with ...'), you can skip SEARCH_METHOD and call ADD_JAVA_COMMAND directly using that snippet as the 'reference'.\n" +
                         "- Otherwise, SEARCH first, then use GET_PATCH_META to get a precise 'reference' string.\n" +
+                        "- Before calling ADD_JAVA_COMMAND, you MUST have already seen the exact 'reference' text via SEARCH_METHOD, GET_CODE_RANGE, or GET_PATCH_META in this mission's history. Never invent a reference string from memory.\n" +
                         "- Apply only ONE code patch per response.\n\n" +
                         "CRITICAL: DO NOT use native tools or function calling. You MUST return a single JSON object in the following format:\n" +
                         "{\n" +
@@ -129,6 +148,19 @@ public class CodeSpecialist extends BaseSpecialist {
 
                 Activity activity = fragment.getActivity();
                 if (activity != null) {
+                    if (refinedGoal != null) {
+                        iterationCount++;
+                        if (iterationCount > MAX_ITERATIONS) {
+                            fragment.getActivity().runOnUiThread(() -> {
+                                fragment.addSystemMessage("Stopped after " + MAX_ITERATIONS +
+                                        " steps without a completion signal. Reply to continue or rephrase the goal.");
+                                refinedGoal = null;
+                                originalPrompt = null;
+                                isProcessing = false;
+                            });
+                            return;
+                        }
+                    }
                     activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, originalPrompt, contextStr, "CODE_EDIT"));
                 }
             } finally {
@@ -181,13 +213,20 @@ public class CodeSpecialist extends BaseSpecialist {
             case "GET_PATCH_META":
                 applyGetPatchMeta(action.optString("javaName"), action.optInt("targetLine"));
                 break;
-            
+
             case "MISSION_COMPLETE":
                 fragment.getActivity().runOnUiThread(() -> {
+                    if (activePatchDialog != null && activePatchDialog.isShowing()) {
+                        activePatchDialog.dismiss();
+                        activePatchDialog = null;
+                    }
                     fragment.addSystemMessage("Mission Accomplished: " + action.optString("summary"));
                     refinedGoal = null;
                     originalPrompt = null;
+                    iterationCount = 0;
+                    stepHistory.clear();
                     setStatus("Done");
+                    fragment.cancelSKRequests();
                 });
                 break;
 
@@ -256,41 +295,74 @@ public class CodeSpecialist extends BaseSpecialist {
     private void applyAddJavaCommand(JSONObject action) {
         String javaName = action.optString("javaName");
         String reference = action.optString("reference");
+        String command = action.optString("command");
         Context context = getContext();
         if (context == null) return;
 
-        fragment.getActivity().runOnUiThread(() -> {
-            new MaterialAlertDialogBuilder(context)
-                    .setTitle("Confirm Code Patch")
-                    .setMessage("Mission: " + refinedGoal + "\n\nFile: " + javaName + "\nRef: " + reference + "\nCmd: " + action.optString("command") + "\n\nApply this step?")
-                    .setCancelable(false)
-                    .setPositiveButton("Apply", (dialog, which) -> {
-                        jC.projectOperationsExecutor.execute(() -> {
-                            fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
-                            JSONObject result = SourceCodeAide.addJavaCommandToManager(
-                                    context, scId, javaName, reference,
-                                    action.optInt("distance"), action.optInt("front"), action.optInt("back"),
-                                    action.optString("command"), action.optString("inputCode")
-                            );
-                            
-                            fragment.getActivity().runOnUiThread(() -> {
-                                if ("success".equals(result.optString("status"))) {
-                                    fragment.addSystemMessage("Patch applied to Java Command Manager. Refreshing viewer...");
-                                    fragment.refreshDesigner();
-                                    process(originalPrompt, "Step applied, continuing loop.");
-                                } else {
-                                    fragment.addSystemMessage("Error applying patch: " + result.optString("message"));
-                                }
-                            });
-                        });
-                    })
-                    .setNegativeButton("Abort Mission", (dialog, which) -> {
-                        refinedGoal = null;
-                        originalPrompt = null;
-                        fragment.addSystemMessage("Mission aborted.");
-                    })
-                    .show();
+        // Validate command
+        if (!VALID_COMMANDS.contains(command)) {
+            stepHistory.add("FAILED: invalid command '" + command + "' — must be one of " + VALID_COMMANDS);
+            fragment.addSystemMessage("Rejected patch: invalid command '" + command + "'.");
+            process(originalPrompt, "Invalid command used, retry with a valid one.");
+            return;
+        }
+
+        // Validate reference actually exists in the current source before bothering the user
+        jC.projectOperationsExecutor.execute(() -> {
+            String source = getGeneratedSource(javaName);
+            if (source == null || reference == null || reference.isEmpty() || !source.contains(reference)) {
+                stepHistory.add("FAILED: reference not found verbatim in " + javaName + ": \"" + reference + "\" (do not reuse this exact reference)");
+                fragment.getActivity().runOnUiThread(() -> {
+                    fragment.addSystemMessage("Rejected patch: reference string not found in " + javaName + ". Re-checking source...");
+                    process(originalPrompt, "Reference not found, use SEARCH_METHOD or GET_PATCH_META to get an exact reference before patching.");
+                });
+                return;
+            }
+            fragment.getActivity().runOnUiThread(() -> showPatchConfirmDialog(action, javaName, reference));
         });
+    }
+
+    private void showPatchConfirmDialog(JSONObject action, String javaName, String reference) {
+        Context context = getContext();
+        if (context == null) return;
+        activePatchDialog = new MaterialAlertDialogBuilder(context)
+                .setTitle("Confirm Code Patch")
+                .setMessage("Mission: " + refinedGoal + "\n\nFile: " + javaName + "\nRef: " + reference + "\nCmd: " + action.optString("command") + "\n\nApply this step?")
+                .setCancelable(false)
+                .setPositiveButton("Apply", (dialog, which) -> {
+                    if (refinedGoal == null) {
+                        fragment.addSystemMessage("Skipped stale patch — mission already completed.");
+                        return;
+                    }
+                    jC.projectOperationsExecutor.execute(() -> {
+                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+                        JSONObject result = SourceCodeAide.addJavaCommandToManager(
+                                context, scId, javaName, reference,
+                                action.optInt("distance"), action.optInt("front"), action.optInt("back"),
+                                action.optString("command"), action.optString("inputCode")
+                        );
+                        fragment.getActivity().runOnUiThread(() -> {
+                            if ("success".equals(result.optString("status"))) {
+                                stepHistory.add("Applied " + action.optString("command") + " on " + javaName + " near: " + reference);
+                                fragment.addSystemMessage("Patch applied to Java Command Manager. Refreshing viewer...");
+                                fragment.refreshDesigner();
+                                if (refinedGoal != null) process(originalPrompt, "Step applied, continuing loop.");
+                            } else {
+                                stepHistory.add("FAILED: " + action.optString("command") + " on " + javaName + " near: " + reference + " — " + result.optString("message"));
+                                fragment.addSystemMessage("Error applying patch: " + result.optString("message"));
+                                if (refinedGoal != null) process(originalPrompt, "Patch failed, retrying with different approach.");
+                            }
+                        });
+                    });
+                })
+                .setNegativeButton("Abort Mission", (dialog, which) -> {
+                    refinedGoal = null;
+                    originalPrompt = null;
+                    stepHistory.clear();
+                    iterationCount = 0;
+                    fragment.addSystemMessage("Mission aborted.");
+                })
+                .show();
     }
 
     private String getGeneratedSource(String javaName) {

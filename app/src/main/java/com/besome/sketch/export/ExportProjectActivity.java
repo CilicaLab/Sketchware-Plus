@@ -54,6 +54,7 @@ import mod.jbk.build.BuiltInLibraries;
 import mod.jbk.build.compiler.bundle.AppBundleCompiler;
 import mod.jbk.export.GetKeyStoreCredentialsDialog;
 import mod.jbk.util.TestkeySignBridge;
+import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
 import sketchware.plus.R;
 import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.FileUtil;
@@ -225,6 +226,28 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
             }
             if (pathNativeLibraries.exists()) {
                 FileUtil.copyDirectory(pathNativeLibraries, new File(project_metadata.generatedFilesPath, "jniLibs"));
+            }
+
+            /* Merge local libraries */
+            ManageLocalLibrary mll = new ManageLocalLibrary(sc_id);
+            File libsDir = new File(project_metadata.projectMyscPath + "app" + File.separator + "libs");
+            libsDir.mkdirs();
+
+            for (File jar : mll.getLocalLibraryJars()) {
+                FileUtil.copyFile(jar.getAbsolutePath(), new File(libsDir, jar.getName()).getAbsolutePath());
+            }
+            for (String res : mll.getResLocalLibrary()) {
+                FileUtil.copyDirectory(new File(res), new File(project_metadata.resDirectoryPath));
+            }
+            for (String assets : mll.getAssets()) {
+                FileUtil.copyDirectory(new File(assets), new File(project_metadata.assetsPath));
+            }
+            for (String jni : mll.getNativeLibs()) {
+                FileUtil.copyDirectory(new File(jni), new File(project_metadata.generatedFilesPath, "jniLibs"));
+            }
+
+            if (!FileUtil.isExistFile(project_metadata.proguardFilePath)) {
+                FileUtil.writeFile(project_metadata.proguardFilePath, "");
             }
 
             ArrayList<String> toCompress = new ArrayList<>();

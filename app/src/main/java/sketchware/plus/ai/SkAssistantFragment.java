@@ -78,6 +78,7 @@ import sketchware.plus.utility.AttributeConstants;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
 import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
+import sketchware.plus.lib.iconcreator.PatternBackgroundView;
 import sketchware.plus.managers.inject.InjectRootLayoutManager;
 import java.io.File;
 import androidx.compose.ui.platform.ComposeView;
@@ -192,6 +193,14 @@ public class SkAssistantFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.sk_assistant_panel, container, false);
+
+        PatternBackgroundView patternBg = view.findViewById(R.id.pattern_bg);
+        if (patternBg != null) {
+            patternBg.setPattern(patternBg.convertVectorToBitmap(getContext(), R.drawable.ic_dot_pattern, 30, 30));
+            int dotColor = MaterialColors.getColor(view, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
+            patternBg.setColor(dotColor);
+            patternBg.setOpacity(40); // Back to subtle since we have better contrast now
+        }
 
         View rootLayout = view.findViewById(R.id.root_layout);
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
@@ -410,7 +419,7 @@ public class SkAssistantFragment extends Fragment {
         return false;
     }
 
-    private void cancelCurrentRequest() {
+    public void cancelCurrentRequest() {
         isRequestCanceled = true;
         AiClient.cancelCurrentRequest();
         setStatus(null);
@@ -421,6 +430,16 @@ public class SkAssistantFragment extends Fragment {
         messages.add(new Message("system", "Request cancelled by user."));
         adapter.notifyItemInserted(messages.size() - 1);
         recyclerView.scrollToPosition(messages.size() - 1);
+    }
+
+    public void cancelSKRequests() {
+        Context context = getContext();
+        if (context == null) return;
+        btnSend.setIconResource(R.drawable.paper_plane_48);
+        btnSend.setBackgroundTintList(ColorStateList.valueOf(
+                ContextCompat.getColor(context, R.color.color_primary)));
+        btnSend.setIconTintResource(android.R.color.white);
+
     }
 
 
@@ -642,6 +661,57 @@ public class SkAssistantFragment extends Fragment {
                 adapter.notifyItemInserted(messages.size() - 1);
                 recyclerView.scrollToPosition(messages.size() - 1);
                 saveHistory();
+                cancelSKRequests();
+
+                // Auto-dispatch for autonomous specialists (like CodeSpecialist)
+                if ("CODE_EDIT".equals(actualCategory) && json.has("actions")) {
+                    JSONArray actions = json.optJSONArray("actions");
+                    if (actions != null && actions.length() > 0) {
+                        boolean hasOnlyAutonomousActions = true;
+                        for (int i = 0; i < actions.length(); i++) {
+                            JSONObject action = actions.optJSONObject(i);
+                            if (action != null) {
+                                String type = normalizeActionType(action.optString("type"));
+                                if ("ADD_JAVA_COMMAND".equals(type) || "ADD_BLOCK".equals(type) || "ADD_IMPORT".equals(type)) {
+                                    hasOnlyAutonomousActions = false;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hasOnlyAutonomousActions) {
+                            dispatchJsonActions(json, actualCategory);
+                            msg.wasApplied = true;
+                        }
+                    }
+                }
+
+                // Auto-dispatch for autonomous specialists (like CodeSpecialist)
+                if ("CODE_EDIT".equals(actualCategory) && json.has("actions")) {
+                    JSONArray actions = json.optJSONArray("actions");
+                    if (actions != null && actions.length() > 0) {
+                        boolean hasOnlyAutonomousActions = true;
+                        for (int i = 0; i < actions.length(); i++) {
+                            JSONObject action = actions.optJSONObject(i);
+                            if (action != null) {
+                                String type = action.optString("type", "").toUpperCase().replace("-", "_");
+                                // ADD_JAVA_COMMAND is a "real" action that might need confirmation, 
+                                // but CodeSpecialist is currently designed to be autonomous.
+                                // If we want to allow user to review, we should NOT auto-dispatch ADD_JAVA_COMMAND.
+                                // However, MISSION_COMPLETE, SEARCH_METHOD, etc. should definitely be auto-dispatched.
+                                if ("ADD_JAVA_COMMAND".equals(type) || "ADD_BLOCK".equals(type) || "ADD_IMPORT".equals(type)) {
+                                    hasOnlyAutonomousActions = false;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hasOnlyAutonomousActions) {
+                            dispatchJsonActions(json, actualCategory);
+                            msg.wasApplied = true;
+                        }
+                    }
+                }
 
                 retryCount = 0; // reset retry counter on success
             } catch (Exception e) {
@@ -1001,6 +1071,142 @@ public class SkAssistantFragment extends Fragment {
         } catch (Exception ignored) {}
     }
 
+    public String normalizeActionType(String type) {
+        if (type == null) return "";
+        String value = type.trim();
+        if (value.isEmpty()) return "";
+        value = value.replace('-', '_').replace(' ', '_');
+        return value.toUpperCase(Locale.US);
+    }
+
+    public void dispatchJsonActions(JSONObject data, String category) {
+        JSONArray actions = data.optJSONArray("actions");
+        if (actions == null) return;
+
+        log("Dispatching AI Actions: " + actions.toString());
+        try {
+            // Snapshot before applying any changes
+            undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+
+            for (int i = 0; i < actions.length(); i++) {
+                JSONObject action = actions.getJSONObject(i);
+                if (action == null) continue;
+
+                switch (category) {
+                    case "LAYOUT_EDIT":
+                        layoutSpecialist.handleAction(action);
+                        break;
+                    case "COMPONENT_EDIT":
+                        componentSpecialist.handleAction(action);
+                        break;
+                    case "CODE_EDIT":
+                        codeSpecialist.handleAction(action);
+                        break;
+                    case "LIBRARY_EDIT":
+                        librarySpecialist.handleAction(action);
+                        break;
+                    case "MANIFEST_EDIT":
+                        manifestSpecialist.handleAction(action);
+                        break;
+                    default:
+                        chatSpecialist.handleAction(action);
+                        break;
+                }
+            }
+        } catch (Exception e) {
+            SketchwareUtil.toastError("Action dispatch failed: " + e.getMessage());
+            if (getView() != null) {
+                Snackbar.make(getView(), "Action dispatch failed: " + e.getMessage(), Snackbar.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    public void handleModifyAction(String value) {
+        // value: id=btn, field=text, value=Hello
+        String[] parts = value.split(",");
+        String id = "", field = "", val = "";
+        for (String p : parts) {
+            String[] pair = p.split("=");
+            if (pair.length == 2) {
+                String k = pair[0].trim();
+                String v = pair[1].trim();
+                switch (k) {
+                    case "id" -> id = v;
+                    case "field" -> field = v;
+                    case "value" -> val = v;
+                }
+            }
+        }
+        layoutSpecialist.applyModifyView(id, field, val, true);
+    }
+
+    public void handleMoveAction(String value) {
+        // value: id=btn, newParent=root, newIndex=0
+        String[] parts = value.split(",");
+        String id = "", newParent = "root";
+        int newIndex = -1;
+        for (String p : parts) {
+            String[] pair = p.split("=");
+            if (pair.length == 2) {
+                String k = pair[0].trim();
+                String v = pair[1].trim();
+                switch (k) {
+                    case "id" -> id = v;
+                    case "newParent" -> newParent = v;
+                    case "newIndex" -> {
+                        try { newIndex = Integer.parseInt(v); } catch (Exception ignored) {}
+                    }
+                }
+            }
+        }
+        layoutSpecialist.applyMoveView(id, newParent, newIndex, true);
+    }
+
+    public void handleAddAction(String value) {
+        // type=Button, parent=root, index=0, id=btn, attributes={text=Hello}
+        String[] parts = value.split(",");
+        String type = "", parent = "root", id = "";
+        int index = -1;
+        Map<String, String> attrs = new HashMap<>();
+
+        for (String p : parts) {
+            String[] pair = p.split("=");
+            if (pair.length == 2) {
+                String k = pair[0].trim();
+                String v = pair[1].trim();
+                if ("type".equals(k)) type = v;
+                else if ("parent".equals(k)) parent = v;
+                else if ("id".equals(k)) id = v;
+                else if ("index".equals(k)) {
+                    try { index = Integer.parseInt(v); } catch (Exception ignored) {}
+                }
+                else if ("attributes".equals(k)) {
+                    // attributes={a=b;c=d}
+                    String attrStr = v.substring(1, v.length() - 1);
+                    String[] pairs = attrStr.split(";");
+                    for (String ap : pairs) {
+                        String[] apair = ap.split(":");
+                        if (apair.length == 2) attrs.put(apair[0].trim(), apair[1].trim());
+                    }
+                }
+            }
+        }
+        layoutSpecialist.applyAddView(type, parent, index, id, attrs, true);
+    }
+
+    public void showBlockSelector(List<String> blocks, String targetXmlName) {
+        String[] items = new String[blocks.size()];
+        for (int i = 0; i < blocks.size(); i++) {
+            String firstLine = blocks.get(i).split("\n")[0];
+            items[i] = "Block " + (i + 1) + ": " + (firstLine.length() > 30 ? firstLine.substring(0, 30) : firstLine);
+        }
+
+        new MaterialAlertDialogBuilder(getContext())
+                .setTitle("Select XML Block")
+                .setItems(items, (d, which) -> layoutSpecialist.applyXml(blocks.get(which), targetXmlName))
+                .show();
+    }
+
 
     private void loadHistory() {
         if (FileUtil.isExistFile(historyPath)) {
@@ -1222,8 +1428,8 @@ public class SkAssistantFragment extends Fragment {
                             for (int i = 0; i < jsonActions.length(); i++) {
                                 JSONObject action = jsonActions.optJSONObject(i);
                                 if (action != null) {
-                                    String actionType = normalizeActionType(action.optString("type"));
-                                    if (!"CHAT_MSG".equals(actionType)) {
+                                    String actionType = fragment.normalizeActionType(action.optString("type"));
+                                    if (!"CHAT_MSG".equals(actionType) && !"MISSION_COMPLETE".equals(actionType)) {
                                         hasRealActions = true;
                                         break;
                                     }
@@ -1245,7 +1451,7 @@ public class SkAssistantFragment extends Fragment {
                             msgHolder.btnApply.setText(btnText);
                             msgHolder.btnApply.setOnClickListener(v -> {
                                 HapticManager.vibrateRun(v);
-                                dispatchJsonActions(msg.jsonData, msg.category);
+                                fragment.dispatchJsonActions(msg.jsonData, msg.category);
                                 msg.wasApplied = true;
                                 notifyItemChanged(position);
                             });
@@ -1259,7 +1465,7 @@ public class SkAssistantFragment extends Fragment {
                             if (msg.xmlBlocks.size() == 1) {
                                 fragment.layoutSpecialist.applyXml(msg.xmlBlocks.get(0), msg.targetXmlName);
                             } else {
-                                showBlockSelector(msg.xmlBlocks, msg.targetXmlName);
+                                fragment.showBlockSelector(msg.xmlBlocks, msg.targetXmlName);
                             }
                         });
                     } else if (!msg.actions.isEmpty() && !msg.wasApplied) {
@@ -1280,9 +1486,9 @@ public class SkAssistantFragment extends Fragment {
                                 case "PERMISSION": fragment.manifestSpecialist.applyPermission(action.value); break;
                                 case "MANIFEST_ATTR": fragment.manifestSpecialist.applyManifestInjection("ATTR", action.value); break;
                                 case "MANIFEST_COMPONENT": fragment.manifestSpecialist.applyManifestInjection("COMPONENT", action.value); break;
-                                case "MODIFY_VIEW": handleModifyAction(action.value); break;
-                                case "MOVE_VIEW": handleMoveAction(action.value); break;
-                                case "ADD_VIEW": handleAddAction(action.value); break;
+                                case "MODIFY_VIEW": fragment.handleModifyAction(action.value); break;
+                                case "MOVE_VIEW": fragment.handleMoveAction(action.value); break;
+                                case "ADD_VIEW": fragment.handleAddAction(action.value); break;
                                 case "DELETE_VIEW": fragment.layoutSpecialist.applyDeleteView(action.value, true); break;
                             }
                         });
@@ -1293,142 +1499,6 @@ public class SkAssistantFragment extends Fragment {
                     msgHolder.actionContainer.setVisibility(View.VISIBLE);
                 }
             }
-        }
-
-        private String normalizeActionType(String type) {
-            if (type == null) return "";
-            String value = type.trim();
-            if (value.isEmpty()) return "";
-            value = value.replace('-', '_').replace(' ', '_');
-            return value.toUpperCase(Locale.US);
-        }
-
-        private void dispatchJsonActions(JSONObject data, String category) {
-            JSONArray actions = data.optJSONArray("actions");
-            if (actions == null) return;
-
-            fragment.log("Dispatching AI Actions: " + actions.toString());
-            try {
-                // Snapshot before applying any changes
-                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile.getXmlName());
-
-                for (int i = 0; i < actions.length(); i++) {
-                    JSONObject action = actions.getJSONObject(i);
-                    if (action == null) continue;
-                    
-                    switch (category) {
-                        case "LAYOUT_EDIT":
-                            fragment.layoutSpecialist.handleAction(action);
-                            break;
-                        case "COMPONENT_EDIT":
-                            fragment.componentSpecialist.handleAction(action);
-                            break;
-                        case "CODE_EDIT":
-                            fragment.codeSpecialist.handleAction(action);
-                            break;
-                        case "LIBRARY_EDIT":
-                            fragment.librarySpecialist.handleAction(action);
-                            break;
-                        case "MANIFEST_EDIT":
-                            fragment.manifestSpecialist.handleAction(action);
-                            break;
-                        default:
-                            fragment.chatSpecialist.handleAction(action);
-                            break;
-                    }
-                }
-            } catch (Exception e) {
-                SketchwareUtil.toastError("Action dispatch failed: " + e.getMessage());
-                if (fragment.getView() != null) {
-                    Snackbar.make(fragment.getView(), "Action dispatch failed: " + e.getMessage(), Snackbar.LENGTH_LONG).show();
-                }
-            }
-        }
-
-        private void handleModifyAction(String value) {
-            // value: id=btn, field=text, value=Hello
-            String[] parts = value.split(",");
-            String id = "", field = "", val = "";
-            for (String p : parts) {
-                String[] pair = p.split("=");
-                if (pair.length == 2) {
-                    String k = pair[0].trim();
-                    String v = pair[1].trim();
-                    switch (k) {
-                        case "id" -> id = v;
-                        case "field" -> field = v;
-                        case "value" -> val = v;
-                    }
-                }
-            }
-            fragment.layoutSpecialist.applyModifyView(id, field, val, true);
-        }
-
-        private void handleMoveAction(String value) {
-            // value: id=btn, newParent=root, newIndex=0
-            String[] parts = value.split(",");
-            String id = "", newParent = "root";
-            int newIndex = -1;
-            for (String p : parts) {
-                String[] pair = p.split("=");
-                if (pair.length == 2) {
-                    String k = pair[0].trim();
-                    String v = pair[1].trim();
-                    switch (k) {
-                        case "id" -> id = v;
-                        case "newParent" -> newParent = v;
-                        case "newIndex" -> {
-                            try { newIndex = Integer.parseInt(v); } catch (Exception ignored) {}
-                        }
-                    }
-                }
-            }
-            fragment.layoutSpecialist.applyMoveView(id, newParent, newIndex, true);
-        }
-
-        private void handleAddAction(String value) {
-            // type=Button, parent=root, index=0, id=btn, attributes={text=Hello}
-            String[] parts = value.split(",");
-            String type = "", parent = "root", id = "";
-            int index = -1;
-            Map<String, String> attrs = new HashMap<>();
-
-            for (String p : parts) {
-                String[] pair = p.split("=");
-                if (pair.length == 2) {
-                    String k = pair[0].trim();
-                    String v = pair[1].trim();
-                    if ("type".equals(k)) type = v;
-                    else if ("parent".equals(k)) parent = v;
-                    else if ("id".equals(k)) id = v;
-                    else if ("index".equals(k)) {
-                        try { index = Integer.parseInt(v); } catch (Exception ignored) {}
-                    }
-                    else if ("attributes".equals(k)) {
-                        // attributes={a=b;c=d}
-                        String attrStr = v.substring(1, v.length() - 1);
-                        String[] pairs = attrStr.split(";");
-                        for (String ap : pairs) {
-                            String[] apair = ap.split(":");
-                            if (apair.length == 2) attrs.put(apair[0].trim(), apair[1].trim());
-                        }
-                    }
-                }
-            }
-            fragment.layoutSpecialist.applyAddView(type, parent, index, id, attrs, true);
-        }
-
-        private void showBlockSelector(List<String> blocks, String targetXmlName) {
-            String[] items = new String[blocks.size()];
-            for (int i = 0; i < blocks.size(); i++) {
-                String firstLine = blocks.get(i).split("\n")[0];
-                items[i] = "Block " + (i + 1) + ": " + (firstLine.length() > 30 ? firstLine.substring(0, 30) : firstLine);
-            }
-
-            new MaterialAlertDialogBuilder(fragment.getContext())
-                    .setTitle("Select XML Block")
-                    .setItems(items, (d, which) -> fragment.layoutSpecialist.applyXml(blocks.get(which), targetXmlName))
-                    .show();
         }
 
         @Override

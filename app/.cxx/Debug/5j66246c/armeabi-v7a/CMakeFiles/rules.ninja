@@ -42,7 +42,7 @@ rule CUSTOM_COMMAND
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Users\Alfred\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe --regenerate-during-build -SC:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\src\main\cpp -BC:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\.cxx\Debug\5j66246c\armeabi-v7a
+  command = C:\Users\Alfred\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe --regenerate-during-build -SC:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\src\main\cpp -BC:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\.cxx\Debug\5j66246c\armeabi-v7a
   description = Re-running CMake...
   generator = 1
 

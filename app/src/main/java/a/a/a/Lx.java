@@ -84,7 +84,7 @@ public class Lx {
         content.append("}\r\n")
                 .append("\r\n")
                 .append("dependencies {\r\n")
-                .append("implementation fileTree(dir: 'libs', include: ['*.jar'])\r\n");
+                .append("implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])\r\n");
 
         List<BuiltInLibraries.BuiltInLibrary> excludedLibraries = ExcludeBuiltInLibrariesActivity.getExcludedLibraries(metadata.sc_id);
         if (isLibraryNotExcluded(BuiltInLibraries.ANDROIDX_APPCOMPAT, excludedLibraries) && metadata.g) {
@@ -156,11 +156,11 @@ public class Lx {
         }
 
         if (isLibraryNotExcluded(BuiltInLibraries.PLAY_SERVICES_AUTH, excludedLibraries) && extraMetadata.isFBGoogleUsed) {
-            content.append("implementation 'com.google.android.gms:play-services-auth:19.0.0'");
+            content.append("implementation 'com.google.android.gms:play-services-auth:19.0.0'\r\n");
         }
 
         if (isLibraryNotExcluded(BuiltInLibraries.FIREBASE_MESSAGING, excludedLibraries) && extraMetadata.isFCMUsed) {
-            content.append("implementation 'com.google.firebase:firebase-messaging'");
+            content.append("implementation 'com.google.firebase:firebase-messaging'\r\n");
         }
 
         String sc_id = metadata.sc_id;
