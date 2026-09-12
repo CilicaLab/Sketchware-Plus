@@ -1,0 +1,1 @@
+C:\Users\Alfred\AndroidStudioProjects\Sketchware-Plus-7.0.0\app\src\main\cpp\CMakeLists.txt

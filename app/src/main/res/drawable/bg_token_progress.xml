@@ -1,0 +1,25 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background Base -->
+    <item android:id="@android:id/background">
+        <shape>
+            <corners android:radius="14dp" />
+            <solid android:color="?attr/colorSurfaceContainer" />
+        </shape>
+    </item>
+
+    <!-- Crossed Pattern Vector -->
+    <item
+        android:id="@android:id/background"
+        android:drawable="@drawable/ic_token_background_pattern"
+        android:gravity="fill_horizontal" />
+
+    <!-- Progress (Solid Primary) -->
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape>
+                <corners android:radius="14dp" />
+                <solid android:color="?attr/colorPrimary" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

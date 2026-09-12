@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Crossed lines pattern -->
+    <path
+        android:pathData="M0,0 L16,16 M16,0 L0,16"
+        android:strokeColor="?attr/colorOnSurfaceVariant"
+        android:strokeWidth="1"
+        android:strokeAlpha="0.3" />
+</vector>

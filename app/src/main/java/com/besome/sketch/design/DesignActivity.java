@@ -1,0 +1,1828 @@
+package com.besome.sketch.design;
+
+import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.res.ColorStateList;
+import android.graphics.Typeface;
+import android.net.Uri;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.util.Pair;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.PopupMenu;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.Toolbar;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import androidx.core.view.GravityCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.widget.NestedScrollView;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.compose.ui.platform.ComposeView;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentPagerAdapter;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.ViewPager;
+
+import com.besome.sketch.adapters.JavaFileAdapter;
+import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.BlockBean;
+import com.besome.sketch.beans.ViewBean;
+import com.besome.sketch.common.SrcViewerActivity;
+import com.besome.sketch.editor.manage.ManageCollectionActivity;
+import com.besome.sketch.editor.manage.ViewSelectorActivity;
+import com.besome.sketch.editor.manage.font.ManageFontActivity;
+import com.besome.sketch.editor.manage.image.ManageImageActivity;
+import com.besome.sketch.editor.manage.library.ManageLibraryActivity;
+import com.besome.sketch.editor.manage.sound.ManageSoundActivity;
+import com.besome.sketch.editor.manage.view.ManageViewActivity;
+import com.besome.sketch.lib.base.BaseAppCompatActivity;
+import com.besome.sketch.lib.ui.CustomViewPager;
+import com.besome.sketch.lib.ui.LoadingDialog;
+import com.besome.sketch.tools.CompileLogActivity;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.tabs.TabLayout;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
+import com.topjohnwu.superuser.Shell;
+
+import android.widget.ScrollView;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.File;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import a.a.a.DB;
+import a.a.a.GB;
+import a.a.a.Ox;
+import a.a.a.ProjectBuilder;
+import a.a.a.ViewEditorFragment;
+import a.a.a.bB;
+import a.a.a.bC;
+import a.a.a.br;
+import a.a.a.cC;
+import a.a.a.eC;
+import a.a.a.hC;
+import a.a.a.iC;
+import a.a.a.jC;
+import a.a.a.kC;
+import a.a.a.lC;
+import a.a.a.mB;
+import a.a.a.rs;
+import a.a.a.wB;
+import a.a.a.wq;
+import a.a.a.yB;
+import a.a.a.yq;
+import a.a.a.zy;
+import dev.chrisbanes.insetter.Insetter;
+import sketchware.plus.ai.SkAssistantFragment;
+import sketchware.plus.utility.ActivityTracker;
+import sketchware.plus.utility.BuildStatsManager;
+import sketchware.plus.utility.HapticManager;
+import sketchware.plus.utility.FirebaseUtil;
+import mod.agus.jcoderz.editor.manage.permission.ManagePermissionActivity;
+import mod.agus.jcoderz.editor.manage.resource.ManageResourceActivity;
+import mod.hey.studios.activity.managers.assets.ManageAssetsActivity;
+import mod.hey.studios.activity.managers.java.ManageJavaActivity;
+import mod.hey.studios.compiler.kotlin.KotlinCompilerBridge;
+import mod.hey.studios.project.custom_blocks.CustomBlocksDialog;
+import mod.hey.studios.project.proguard.ManageProguardActivity;
+import mod.hey.studios.project.proguard.ProguardHandler;
+import mod.hey.studios.project.stringfog.ManageStringFogFragment;
+import mod.hey.studios.project.stringfog.StringfogHandler;
+import mod.hey.studios.util.Helper;
+import mod.hey.studios.util.SystemLogPrinter;
+import sketchware.plus.activities.main.fragments.explore.views.ProfilerUIHelper;
+import mod.hilal.saif.activities.android_manifest.AndroidManifestInjection;
+import mod.hilal.saif.activities.tools.ConfigActivity;
+import mod.jbk.build.BuildProgressReceiver;
+import mod.jbk.build.BuiltInLibraries;
+import mod.jbk.diagnostic.CompileErrorSaver;
+import mod.jbk.diagnostic.MissingFileException;
+import mod.jbk.util.LogUtil;
+import mod.khaled.logcat.LogReaderActivity;
+import sketchware.plus.R;
+import sketchware.plus.activities.appcompat.ManageAppCompatActivity;
+import sketchware.plus.activities.editor.command.ManageXMLCommandActivity;
+import sketchware.plus.activities.editor.command.ManageJavaCommandActivity;
+import sketchware.plus.activities.editor.view.CodeViewerActivity;
+import sketchware.plus.activities.editor.view.ViewCodeEditorActivity;
+import sketchware.plus.activities.resourceseditor.ResourcesEditorActivity;
+import sketchware.plus.ai.AiClient;
+import sketchware.plus.dialogs.BuildSettingsBottomSheet;
+import sketchware.plus.utility.FileUtil;
+import sketchware.plus.utility.SketchwareUtil;
+import sketchware.plus.utility.ThemeUtils;
+import sketchware.plus.utility.apk.ApkSignatures;
+
+public class DesignActivity extends BaseAppCompatActivity implements View.OnClickListener {
+    public static String sc_id;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private FirebaseCrashlytics crashlytics;
+    private ImageView xmlLayoutOrientation;
+    private boolean B;
+    private int currentTabNumber;
+    private CustomViewPager viewPager;
+    private CoordinatorLayout coordinatorLayout;
+    private DrawerLayout drawer;
+    private yq q;
+    private DB r;
+    private DB t;
+    private Menu bottomMenu;
+    private PopupMenu bottomPopupMenu;
+    private MaterialButton btnRun;
+    private MaterialButton btnOptions;
+    private ProjectFileBean projectFile;
+    private TextView fileName;
+    private String currentJavaFileName;
+    private ViewEditorFragment viewTabAdapter;
+    private LinearLayout progressContainer;
+    private TextView progressText;
+    private LinearProgressIndicator progressBar;
+    private final ActivityResultLauncher<Intent> openCollectionManager = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK) {
+            if (viewTabAdapter != null) {
+                viewTabAdapter.j();
+            }
+        }
+    });
+    private final ActivityResultLauncher<Intent> openResourcesManager = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK) {
+            if (viewTabAdapter != null && viewPager.getCurrentItem() == 0) {
+                viewTabAdapter.i();
+                refreshViewTabAdapter();
+            }
+        }
+    });
+    private final ActivityResultLauncher<Intent> openViewCodeEditor = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK) {
+            if (viewTabAdapter != null) {
+                viewTabAdapter.i();
+            }
+        }
+    });
+    private rs eventTabAdapter;
+    private br componentTabAdapter;
+    private SkAssistantFragment assistantFragment;
+    private LoadingDialog loadingDialog;
+    private final ActivityResultLauncher<Intent> openImageManager = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK) {
+            refresh();
+        }
+    });
+    public final ActivityResultLauncher<Intent> changeOpenFile = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == Activity.RESULT_OK) {
+            assert result.getData() != null;
+            projectFile = result.getData().getParcelableExtra("project_file");
+            refresh();
+        }
+    });
+    private final ActivityResultLauncher<Intent> openLibraryManager = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK) {
+            refresh();
+            if (viewTabAdapter != null) {
+                viewTabAdapter.n();
+            }
+        }
+    });
+    private final ActivityResultLauncher<Intent> openViewManager = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK) {
+            refresh();
+        }
+    });
+    private BuildTask currentBuildTask;
+    private BuildService buildService;
+    private boolean isServiceBound = false;
+
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            BuildService.LocalBinder binder = (BuildService.LocalBinder) service;
+            buildService = binder.getService();
+            isServiceBound = true;
+            
+            if (currentBuildTask != null) {
+                currentBuildTask.onServiceConnected(buildService);
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            buildService = null;
+            isServiceBound = false;
+        }
+    };
+    private final BroadcastReceiver buildCancelReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (BuildService.ACTION_CANCEL_BUILD.equals(intent.getAction())) {
+                if (currentBuildTask != null) {
+                    currentBuildTask.cancelBuild();
+                }
+            }
+        }
+    };
+
+    /**
+     * Saves the app's version information to the currently opened Sketchware project file.
+     */
+    private void showLoadingDialog() {
+        if (loadingDialog == null) {
+            loadingDialog = new LoadingDialog(this);
+        }
+        if (!loadingDialog.isShowing()) {
+            loadingDialog.show();
+        }
+    }
+
+    private void hideLoadingDialog() {
+        if (loadingDialog != null && loadingDialog.isShowing()) {
+            loadingDialog.dismiss();
+        }
+    }
+
+    private void saveVersionCodeInformationToProject() {
+        HashMap<String, Object> projectMetadata = lC.b(sc_id);
+        if (projectMetadata != null) {
+            projectMetadata.put("sketchware_ver", GB.d(getApplicationContext()));
+            lC.b(sc_id, projectMetadata);
+        }
+    }
+
+
+
+    private ProjectFileBean getDefaultProjectFile() {
+        return jC.b(sc_id).b(ProjectFileBean.DEFAULT_XML_NAME);
+    }
+
+    private void refreshFileSelector() {
+        if (projectFile == null) {
+            projectFile = getDefaultProjectFile();
+        }
+
+        String javaFileName = projectFile.getJavaName();
+        String xmlFileName = projectFile.getXmlName();
+
+        if (!javaFileName.isEmpty()) {
+            currentJavaFileName = javaFileName;
+        }
+
+        if (viewPager.getCurrentItem() == 0) {
+            if (!ProjectFileBean.DEFAULT_XML_NAME.equals(xmlFileName) && jC.b(sc_id).b(xmlFileName) == null) {
+                projectFile = getDefaultProjectFile();
+                xmlFileName = ProjectFileBean.DEFAULT_XML_NAME;
+            }
+            fileName.setText(xmlFileName);
+        } else {
+            if (!ProjectFileBean.DEFAULT_JAVA_NAME.equals(currentJavaFileName) && jC.b(sc_id).a(currentJavaFileName) == null) {
+                projectFile = getDefaultProjectFile();
+                currentJavaFileName = ProjectFileBean.DEFAULT_JAVA_NAME;
+            }
+            fileName.setText(currentJavaFileName);
+        }
+    }
+
+    public void refreshViewTabAdapter() {
+        if (viewTabAdapter != null && projectFile != null) {
+            int orientation = projectFile.orientation;
+            if (orientation == ProjectFileBean.ORIENTATION_PORTRAIT) {
+                xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_portrait_grey600_24dp);
+            } else if (orientation == ProjectFileBean.ORIENTATION_LANDSCAPE) {
+                xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_landscape_grey600_24dp);
+            } else {
+                xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_rotation_grey600_24dp);
+            }
+            viewTabAdapter.initialize(projectFile);
+        }
+    }
+
+    private void refreshEventTabAdapter() {
+        if (eventTabAdapter != null && projectFile != null) {
+            eventTabAdapter.setCurrentActivity(projectFile);
+            eventTabAdapter.refreshEvents();
+        }
+    }
+
+    private void refreshComponentTabAdapter() {
+        if (componentTabAdapter != null && projectFile != null) {
+            componentTabAdapter.setProjectFile(projectFile);
+            componentTabAdapter.refreshData();
+        }
+    }
+
+    private void refreshSkAssistant() {
+        if (assistantFragment != null && projectFile != null) {
+            assistantFragment.setProjectFile(projectFile);
+        }
+    }
+
+    public void refresh() {
+        refreshFileSelector();
+        if (viewPager.getCurrentItem() == 0) {
+            refreshViewTabAdapter();
+        } else if (viewPager.getCurrentItem() == 1) {
+            refreshEventTabAdapter();
+        } else if (viewPager.getCurrentItem() == 2) {
+            refreshComponentTabAdapter();
+        } else {
+            refreshSkAssistant();
+        }
+    }
+
+    public void setTouchEventEnabled(boolean touchEventEnabled) {
+        if (touchEventEnabled) {
+            viewPager.enableTouchEvent();
+        } else {
+            viewPager.disableTouchEvent();
+        }
+    }
+
+    /**
+     * Shows a Snackbar indicating that a problem occurred while compiling. The user can click on "SHOW" to get to {@link CompileLogActivity}.
+     *
+     * @param error The error, to be later displayed as text in {@link CompileLogActivity}
+     */
+    private void indicateCompileErrorOccurred(String error) {
+        new CompileErrorSaver(sc_id).writeLogsToFile(error);
+        Snackbar snackbar = Snackbar.make(coordinatorLayout, "Show compile log", Snackbar.LENGTH_INDEFINITE);
+        snackbar.setAction(Helper.getResString(R.string.common_word_show), v -> {
+            if (!mB.a()) {
+                snackbar.dismiss();
+                Intent intent = new Intent(getApplicationContext(), CompileLogActivity.class);
+                intent.putExtra("error", error);
+                intent.putExtra("sc_id", sc_id);
+                intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(intent);
+            }
+        });
+        snackbar.show();
+    }
+
+    @Override
+    public void finish() {
+        jC.a();
+        cC.a();
+        bC.a();
+        setResult(RESULT_CANCELED, getIntent());
+        super.finish();
+    }
+
+    private void checkForUnsavedProjectData() {
+        boolean hasUnsavedData;
+        synchronized (jC.c(sc_id)) {
+            hasUnsavedData = jC.c(sc_id).g();
+        }
+        if (!hasUnsavedData) {
+            synchronized (jC.b(sc_id)) {
+                hasUnsavedData = jC.b(sc_id).g();
+            }
+        }
+        if (!hasUnsavedData) {
+            synchronized (jC.d(sc_id)) {
+                hasUnsavedData = jC.d(sc_id).q();
+            }
+        }
+        if (!hasUnsavedData) {
+            synchronized (jC.a(sc_id)) {
+                hasUnsavedData = jC.a(sc_id).d() || jC.a(sc_id).c();
+            }
+        }
+
+        if (hasUnsavedData) {
+            askIfToRestoreOldUnsavedProjectData();
+        }
+    }
+
+    /**
+     * Opens the debug APK to install.
+     */
+    private void installBuiltApk() {
+        if (!ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_ROOT_AUTO_INSTALL_PROJECTS)) {
+            requestPackageInstallerInstall();
+        } else {
+            File apkUri = new File(q.finalToInstallApkPath);
+            long length = apkUri.length();
+            Shell.getShell(shell -> {
+                if (shell.isRoot()) {
+                    List<String> stdout = new LinkedList<>();
+                    List<String> stderr = new LinkedList<>();
+
+                    Shell.cmd("cat " + apkUri + " | pm install -S " + length).to(stdout, stderr).submit(result -> {
+                        if (result.isSuccess()) {
+                            SketchwareUtil.toast("Package installed successfully!");
+                            if (ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_ROOT_AUTO_OPEN_AFTER_INSTALLING)) {
+                                Intent launcher = getPackageManager().getLaunchIntentForPackage(q.packageName);
+                                if (launcher != null) {
+                                    startActivity(launcher);
+                                } else {
+                                    SketchwareUtil.toastError("Couldn't launch project, either not installed or not with launcher activity.");
+                                }
+                            }
+                        } else {
+                            String sharedErrorMessage = "Failed to install package, result code: " + result.getCode() + ". ";
+                            SketchwareUtil.toastError(sharedErrorMessage + "Logs are available in /Internal storage/.sketchware/debug.txt", Toast.LENGTH_LONG);
+                            LogUtil.e("DesignActivity", sharedErrorMessage + "stdout: " + stdout + ", stderr: " + stderr);
+                        }
+                    });
+                } else {
+                    SketchwareUtil.toastError("No root access granted. Continuing using default package install prompt.");
+                    requestPackageInstallerInstall();
+                }
+            });
+        }
+    }
+
+    private void requestPackageInstallerInstall() {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        Uri apkUri = FileProvider.getUriForFile(getApplicationContext(), getApplicationContext().getPackageName() + ".provider", new File(q.finalToInstallApkPath));
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+
+        startActivity(intent);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawer.isDrawerOpen(GravityCompat.END)) {
+            drawer.closeDrawer(GravityCompat.END);
+        } else if (viewTabAdapter != null && viewTabAdapter.isPropertyViewVisible()) {
+            hideViewPropertyView();
+        } else {
+            if (currentTabNumber > 0) {
+                currentTabNumber--;
+                viewPager.setCurrentItem(currentTabNumber);
+            } else if (t.c("P12I2")) {
+                saveChangesAndCloseProject();
+            } else {
+                showSaveBeforeQuittingDialog();
+            }
+        }
+    }
+
+    public void hideViewPropertyView() {
+        viewTabAdapter.a(false);
+    }
+
+    private void saveChangesAndCloseProject() {
+        SaveChangesProjectCloser saveChangesProjectCloser = new SaveChangesProjectCloser(this);
+        saveChangesProjectCloser.execute();
+    }
+
+    public ProjectFileBean getProjectFile() {
+        return projectFile;
+    }
+
+    private void saveProject() {
+        ActivityTracker.recordActivity(ActivityTracker.DEFAULT_FILE_PATH);
+        ProjectSaver projectSaver = new ProjectSaver(this);
+        projectSaver.execute();
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        if (FirebaseUtil.isFirebaseInitialized(this)) {
+            crashlytics = FirebaseCrashlytics.getInstance();
+        }
+        enableEdgeToEdgeNoContrast();
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.design);
+        if (!isStoragePermissionGranted()) {
+            finish();
+        }
+
+        if (savedInstanceState == null) {
+            sc_id = getIntent().getStringExtra("sc_id");
+        } else {
+            sc_id = savedInstanceState.getString("sc_id");
+        }
+
+        r = new DB(getApplicationContext(), "P1");
+        t = new DB(getApplicationContext(), "P12");
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setSubtitle(sc_id);
+        setSupportActionBar(toolbar);
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
+
+        drawer = findViewById(R.id.drawer_layout);
+        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+
+        Insetter.builder().margin(WindowInsetsCompat.Type.navigationBars()).applyToView(findViewById(R.id.container));
+
+        coordinatorLayout = findViewById(R.id.layout_coordinator);
+        fileName = findViewById(R.id.file_name);
+
+        progressContainer = findViewById(R.id.progress_container);
+        progressText = findViewById(R.id.progress_text);
+        progressBar = findViewById(R.id.progress);
+
+        findViewById(R.id.file_name_container).setOnClickListener(this);
+
+        btnRun = findViewById(R.id.btn_run);
+        btnRun.setOnClickListener(v -> {
+            if (currentBuildTask != null && !currentBuildTask.isBuildFinished) {
+                if (buildService != null && buildService.isStopping()) {
+                    SketchwareUtil.toast("Still stopping previous build...");
+                } else if (!currentBuildTask.isCanceled) {
+                    HapticManager.vibrateStop(v);
+                    currentBuildTask.cancelBuild();
+                } else {
+                    SketchwareUtil.toast("Still stopping previous build...");
+                }
+                return;
+            }
+
+            HapticManager.vibrateRun(v);
+            BuildTask buildTask = new BuildTask(this);
+            ActivityTracker.recordActivity(ActivityTracker.DEFAULT_FILE_PATH);
+            currentBuildTask = buildTask;
+            buildTask.execute();
+        });
+
+        btnOptions = findViewById(R.id.btn_options);
+        btnOptions.setOnClickListener(v -> bottomPopupMenu.show());
+
+        bottomPopupMenu = new PopupMenu(this, btnOptions);
+        bottomMenu = bottomPopupMenu.getMenu();
+        bottomMenu.add(Menu.NONE, 1, Menu.NONE, "Build Settings").setOnMenuItemClickListener(item -> {
+            BuildSettingsBottomSheet sheet = BuildSettingsBottomSheet.newInstance(sc_id);
+            sheet.show(getSupportFragmentManager(), BuildSettingsBottomSheet.TAG);
+            return true;
+        });
+        bottomMenu.add(Menu.NONE, 2, Menu.NONE, "Clean temporary files").setVisible(false).setOnMenuItemClickListener(item -> {
+            new Thread(() -> {
+                FileUtil.deleteFile(q.projectMyscPath);
+                updateBottomMenu();
+                runOnUiThread(() -> SketchwareUtil.toast("Done cleaning temporary files :)!"));
+            }).start();
+            return true;
+        });
+        bottomMenu.add(Menu.NONE, 3, Menu.NONE, "Show last compile error").setOnMenuItemClickListener(item -> {
+            new CompileErrorSaver(sc_id).showLastErrors(this);
+            return true;
+        });
+        bottomMenu.add(Menu.NONE, 5, Menu.NONE, "Show source code").setOnMenuItemClickListener(item -> {
+            showCurrentActivitySrcCode();
+            return true;
+        });
+        bottomMenu.add(Menu.NONE, 4, Menu.NONE, "Install last built APK").setVisible(false).setOnMenuItemClickListener(item -> {
+            if (FileUtil.isExistFile(q.finalToInstallApkPath)) {
+                installBuiltApk();
+            } else SketchwareUtil.toast("APK doesn't exist anymore");
+            return true;
+        });
+        bottomMenu.add(Menu.NONE, 6, Menu.NONE, "Show Apk signatures").setVisible(false).setOnMenuItemClickListener(item -> {
+            ApkSignatures apkSignatures = new ApkSignatures(this, q.finalToInstallApkPath);
+            apkSignatures.showSignaturesDialog();
+            return true;
+        });
+        bottomMenu.add(Menu.NONE, 7, Menu.NONE, "Direct XML editor").setOnMenuItemClickListener(item -> {
+            toViewCodeEditor();
+            return true;
+        });
+        bottomPopupMenu.setOnDismissListener(menu -> btnOptions.setChecked(false));
+
+        xmlLayoutOrientation = findViewById(R.id.img_orientation);
+        viewPager = findViewById(R.id.viewpager);
+        viewPager.setAdapter(new ViewPagerAdapter(getSupportFragmentManager()));
+        viewPager.setOffscreenPageLimit(3);
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+            }
+
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+                if (currentTabNumber == 1) {
+                    if (eventTabAdapter != null) {
+                        eventTabAdapter.c();
+                    }
+                } else if (currentTabNumber == 2 && componentTabAdapter != null) {
+                    componentTabAdapter.unselectAll();
+                }
+                if (position == 0) {
+                    findViewById(R.id.bottom_bar).setVisibility(View.VISIBLE);
+                    bottomMenu.findItem(7).setVisible(true);
+                    if (viewTabAdapter != null) {
+                        viewTabAdapter.showHidePropertyView(true);
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_screen);
+                    }
+                } else if (position == 1) {
+                    findViewById(R.id.bottom_bar).setVisibility(View.VISIBLE);
+                    bottomMenu.findItem(7).setVisible(false);
+                    if (viewTabAdapter != null) {
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
+                        viewTabAdapter.showHidePropertyView(false);
+                        if (eventTabAdapter != null) {
+                            eventTabAdapter.refreshEvents();
+                        }
+                    }
+                } else if (position == 2) {
+                    findViewById(R.id.bottom_bar).setVisibility(View.VISIBLE);
+                    bottomMenu.findItem(7).setVisible(false);
+                    if (viewTabAdapter != null) {
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
+                        viewTabAdapter.showHidePropertyView(false);
+                        if (componentTabAdapter != null) {
+                            componentTabAdapter.refreshData();
+                        }
+                    }
+                } else {
+                    findViewById(R.id.bottom_bar).setVisibility(View.GONE);
+                    findViewById(R.id.progress_container).setVisibility(View.GONE);
+                    bottomMenu.findItem(7).setVisible(false);
+                    if (viewTabAdapter != null) {
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
+                        viewTabAdapter.showHidePropertyView(false);
+                    }
+                }
+                refresh();
+                currentTabNumber = position;
+            }
+        });
+        viewPager.getAdapter().notifyDataSetChanged();
+        TabLayout tabLayout = findViewById(R.id.tab_layout);
+        tabLayout.setupWithViewPager(viewPager);
+
+        IntentFilter filter = new IntentFilter(BuildService.ACTION_CANCEL_BUILD);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(buildCancelReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(buildCancelReceiver, filter);
+        }
+    }
+
+    private boolean isDebugApkExists() {
+        if (q != null) {
+            return FileUtil.isExistFile(q.finalToInstallApkPath);
+        }
+        return false;
+    }
+
+    private void updateBottomMenu() {
+        if (bottomMenu != null) {
+            handler.post(() -> {
+                bottomMenu.findItem(2).setVisible(q != null && FileUtil.isExistFile(q.projectMyscPath));
+                var isDebugApkExists = isDebugApkExists();
+                bottomMenu.findItem(4).setVisible(isDebugApkExists);
+                bottomMenu.findItem(6).setVisible(isDebugApkExists);
+            });
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroy();
+        unregisterReceiver(buildCancelReceiver);
+        if (isServiceBound) {
+            if (buildService != null) {
+                buildService.setReceiver(null);
+                buildService.setResultListener(null);
+            }
+            unbindService(serviceConnection);
+            isServiceBound = false;
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.design_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int itemId = item.getItemId();
+        if (itemId == R.id.design_actionbar_titleopen_drawer) {
+            if (!drawer.isDrawerOpen(GravityCompat.END)) {
+                drawer.openDrawer(GravityCompat.END);
+            }
+        } else if (itemId == R.id.design_option_menu_title_save_project) {
+            HapticManager.vibrateSave(null);
+            saveProject();
+        } else if (itemId == R.id.menu_design_ast) {
+            showProjectBlocksInspector();
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+
+        HashMap<String, Object> projectInfo = lC.b(sc_id);
+        getSupportActionBar().setTitle(yB.c(projectInfo, "my_ws_name"));
+        q = new yq(getApplicationContext(), wq.d(sc_id), projectInfo);
+
+        try {
+            ProjectLoader projectLoader = new ProjectLoader(this, savedInstanceState);
+            projectLoader.execute();
+        } catch (Exception e) {
+            if (crashlytics != null) {
+                crashlytics.log("ProjectLoader failed");
+                crashlytics.recordException(e);
+            }
+        } finally {
+            SystemLogPrinter.stop();
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (!isStoragePermissionGranted()) {
+            finish();
+        }
+
+        long freeMegabytes = GB.c();
+        if (freeMegabytes < 100L && freeMegabytes > 0L) {
+            warnAboutInsufficientStorageSpace();
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putString("sc_id", sc_id);
+        super.onSaveInstanceState(outState);
+        if (!isStoragePermissionGranted()) {
+            finish();
+        }
+
+        if (!B) {
+            UnsavedChangesSaver unsavedChangesSaver = new UnsavedChangesSaver(this);
+            unsavedChangesSaver.execute();
+        }
+    }
+
+    @Override
+    public void onClick(View view) {
+        if (view.getId() == R.id.file_name_container) {
+            if (viewPager.getCurrentItem() == 0) {
+                showAvailableViews();
+            } else {
+                showAvailableJavaFiles();
+            }
+        }
+    }
+
+    /**
+     * Show a dialog asking about saving the project before quitting.
+     */
+    private void showSaveBeforeQuittingDialog() {
+        MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(this);
+        dialog.setTitle(Helper.getResString(R.string.design_quit_title_exit_projet));
+        dialog.setIcon(R.drawable.ic_mtrl_exit);
+        dialog.setMessage(Helper.getResString(R.string.design_quit_message_confirm_save));
+        dialog.setPositiveButton(Helper.getResString(R.string.design_quit_button_save_and_exit), (v, which) -> {
+            if (!mB.a()) {
+                v.dismiss();
+                try {
+                    saveChangesAndCloseProject();
+                } catch (Exception e) {
+                    if (crashlytics != null) {
+                        crashlytics.recordException(e);
+                    }
+                    h();
+                }
+            }
+        });
+        dialog.setNegativeButton(Helper.getResString(R.string.common_word_exit), (v, which) -> {
+            if (!mB.a()) {
+                v.dismiss();
+                try {
+                    DiscardChangesProjectCloser discardChangesProjectCloser = new DiscardChangesProjectCloser(this);
+                    discardChangesProjectCloser.execute();
+                } catch (Exception e) {
+                    if (crashlytics != null) {
+                        crashlytics.recordException(e);
+                    }
+                    h();
+                }
+            }
+        });
+        dialog.setNeutralButton(Helper.getResString(R.string.common_word_cancel), null);
+        dialog.show();
+    }
+
+    /**
+     * Show a dialog warning the user about low free space.
+     */
+    private void warnAboutInsufficientStorageSpace() {
+        MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(this);
+        dialog.setTitle(Helper.getResString(R.string.common_word_warning));
+        dialog.setIcon(R.drawable.break_warning_96_red);
+        dialog.setMessage(Helper.getResString(R.string.common_message_insufficient_storage_space));
+        dialog.setPositiveButton(Helper.getResString(R.string.common_word_ok), null);
+        dialog.show();
+    }
+
+    private void askIfToRestoreOldUnsavedProjectData() {
+        B = true;
+        MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(this);
+        dialog.setIcon(R.drawable.ic_mtrl_history);
+        dialog.setTitle(Helper.getResString(R.string.design_restore_data_title));
+        dialog.setMessage(Helper.getResString(R.string.design_restore_data_message_confirm));
+        dialog.setPositiveButton(Helper.getResString(R.string.common_word_restore), (v, which) -> {
+            if (!mB.a()) {
+                boolean g;
+                synchronized (jC.c(sc_id)) {
+                    g = jC.c(sc_id).g();
+                    if (g) {
+                        jC.c(sc_id).h();
+                    }
+                }
+                boolean g2;
+                synchronized (jC.b(sc_id)) {
+                    g2 = jC.b(sc_id).g();
+                    if (g2) {
+                        jC.b(sc_id).h();
+                    }
+                }
+                boolean q;
+                synchronized (jC.d(sc_id)) {
+                    q = jC.d(sc_id).q();
+                    if (q) {
+                        jC.d(sc_id).r();
+                    }
+                }
+                boolean d;
+                boolean c;
+                synchronized (jC.a(sc_id)) {
+                    d = jC.a(sc_id).d();
+                    c = jC.a(sc_id).c();
+                    if (d) {
+                        jC.a(sc_id).h();
+                    }
+                    if (c) {
+                        jC.a(sc_id).f();
+                    }
+                }
+                if (g) {
+                    synchronized (jC.b(sc_id)) {
+                        jC.b(sc_id).a(jC.c(sc_id));
+                    }
+                    synchronized (jC.a(sc_id)) {
+                        jC.a(sc_id).a(jC.c(sc_id).d());
+                    }
+                }
+                if (g2 || g) {
+                    synchronized (jC.a(sc_id)) {
+                        jC.a(sc_id).a(jC.b(sc_id));
+                    }
+                }
+                if (q) {
+                    synchronized (jC.a(sc_id)) {
+                        jC.a(sc_id).c(jC.d(sc_id));
+                        jC.a(sc_id).a(jC.d(sc_id));
+                    }
+                }
+                refresh();
+                B = false;
+                v.dismiss();
+            }
+        });
+        dialog.setNegativeButton(Helper.getResString(R.string.common_word_no), (v, which) -> {
+            B = false;
+            v.dismiss();
+        });
+        dialog.setCancelable(false);
+        dialog.show();
+    }
+
+    private void showCurrentActivitySrcCode() {
+        if (projectFile == null) return;
+        new Thread(() -> {
+            var filename = Helper.getText(fileName);
+            String code;
+            synchronized (jC.a(sc_id)) {
+                synchronized (jC.b(sc_id)) {
+                    synchronized (jC.c(sc_id)) {
+                        code = new yq(getApplicationContext(), sc_id).getFileSrc(filename, jC.b(sc_id), jC.a(sc_id), jC.c(sc_id));
+                    }
+                }
+            }
+            runOnUiThread(() -> {
+                if (isFinishing()) return;
+                if (code.isEmpty()) {
+                    SketchwareUtil.toast("Failed to generate source.");
+                    return;
+                }
+                var scheme = filename.endsWith(".xml") ? CodeViewerActivity.SCHEME_XML : CodeViewerActivity.SCHEME_JAVA;
+                launchActivity(CodeViewerActivity.class, null, new Pair<>("code", code), new Pair<>("sc_id", sc_id), new Pair<>("scheme", scheme));
+            });
+        }).start();
+    }
+
+    private void showAvailableJavaFiles() {
+        var dialog = new MaterialAlertDialogBuilder(this).create();
+        dialog.setTitle(R.string.design_file_selector_title_java);
+        dialog.setIcon(R.drawable.ic_mtrl_java);
+        View customView = wB.a(this, R.layout.file_selector_popup_select_java);
+        RecyclerView recyclerView = customView.findViewById(R.id.file_list);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext(), RecyclerView.VERTICAL, false));
+        var adapter = new JavaFileAdapter(sc_id);
+        adapter.setOnItemClickListener(projectFileBean -> {
+            projectFile = projectFileBean;
+            refreshFileSelector();
+            refreshEventTabAdapter();
+            refreshComponentTabAdapter();
+            dialog.dismiss();
+        });
+        recyclerView.setAdapter(adapter);
+        dialog.setView(customView);
+        dialog.show();
+    }
+
+    private void showAvailableViews() {
+        Intent intent = new Intent(getApplicationContext(), ViewSelectorActivity.class);
+        intent.putExtra("sc_id", sc_id);
+        intent.putExtra("current_xml", projectFile.getXmlName());
+        intent.putExtra("is_custom_view", projectFile.fileType == 1 || projectFile.fileType == 2);
+        changeOpenFile.launch(intent);
+    }
+
+    /**
+     * Opens {@link ViewCodeEditorActivity}.
+     */
+    void toViewCodeEditor() {
+        if (projectFile == null) return;
+        new Thread(() -> {
+            String filename = Helper.getText(fileName);
+            // var yq = new yq(getApplicationContext(), sc_id);
+            var xmlGenerator = new Ox(q.N, projectFile);
+            var projectDataManager = jC.a(sc_id);
+            ArrayList<ViewBean> viewBeans;
+            ViewBean viewFab;
+            synchronized (projectDataManager) {
+                viewBeans = projectDataManager.d(filename);
+                viewFab = projectDataManager.h(filename);
+            }
+            xmlGenerator.setExcludeAppCompat(true);
+            xmlGenerator.a(eC.a(viewBeans), viewFab);
+            String content = xmlGenerator.b();
+            runOnUiThread(() -> {
+                if (isFinishing()) return;
+                launchActivity(ViewCodeEditorActivity.class, openViewCodeEditor, new Pair<>("title", filename), new Pair<>("content", content));
+            });
+        }).start();
+    }
+
+    /**
+     * Opens {@link LogReaderActivity}.
+     */
+    void toLogReader() {
+        Intent intent = new Intent(getApplicationContext(), LogReaderActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.putExtra("sc_id", sc_id);
+        startActivity(intent);
+    }
+
+    /**
+     * Opens {@link ManageCollectionActivity}.
+     */
+    void toCollectionManager() {
+        launchActivity(ManageCollectionActivity.class, openCollectionManager);
+    }
+
+    /**
+     * Opens {@link AndroidManifestInjection}.
+     */
+    void toAndroidManifestManager() {
+        if (projectFile == null) return;
+        launchActivity(AndroidManifestInjection.class, null, new Pair<>("file_name", currentJavaFileName));
+    }
+
+    /**
+     * Opens {@link ManageAppCompatActivity}.
+     */
+    void toAppCompatInjectionManager() {
+        if (projectFile == null) return;
+        launchActivity(ManageAppCompatActivity.class, null, new Pair<>("file_name", projectFile.getXmlName()));
+    }
+
+    /**
+     * Opens {@link ManageAssetsActivity}.
+     */
+    void toAssetManager() {
+        launchActivity(ManageAssetsActivity.class, null);
+    }
+
+    /**
+     * Shows a {@link CustomBlocksDialog}.
+     */
+    void toCustomBlocksViewer() {
+        new CustomBlocksDialog().show(this, sc_id);
+    }
+
+    /**
+     * Opens {@link ManageJavaActivity}.
+     */
+    void toJavaManager() {
+        launchActivity(ManageJavaActivity.class, null, new Pair<>("pkgName", q.packageName));
+    }
+
+    /**
+     * Opens {@link ManagePermissionActivity}.
+     */
+    void toPermissionManager() {
+        launchActivity(ManagePermissionActivity.class, null);
+    }
+
+    /**
+     * Opens {@link ManageProguardActivity}.
+     */
+    void toProguardManager() {
+        launchActivity(ManageProguardActivity.class, null);
+    }
+
+    /**
+     * Opens {@link ManageResourceActivity}.
+     */
+    void toResourceManager() {
+        launchActivity(ManageResourceActivity.class, openResourcesManager);
+    }
+
+    /**
+     * Opens {@link ResourcesEditorActivity}.
+     */
+    void toResourceEditor() {
+        launchActivity(ResourcesEditorActivity.class, openResourcesManager);
+    }
+
+    /**
+     * Opens {@link ManageStringFogFragment}.
+     */
+    void toStringFogManager() {
+        var fragmentManager = getSupportFragmentManager();
+        if (fragmentManager.findFragmentByTag("stringFogFragment") == null) {
+            var bottomSheet = new ManageStringFogFragment();
+            bottomSheet.show(fragmentManager, "stringFogFragment");
+        }
+    }
+
+    /**
+     * Opens {@link ManageFontActivity}.
+     */
+    void toFontManager() {
+        launchActivity(ManageFontActivity.class, null);
+    }
+
+    /**
+     * Opens {@link ManageImageActivity}.
+     */
+    void toImageManager() {
+        launchActivity(ManageImageActivity.class, openImageManager);
+    }
+
+    /**
+     * Opens {@link ManageLibraryActivity}.
+     */
+    void toLibraryManager() {
+        launchActivity(ManageLibraryActivity.class, openLibraryManager);
+    }
+
+    /**
+     * Opens {@link ManageViewActivity}.
+     */
+    void toViewManager() {
+        launchActivity(ManageViewActivity.class, openViewManager);
+    }
+
+    /**
+     * Opens {@link ManageSoundActivity}.
+     */
+    void toSoundManager() {
+        launchActivity(ManageSoundActivity.class, null);
+    }
+
+    /**
+     * Opens {@link SrcViewerActivity}.
+     */
+    void toSourceCodeViewer() {
+        launchActivity(SrcViewerActivity.class, null, new Pair<>("current", Helper.getText(fileName)));
+    }
+
+    /**
+     * Opens {@link ManageXMLCommandActivity}.
+     */
+    void toXMLCommandManager() {
+        launchActivity(ManageXMLCommandActivity.class, null);
+    }
+
+    /**
+     * Opens {@link ManageJavaCommandActivity}.
+     */
+    void toJavaCommandManager() {
+        launchActivity(ManageJavaCommandActivity.class, null);
+    }
+
+    @SafeVarargs
+    private void launchActivity(Class<? extends Activity> toLaunch, ActivityResultLauncher<Intent> optionalLauncher, Pair<String, String>... extras) {
+        Intent intent = new Intent(getApplicationContext(), toLaunch);
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.putExtra("sc_id", sc_id);
+        for (Pair<String, String> extra : extras) {
+            intent.putExtra(extra.first, extra.second);
+        }
+
+        if (optionalLauncher == null) {
+            startActivity(intent);
+        } else {
+            optionalLauncher.launch(intent);
+        }
+    }
+
+    public void showBuildDetailsDialog() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+
+        ComposeView cv = new ComposeView(this);
+        ProfilerUIHelper.setContent(cv, false);
+        int cvPadding = (int) SketchwareUtil.getDip(16);
+        cv.setPadding(cvPadding, cvPadding, cvPadding, 0);
+        root.addView(cv);
+
+        TextView tv = new TextView(this);
+        tv.setTypeface(Typeface.MONOSPACE);
+        tv.setTextSize(11);
+        int padding = (int) SketchwareUtil.getDip(16);
+        tv.setPadding(padding, padding, padding, padding);
+        
+        String initialLogs = SystemLogPrinter.getCapturedLogs();
+        tv.setText(initialLogs);
+        tv.setTextIsSelectable(true);
+
+        final int[] lastLength = {initialLogs.length()};
+
+        NestedScrollView sv = new NestedScrollView(this);
+        sv.addView(tv);
+        LinearLayout.LayoutParams svParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        sv.setLayoutParams(svParams);
+        root.addView(sv);
+
+        MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(this)
+                .setTitle("Build Details")
+                .setView(root)
+                .setPositiveButton("Dismiss", null);
+
+        AlertDialog dialog = dialogBuilder.create();
+        dialog.show();
+
+        // Initial scroll to bottom
+        sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
+
+        // Update dialog content every second if build is running
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (dialog.isShowing()) {
+                    String currentLogs = SystemLogPrinter.getCapturedLogs();
+                    if (currentLogs.length() > lastLength[0]) {
+                        tv.append(currentLogs.substring(lastLength[0]));
+                        lastLength[0] = currentLogs.length();
+                        sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
+                    }
+                    if (currentBuildTask != null && !currentBuildTask.isBuildFinished) {
+                        handler.postDelayed(this, 1000);
+                    }
+                }
+            }
+        }, 1000);
+    }
+
+    private abstract static class BaseTask {
+        protected final WeakReference<DesignActivity> activityRef;
+
+        protected BaseTask(DesignActivity activity) {
+            activityRef = new WeakReference<>(activity);
+        }
+
+        protected DesignActivity getActivity() {
+            return activityRef.get();
+        }
+    }
+
+    private static class BuildTask extends BaseTask implements BuildProgressReceiver, BuildService.BuildResultListener {
+        private final MaterialButton btnRun;
+        private final MaterialButton btnOptions;
+        private final LinearLayout progressContainer;
+        private final TextView progressText;
+        private final LinearProgressIndicator progressBar;
+        
+        public volatile boolean isBuildFinished = false;
+        public volatile boolean isCanceled = false;
+        private boolean isServiceAttached = false;
+
+        public BuildTask(DesignActivity activity) {
+            super(activity);
+            btnRun = activity.btnRun;
+            btnOptions = activity.btnOptions;
+            progressContainer = activity.findViewById(R.id.progress_container);
+            progressText = activity.findViewById(R.id.progress_text);
+            progressBar = activity.findViewById(R.id.progress);
+
+            if (new DB(activity, "P12").a("P12I6", false)) {
+                progressContainer.setOnClickListener(v -> activity.showBuildDetailsDialog());
+            } else {
+                progressContainer.setClickable(false);
+            }
+        }
+
+        public void execute() {
+            DesignActivity activity = getActivity();
+            if (activity == null) return;
+
+            Intent intent = new Intent(activity, BuildService.class);
+            activity.startService(intent);
+            activity.bindService(intent, activity.serviceConnection, Context.BIND_AUTO_CREATE);
+            
+            activity.runOnUiThread(() -> {
+                updateRunButton(true);
+                progressText.setText("Starting build...");
+                progressBar.setIndeterminate(true);
+                progressBar.setProgress(0);
+                activity.r.a("P1I10", true);
+                activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            });
+        }
+
+        public void onServiceConnected(BuildService service) {
+            isServiceAttached = true;
+            service.setReceiver(this);
+            service.setResultListener(this);
+            
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                if (service.isStopping()) {
+                    activity.runOnUiThread(() -> {
+                        btnRun.setText("Stopping...");
+                        btnRun.setEnabled(false);
+                        progressText.setText("Previous build is still stopping...");
+                        progressBar.setIndeterminate(true);
+                    });
+                } else if (!service.isBuilding()) {
+                    service.startBuild(DesignActivity.sc_id, activity.q);
+                }
+            }
+        }
+
+        @Override
+        public void onProgress(String progress, int step) {
+            DesignActivity activity = getActivity();
+            if (activity == null || isCanceled) return;
+
+            activity.runOnUiThread(() -> {
+                if (isCanceled) return;
+                progressBar.setIndeterminate(step == -1);
+                progressText.setText(progress);
+                int totalSteps = 20;
+                int progressInt = (step * 100) / totalSteps;
+                progressBar.setProgress(progressInt, true);
+                Log.d("DesignActivity$BuildTask", step + " / " + totalSteps);
+            });
+        }
+
+        @Override
+        public void onBuildSuccess() {
+            isBuildFinished = true;
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    onPostExecute();
+                    activity.installBuiltApk();
+                });
+                
+                cleanupService(activity);
+            }
+        }
+
+        @Override
+        public void onBuildCanceled() {
+            isBuildFinished = true;
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(this::onPostExecute);
+                cleanupService(activity);
+            }
+        }
+
+        @Override
+        public void onBuildError(String error) {
+            isBuildFinished = true;
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    onPostExecute();
+                    activity.indicateCompileErrorOccurred(error);
+                });
+
+                cleanupService(activity);
+            }
+        }
+
+        @Override
+        public void onMissingFile(MissingFileException e) {
+            isBuildFinished = true;
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    onPostExecute();
+                    handleMissingFile(activity, e);
+                });
+
+                cleanupService(activity);
+            }
+        }
+
+        private void cleanupService(DesignActivity activity) {
+            if (activity.isServiceBound) {
+                activity.unbindService(activity.serviceConnection);
+                activity.isServiceBound = false;
+            }
+        }
+
+        private void handleMissingFile(DesignActivity activity, MissingFileException e) {
+            boolean isMissingDirectory = e.isMissingDirectory();
+            MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(activity);
+            if (isMissingDirectory) {
+                dialog.setTitle("Missing directory detected");
+                dialog.setMessage("A directory important for building is missing. Sketchware Plus can try creating " + e.getMissingFile().getAbsolutePath() + " if you'd like to.");
+                dialog.setNeutralButton("Create", (v, which) -> {
+                    v.dismiss();
+                    if (!e.getMissingFile().mkdirs()) {
+                        SketchwareUtil.toastError("Failed to create directory / directories!");
+                    }
+                });
+            } else {
+                dialog.setTitle("Missing file detected");
+                dialog.setMessage("A file needed for building is missing. Put the correct file back to " + e.getMissingFile().getAbsolutePath() + " and try building again.");
+            }
+            dialog.setPositiveButton("Dismiss", null);
+            dialog.show();
+        }
+
+        private void onPostExecute() {
+            DesignActivity activity = getActivity();
+            if (activity == null) return;
+
+            activity.runOnUiThread(() -> {
+                if (!activity.isDestroyed()) {
+                    updateRunButton(false);
+                    activity.updateBottomMenu();
+                    activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                }
+            });
+        }
+
+        public void cancelBuild() {
+            isCanceled = true;
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    btnRun.setText("Stopping...");
+                    btnRun.setEnabled(false);
+                    progressText.setText("Canceling build...");
+                    progressBar.setIndeterminate(true);
+                });
+
+                if (activity.buildService != null) {
+                    activity.buildService.cancelBuild();
+                }
+            }
+        }
+
+        private void updateRunButton(boolean isRunning) {
+            DesignActivity activity = getActivity();
+            if (activity == null) return;
+            
+            boolean stopping = isRunning && isCanceled;
+            
+            btnRun.setBackgroundTintList(ColorStateList.valueOf(ThemeUtils.getColor(activity, 
+                isRunning ? (stopping ? R.attr.colorSurfaceContainerHigh : R.attr.colorErrorContainer) : R.attr.colorPrimary)));
+            
+            btnRun.setIcon(ContextCompat.getDrawable(activity, 
+                isRunning ? (stopping ? R.drawable.ic_mtrl_sync : R.drawable.ic_mtrl_stop) : R.drawable.ic_mtrl_run));
+            
+            int colorAttr = isRunning ? R.attr.colorOnErrorContainer : R.attr.colorSurfaceContainerLowest;
+            if (stopping) colorAttr = R.attr.colorOnSurfaceVariant;
+            
+            btnOptions.setEnabled(!isRunning);
+            ColorStateList csl = ColorStateList.valueOf(ThemeUtils.getColor(activity, colorAttr));
+            btnRun.setIconTint(csl);
+            btnRun.setTextColor(csl);
+            
+            if (isRunning) {
+                btnRun.setText(stopping ? "Stopping..." : "Stop");
+                btnRun.setEnabled(!stopping);
+            } else {
+                btnRun.setText("Run");
+                btnRun.setEnabled(true);
+            }
+            
+            progressContainer.setVisibility(isRunning ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void showProjectBlocksInspector() {
+        try {
+            eC logicManager = jC.a(sc_id);
+            JSONObject activityAST = new JSONObject();
+            String currentActivityName = projectFile.getJavaName();
+
+            HashMap<String, ArrayList<BlockBean>> events = logicManager.d.get(currentActivityName);
+            if (events != null) {
+                for (String eventName : events.keySet()) {
+                    ArrayList<BlockBean> blocks = events.get(eventName);
+                    if (blocks != null && !blocks.isEmpty()) {
+                        Map<Integer, BlockBean> map = new HashMap<>();
+                        for (BlockBean b : blocks) {
+                            try {
+                                map.put(Integer.parseInt(b.id), b);
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        activityAST.put(eventName, blockToAST(blocks.get(0), map));
+                    }
+                }
+            }
+
+            JSONObject resultNode = new JSONObject();
+            resultNode.put(currentActivityName, activityAST);
+            String prettyJson = resultNode.toString(4)
+                    .replace("\\n", "\n")
+                    .replace("\\/", "/")
+                    .replace("\\\\", "\\");
+
+            BottomSheetDialog dialog = new BottomSheetDialog(this);
+            TextView tv = new TextView(this);
+            tv.setText(prettyJson);
+            tv.setTextIsSelectable(true);
+            tv.setPadding(32, 32, 32, 32);
+
+            ScrollView sv = new ScrollView(this);
+            sv.addView(tv);
+            dialog.setContentView(sv);
+            dialog.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private JSONObject blockToAST(BlockBean block, Map<Integer, BlockBean> blockMap) throws Exception {
+        if (block == null) return null;
+
+        JSONObject node = new JSONObject();
+        try {
+            node.put("id", block.id);
+        } catch (Exception ignored) {
+        }
+        node.put("opCode", block.opCode);
+        node.put("spec", block.spec);
+        node.put("type", block.type);
+        node.put("parameters", new JSONArray(block.parameters));
+
+        if (block.subStack1 != -1) {
+            node.put("subStack1", blockToAST(blockMap.get(block.subStack1), blockMap));
+        }
+        if (block.subStack2 != -1) {
+            node.put("subStack2", blockToAST(blockMap.get(block.subStack2), blockMap));
+        }
+        if (block.nextBlock != -1) {
+            node.put("nextBlock", blockToAST(blockMap.get(block.nextBlock), blockMap));
+        }
+
+        return node;
+    }
+
+    private static class ProjectLoader extends BaseTask {
+        private final Bundle savedInstanceState;
+
+        public ProjectLoader(DesignActivity activity, Bundle savedInstanceState) {
+            super(activity);
+            this.savedInstanceState = savedInstanceState;
+        }
+
+        public void execute() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.btnRun.setEnabled(false);
+                activity.btnOptions.setEnabled(false);
+                activity.progressContainer.setVisibility(View.VISIBLE);
+                activity.progressBar.setIndeterminate(true);
+                activity.progressText.setText("Initializing project...");
+            }
+            jC.projectOperationsExecutor.execute(this::doInBackground);
+        }
+
+        private void onProgressUpdate(String message, int progress) {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    activity.progressText.setText(message);
+                    if (progress >= 0) {
+                        activity.progressBar.setIndeterminate(false);
+                        activity.progressBar.setProgress(progress);
+                    } else {
+                        activity.progressBar.setIndeterminate(true);
+                    }
+                });
+            }
+        }
+
+        private void doInBackground() {
+            DesignActivity activity = getActivity();
+            if (activity == null) return;
+
+            boolean haveSavedState = savedInstanceState != null;
+
+            onProgressUpdate("Loading project files...", 10);
+            activity.projectFile = activity.getDefaultProjectFile();
+
+            onProgressUpdate("Loading views and components...", 30);
+            eC var1 = jC.a(DesignActivity.sc_id, haveSavedState);
+            synchronized (var1) {
+                // Instance loaded
+            }
+            hC var3 = jC.b(DesignActivity.sc_id, haveSavedState);
+            synchronized (var3) {
+                // Instance loaded
+            }
+
+            onProgressUpdate("Loading resources...", 50);
+            kC var2 = jC.d(DesignActivity.sc_id, haveSavedState);
+            synchronized (var2) {
+                // Instance loaded
+            }
+            iC var4 = jC.c(DesignActivity.sc_id, haveSavedState);
+            synchronized (var4) {
+                // Instance loaded
+            }
+
+            onProgressUpdate("Loading libraries...", 70);
+            cC.c(DesignActivity.sc_id);
+            bC.d(DesignActivity.sc_id);
+
+            if (!haveSavedState) {
+                onProgressUpdate("Initializing data structures...", 80);
+                synchronized (var2) {
+                    var2.f();
+                    var2.g();
+                    var2.e();
+                }
+            }
+
+            onProgressUpdate("Finalizing...", 90);
+            activity.runOnUiThread(() -> {
+                activity.updateBottomMenu();
+                activity.refresh();
+                activity.btnRun.setEnabled(true);
+                activity.btnOptions.setEnabled(true);
+                activity.progressContainer.setVisibility(View.GONE);
+                if (savedInstanceState == null) {
+                    activity.checkForUnsavedProjectData();
+                }
+            });
+        }
+    }
+
+    private static class DiscardChangesProjectCloser extends BaseTask {
+
+        public DiscardChangesProjectCloser(DesignActivity activity) {
+            super(activity);
+        }
+
+        public void execute() {
+            jC.projectOperationsExecutor.execute(this::doInBackground);
+        }
+
+        private void doInBackground() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                var sc_id = DesignActivity.sc_id;
+                synchronized (jC.d(sc_id)) {
+                    jC.d(sc_id).v();
+                    jC.d(sc_id).w();
+                    jC.d(sc_id).u();
+                }
+                activity.runOnUiThread(() -> {
+                    activity.finish();
+                });
+            }
+        }
+    }
+
+    private static class ProjectSaver extends BaseTask {
+
+        public ProjectSaver(DesignActivity activity) {
+            super(activity);
+        }
+
+        public void execute() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(activity::showLoadingDialog);
+            }
+            jC.projectOperationsExecutor.execute(this::doInBackground);
+        }
+
+        private void doInBackground() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                var sc_id = DesignActivity.sc_id;
+                synchronized (jC.d(sc_id)) {
+                    jC.d(sc_id).a();
+                }
+                synchronized (jC.b(sc_id)) {
+                    jC.b(sc_id).m();
+                }
+                synchronized (jC.a(sc_id)) {
+                    jC.a(sc_id).j();
+                }
+                synchronized (jC.d(sc_id)) {
+                    jC.d(sc_id).x();
+                }
+                synchronized (jC.c(sc_id)) {
+                    jC.c(sc_id).l();
+                }
+                activity.runOnUiThread(() -> {
+                    activity.hideLoadingDialog();
+                    bB.a(activity.getApplicationContext(), Helper.getResString(R.string.common_message_complete_save), bB.TOAST_NORMAL).show();
+                    activity.saveVersionCodeInformationToProject();
+                    synchronized (jC.d(sc_id)) {
+                        jC.d(sc_id).f();
+                        jC.d(sc_id).g();
+                        jC.d(sc_id).e();
+                    }
+                });
+            }
+        }
+    }
+
+    private static class SaveChangesProjectCloser extends BaseTask {
+
+        public SaveChangesProjectCloser(DesignActivity activity) {
+            super(activity);
+        }
+
+        public void execute() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(activity::showLoadingDialog);
+            }
+            jC.projectOperationsExecutor.execute(this::doInBackground);
+        }
+
+        private void doInBackground() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                var sc_id = DesignActivity.sc_id;
+                synchronized (jC.d(sc_id)) {
+                    jC.d(sc_id).a();
+                }
+                synchronized (jC.b(sc_id)) {
+                    jC.b(sc_id).m();
+                }
+                synchronized (jC.a(sc_id)) {
+                    jC.a(sc_id).j();
+                }
+                synchronized (jC.d(sc_id)) {
+                    jC.d(sc_id).x();
+                }
+                synchronized (jC.c(sc_id)) {
+                    jC.c(sc_id).l();
+                }
+                synchronized (jC.d(sc_id)) {
+                    jC.d(sc_id).h();
+                }
+                activity.runOnUiThread(() -> {
+                    activity.hideLoadingDialog();
+                    bB.a(activity.getApplicationContext(), Helper.getResString(R.string.common_message_complete_save), bB.TOAST_NORMAL).show();
+                    activity.saveVersionCodeInformationToProject();
+                    activity.finish();
+                });
+            }
+        }
+    }
+
+    private static class UnsavedChangesSaver extends BaseTask {
+
+        public UnsavedChangesSaver(DesignActivity activity) {
+            super(activity);
+        }
+
+        public void execute() {
+            jC.projectOperationsExecutor.execute(this::doInBackground);
+        }
+
+        private void doInBackground() {
+            DesignActivity activity = getActivity();
+            if (activity != null) {
+                eC ecInstance = jC.a(sc_id);
+                synchronized (ecInstance) {
+                    ecInstance.k();
+                }
+            }
+        }
+    }
+
+    private class ViewPagerAdapter extends FragmentPagerAdapter {
+        private final String[] labels;
+
+        public ViewPagerAdapter(FragmentManager fragmentManager) {
+            super(fragmentManager);
+            labels = new String[]{
+                    Helper.getResString(R.string.design_tab_title_view),
+                    Helper.getResString(R.string.design_tab_title_event),
+                    Helper.getResString(R.string.design_tab_title_component),
+                    "SK Assistant"};
+        }
+
+        @Override
+        public int getCount() {
+            return AiClient.isAiEnabled(DesignActivity.this) ? 4 : 3;
+        }
+
+        @Override
+        public CharSequence getPageTitle(int position) {
+            return labels[position];
+        }
+
+        @Override
+        @NonNull
+        public Object instantiateItem(@NonNull ViewGroup container, int position) {
+            Fragment fragment = (Fragment) super.instantiateItem(container, position);
+            if (position == 0) {
+                viewTabAdapter = (ViewEditorFragment) fragment;
+            } else if (position == 1) {
+                eventTabAdapter = (rs) fragment;
+            } else if (position == 2) {
+                componentTabAdapter = (br) fragment;
+            } else if (position == 3) {
+                assistantFragment = (SkAssistantFragment) fragment;
+            }
+
+            return fragment;
+        }
+
+        @Override
+        @NonNull
+        public Fragment getItem(int position) {
+            if (position == 0) {
+                return new ViewEditorFragment();
+            } else if (position == 1) {
+                return new rs();
+            } else if (position == 2) {
+                return new br();
+            } else {
+                return SkAssistantFragment.newInstance(sc_id, projectFile);
+            }
+        }
+    }
+}

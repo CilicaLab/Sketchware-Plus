@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <SwitchPreferenceCompat
+        app:defaultValue="true"
+        app:iconSpaceReserved="false"
+        app:key="P12I0"
+        app:summary="@string/system_settings_description_setting_vibration"
+        app:title="@string/system_settings_title_setting_vibration" />
+
+    <SwitchPreferenceCompat
+        app:iconSpaceReserved="false"
+        app:key="P12I2"
+        app:summary="@string/system_settings_description_automatically_save"
+        app:title="@string/system_settings_title_automatically_save" />
+
+    <SwitchPreferenceCompat
+        app:defaultValue="false"
+        app:iconSpaceReserved="false"
+        app:key="P12I6"
+        app:summary="@string/system_settings_description_show_build_details"
+        app:title="@string/system_settings_title_show_build_details" />
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="AI Features">
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="P12I3"
+            app:summary="@string/system_settings_description_ai_api_key"
+            app:title="@string/system_settings_title_ai_api_key" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="P12I4"
+            app:summary="@string/system_settings_description_ai_endpoint_url"
+            app:title="@string/system_settings_title_ai_endpoint_url" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="P12I5"
+            app:summary="@string/system_settings_description_ai_model_name"
+            app:title="@string/system_settings_title_ai_model_name" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="P12I7"
+            app:summary="@string/system_settings_description_ai_error_explanation_temp"
+            app:title="@string/system_settings_title_ai_error_explanation_temp" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="P12I8"
+            app:summary="@string/system_settings_description_ai_code_generation_temp"
+            app:title="@string/system_settings_title_ai_code_generation_temp" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="P12I9"
+            app:summary="@string/system_settings_description_ai_assistant_mode_temp"
+            app:title="@string/system_settings_title_ai_assistant_mode_temp" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

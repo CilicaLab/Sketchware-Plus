@@ -1,0 +1,1 @@
+C:\Users\Alfred\AndroidStudioProjects\Sketchware-Pro-7.0.0\app\build\intermediates\cxx\RelWithDebInfo\5o3g2z1x\obj\arm64-v8a

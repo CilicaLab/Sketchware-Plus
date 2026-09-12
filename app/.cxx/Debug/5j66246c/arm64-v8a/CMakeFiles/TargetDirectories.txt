@@ -1,0 +1,3 @@
+C:/Users/Alfred/AndroidStudioProjects/Sketchware-Plus-7.0.0/app/.cxx/Debug/5j66246c/arm64-v8a/CMakeFiles/aiclient.dir
+C:/Users/Alfred/AndroidStudioProjects/Sketchware-Plus-7.0.0/app/.cxx/Debug/5j66246c/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/Alfred/AndroidStudioProjects/Sketchware-Plus-7.0.0/app/.cxx/Debug/5j66246c/arm64-v8a/CMakeFiles/rebuild_cache.dir

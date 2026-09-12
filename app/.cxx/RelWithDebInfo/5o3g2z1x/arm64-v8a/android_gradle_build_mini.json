@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\src\\main\\cpp\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\Alfred\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\.cxx\\RelWithDebInfo\\5o3g2z1x\\arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\Alfred\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\.cxx\\RelWithDebInfo\\5o3g2z1x\\arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "aiclient::@6890427a1f51a3e7e1df": {
+      "artifactName": "aiclient",
+      "abi": "arm64-v8a",
+      "output": "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\build\\intermediates\\cxx\\RelWithDebInfo\\5o3g2z1x\\obj\\arm64-v8a\\libaiclient.so",
+      "runtimeFiles": []
+    }
+  }
+}

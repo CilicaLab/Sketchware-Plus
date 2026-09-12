@@ -1,0 +1,3 @@
+C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/.cxx/Debug/5h5u4x1g/armeabi-v7a/CMakeFiles/aiclient.dir
+C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/.cxx/Debug/5h5u4x1g/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/.cxx/Debug/5h5u4x1g/armeabi-v7a/CMakeFiles/rebuild_cache.dir

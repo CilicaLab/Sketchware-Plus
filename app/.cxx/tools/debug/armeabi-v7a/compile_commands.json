@@ -1,0 +1,7 @@
+[
+{
+  "directory": "C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/.cxx/Debug/5j66246c/armeabi-v7a",
+  "command": "C:\\Users\\Alfred\\AppData\\Local\\Android\\Sdk\\ndk\\27.3.13750724\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=armv7-none-linux-androideabi26 --sysroot=C:/Users/Alfred/AppData/Local/Android/Sdk/ndk/27.3.13750724/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Daiclient_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -std=c++17 -fno-limit-debug-info  -fPIC -o CMakeFiles\\aiclient.dir\\aiclient.cpp.o -c C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\src\\main\\cpp\\aiclient.cpp",
+  "file": "C:\\Users\\Alfred\\AndroidStudioProjects\\Sketchware-Pro-7.0.0\\app\\src\\main\\cpp\\aiclient.cpp"
+}
+]

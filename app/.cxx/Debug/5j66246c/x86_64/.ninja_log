@@ -1,0 +1,5 @@
+# ninja log v5
+0	1694	8102305659234170	CMakeFiles/aiclient.dir/aiclient.cpp.o	5e125400dc0b6d69
+1704	1874	8102305661034182	C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/build/intermediates/cxx/Debug/5j66246c/obj/x86_64/libaiclient.so	b424fa2d7a7a6340
+27	2151	8102313319054751	CMakeFiles/aiclient.dir/aiclient.cpp.o	5e125400dc0b6d69
+2152	2351	8102313321050489	C:/Users/Alfred/AndroidStudioProjects/Sketchware-Pro-7.0.0/app/build/intermediates/cxx/Debug/5j66246c/obj/x86_64/libaiclient.so	b424fa2d7a7a6340

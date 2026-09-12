@@ -1,0 +1,45 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_logic_showsource"
+        android:icon="@drawable/ic_mtrl_code"
+        android:orderInCategory="100"
+        android:title="Show Source Code"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_logic_undo"
+        android:icon="@drawable/ic_mtrl_undo"
+        android:orderInCategory="100"
+        android:title="Undo"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_logic_redo"
+        android:icon="@drawable/ic_mtrl_redo"
+        android:orderInCategory="100"
+        android:title="Redo"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_logic_sk"
+        android:icon="@drawable/intelligence_96"
+        android:orderInCategory="100"
+        android:title="SK Assistant"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/menu_logic_ast"
+        android:orderInCategory="100"
+        android:title="View Blocks AST"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_block_helper"
+        android:icon="@drawable/ic_mtrl_bookmark"
+        android:orderInCategory="100"
+        android:title="Blocks collection"
+        app:showAsAction="always" />
+
+</menu>
