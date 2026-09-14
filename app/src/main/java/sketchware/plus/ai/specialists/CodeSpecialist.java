@@ -79,7 +79,7 @@ public class CodeSpecialist extends BaseSpecialist {
                 if (projectFile == null) return;
 
                 String currentJava = projectFile.getJavaName();
-                String contextStr = fragment.gatherScopedContext(androidContext, "CODE_EDIT", originalPrompt);
+                String contextStr = fragment.gatherScopedContext(androidContext, "LOGIC_ENGINEER", originalPrompt);
 
                 // Phase 1: Task Refinement
                 if (refinedGoal == null) {
@@ -93,7 +93,7 @@ public class CodeSpecialist extends BaseSpecialist {
                             "CRITICAL: You MUST include an 'actions' array in your response.\n\n" +
                             "RESPONSE FORMAT (JSON):\n" +
                             "{\n" +
-                            "  \"category\": \"CODE_EDIT\",\n" +
+                            "  \"category\": \"LOGIC_ENGINEER\",\n" +
                             "  \"summary\": \"Refining mission...\",\n" +
                             "  \"actions\": [\n" +
                             "    {\n" +
@@ -107,7 +107,7 @@ public class CodeSpecialist extends BaseSpecialist {
 
                     Activity activity = fragment.getActivity();
                     if (activity != null) {
-                        activity.runOnUiThread(() -> fragment.executeRequest(refinePrompt, originalPrompt, contextStr, "CODE_EDIT"));
+                        activity.runOnUiThread(() -> fragment.executeRequest(refinePrompt, originalPrompt, contextStr, "LOGIC_ENGINEER"));
                     }
                     return;
                 }
@@ -138,7 +138,7 @@ public class CodeSpecialist extends BaseSpecialist {
                         "- Apply only ONE code patch per response.\n\n" +
                         "CRITICAL: DO NOT use native tools or function calling. You MUST return a single JSON object in the following format:\n" +
                         "{\n" +
-                        "  \"category\": \"CODE_EDIT\",\n" +
+                        "  \"category\": \"LOGIC_ENGINEER\",\n" +
                         "  \"thought_process\": \"Briefly explain your reasoning here.\",\n" +
                         "  \"summary\": \"A short status message for the user.\",\n" +
                         "  \"actions\": [\n" +
@@ -161,7 +161,7 @@ public class CodeSpecialist extends BaseSpecialist {
                             return;
                         }
                     }
-                    activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, originalPrompt, contextStr, "CODE_EDIT"));
+                    activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, originalPrompt, contextStr, "LOGIC_ENGINEER"));
                 }
             } finally {
                 isProcessing = false;

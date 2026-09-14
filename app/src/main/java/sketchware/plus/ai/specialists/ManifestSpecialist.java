@@ -37,21 +37,21 @@ public class ManifestSpecialist extends BaseSpecialist {
 
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(800); } catch (Exception ignored) {}
-            String contextStr = fragment.gatherScopedContext(androidContext, "MANIFEST_EDIT", prompt);
+            String contextStr = fragment.gatherScopedContext(androidContext, "SYSTEM_MANIFEST", prompt);
 
             String systemPrompt = "You are the Sketchware Plus Manifest Specialist.\n" +
                     "Help the user add permissions or manifest injections.\n" +
                     "For permissions, use ADD_PERMISSION with the full android.permission string.\n\n" +
                     "RESPONSE CONTRACT:\n" +
                     "{\n" +
-                    "  \"category\": \"MANIFEST_EDIT\",\n" +
+                    "  \"category\": \"SYSTEM_MANIFEST\",\n" +
                     "  \"actions\": [ {\"type\":\"ADD_PERMISSION\",\"name\":\"...\"} ]\n" +
                     "}\n" +
                     "Reasoning: " + reasoning;
 
             Activity activity = fragment.getActivity();
             if (activity != null) {
-                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "MANIFEST_EDIT"));
+                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "SYSTEM_MANIFEST"));
             }
         });
     }

@@ -37,14 +37,14 @@ public class LibrarySpecialist extends BaseSpecialist {
 
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(800); } catch (Exception ignored) {}
-            String contextStr = fragment.gatherScopedContext(androidContext, "LIBRARY_EDIT", prompt);
+            String contextStr = fragment.gatherScopedContext(androidContext, "LIBRARY_MANAGER", prompt);
 
             String systemPrompt = "You are the Sketchware Plus Library Manager.\n" +
                     "Identify which Sketchware built-in library the user wants to enable.\n" +
                     "AVAILABLE LIBRARIES: appcompat, firebase, admob, googlemap.\n\n" +
                     "RESPONSE CONTRACT:\n" +
                     "{\n" +
-                    "  \"category\": \"LIBRARY_EDIT\",\n" +
+                    "  \"category\": \"LIBRARY_MANAGER\",\n" +
                     "  \"summary\": \"Enabling library: [name]\",\n" +
                     "  \"actions\": [ {\"type\":\"ENABLE_LIBRARY\",\"name\":\"...\"} ]\n" +
                     "}\n" +
@@ -52,7 +52,7 @@ public class LibrarySpecialist extends BaseSpecialist {
 
             Activity activity = fragment.getActivity();
             if (activity != null) {
-                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "LIBRARY_EDIT"));
+                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "LIBRARY_MANAGER"));
             }
         });
     }

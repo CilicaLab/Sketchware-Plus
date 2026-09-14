@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -255,6 +256,7 @@ public class SkAssistantFragment extends Fragment {
                 if (!prompt.isEmpty()) {
                     sendMessage(prompt);
                     etInput.setText("");
+                    hideKeyboard();
                 }
             }
         });
@@ -263,6 +265,16 @@ public class SkAssistantFragment extends Fragment {
         refreshContextUsage();
 
         return view;
+    }
+
+    private void hideKeyboard() {
+        View view = getActivity() != null ? getActivity().getCurrentFocus() : null;
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        }
     }
 
     private void sendMessage(String prompt) {
@@ -302,12 +314,12 @@ public class SkAssistantFragment extends Fragment {
             
             String routerPrompt = "You are the intent router for the Sketchware Plus SK Assistant.\n" +
                     "Analyze the current user request and the recent chat history to classify it into EXACTLY ONE of these categories:\n" +
-                    "1. LAYOUT_EDIT: Changing UI, views, colors, sizes, or XML layout.\n" +
-                    "2. COMPONENT_EDIT: Adding components (Firebase, Intent, Timer, SharedPref, etc.) or answering follow-up questions about them.\n" +
-                    "3. CODE_EDIT: Help with Java logic, imports, or explaining codes or part of codes in the project.\n" +
-                    "4. LIBRARY_EDIT: Enabling libraries (Appcompat, Firebase, AdMob, GoogleMaps).\n" +
-                    "5. MANIFEST_EDIT: Adding permissions or manifest attributes.\n" +
-                    "6. CHAT: General questions, greetings, or non-technical help.\n\n" +
+                    "1. UI_DESIGNER: Changing UI, views, colors, sizes, or XML layout.\n" +
+                    "2. COMPONENT_ARCHITECT: Adding components (Firebase, Intent, Timer, SharedPref, etc.) or answering follow-up questions about them.\n" +
+                    "3. LOGIC_ENGINEER: Help with Java logic, imports, or explaining codes or part of codes in the project.\n" +
+                    "4. LIBRARY_MANAGER: Enabling libraries (Appcompat, Firebase, AdMob, GoogleMaps).\n" +
+                    "5. SYSTEM_MANIFEST: Adding permissions or manifest attributes.\n" +
+                    "6. CHAT_ASSISTANT: General questions, greetings, or non-technical help.\n\n" +
                     "Respond with ONLY this JSON: {\"category\": \"CATEGORY_NAME\", \"reasoning\": \"Short reason\"}";
 
             String fullUserPrompt = "RECENT HISTORY:\n" + getChatHistory().toString() + "\n\nCURRENT REQUEST: " + prompt;
@@ -327,7 +339,7 @@ public class SkAssistantFragment extends Fragment {
                                 if (matcher.find()) cleanJson = matcher.group(0);
                                 
                                 JSONObject json = new JSONObject(cleanJson);
-                                String category = json.optString("category", "CHAT");
+                                String category = json.optString("category", "CHAT_ASSISTANT");
                                 String reasoning = json.optString("reasoning", "");
 
                                 setStatus("Admin Objective: " + category.toLowerCase().replace("_", " "));
@@ -338,11 +350,11 @@ public class SkAssistantFragment extends Fragment {
                                     if (getActivity() != null && !isRequestCanceled) {
                                         getActivity().runOnUiThread(() -> {
                                             switch (category) {
-                                                case "LAYOUT_EDIT": layoutSpecialist.process(prompt, reasoning); break;
-                                                case "COMPONENT_EDIT": componentSpecialist.process(prompt, reasoning); break;
-                                                case "CODE_EDIT": codeSpecialist.process(prompt, reasoning); break;
-                                                case "LIBRARY_EDIT": librarySpecialist.process(prompt, reasoning); break;
-                                                case "MANIFEST_EDIT": manifestSpecialist.process(prompt, reasoning); break;
+                                                case "UI_DESIGNER": layoutSpecialist.process(prompt, reasoning); break;
+                                                case "COMPONENT_ARCHITECT": componentSpecialist.process(prompt, reasoning); break;
+                                                case "LOGIC_ENGINEER": codeSpecialist.process(prompt, reasoning); break;
+                                                case "LIBRARY_MANAGER": librarySpecialist.process(prompt, reasoning); break;
+                                                case "SYSTEM_MANIFEST": manifestSpecialist.process(prompt, reasoning); break;
                                                 default: chatSpecialist.process(prompt, reasoning); break;
                                             }
                                         });
@@ -536,7 +548,7 @@ public class SkAssistantFragment extends Fragment {
         if (context == null) return;
 
         jC.projectOperationsExecutor.execute(() -> {
-            String ctx = gatherScopedContext(context, "CHAT", ""); 
+            String ctx = gatherScopedContext(context, "CHAT_ASSISTANT", ""); 
             String systemPrompt = "CONTEXT:\n" + ctx + "\n\nINSTRUCTION: Calculate current context size. Respond with exactly 'READY'.";
 
             Activity activity = getActivity();
@@ -663,8 +675,9 @@ public class SkAssistantFragment extends Fragment {
                 saveHistory();
                 cancelSKRequests();
 
+
                 // Auto-dispatch for autonomous specialists (like CodeSpecialist)
-                if ("CODE_EDIT".equals(actualCategory) && json.has("actions")) {
+                if ("LOGIC_ENGINEER".equals(actualCategory) && json.has("actions")) {
                     JSONArray actions = json.optJSONArray("actions");
                     if (actions != null && actions.length() > 0) {
                         boolean hasOnlyAutonomousActions = true;
@@ -672,33 +685,6 @@ public class SkAssistantFragment extends Fragment {
                             JSONObject action = actions.optJSONObject(i);
                             if (action != null) {
                                 String type = normalizeActionType(action.optString("type"));
-                                if ("ADD_JAVA_COMMAND".equals(type) || "ADD_BLOCK".equals(type) || "ADD_IMPORT".equals(type)) {
-                                    hasOnlyAutonomousActions = false;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (hasOnlyAutonomousActions) {
-                            dispatchJsonActions(json, actualCategory);
-                            msg.wasApplied = true;
-                        }
-                    }
-                }
-
-                // Auto-dispatch for autonomous specialists (like CodeSpecialist)
-                if ("CODE_EDIT".equals(actualCategory) && json.has("actions")) {
-                    JSONArray actions = json.optJSONArray("actions");
-                    if (actions != null && actions.length() > 0) {
-                        boolean hasOnlyAutonomousActions = true;
-                        for (int i = 0; i < actions.length(); i++) {
-                            JSONObject action = actions.optJSONObject(i);
-                            if (action != null) {
-                                String type = action.optString("type", "").toUpperCase().replace("-", "_");
-                                // ADD_JAVA_COMMAND is a "real" action that might need confirmation, 
-                                // but CodeSpecialist is currently designed to be autonomous.
-                                // If we want to allow user to review, we should NOT auto-dispatch ADD_JAVA_COMMAND.
-                                // However, MISSION_COMPLETE, SEARCH_METHOD, etc. should definitely be auto-dispatched.
                                 if ("ADD_JAVA_COMMAND".equals(type) || "ADD_BLOCK".equals(type) || "ADD_IMPORT".equals(type)) {
                                     hasOnlyAutonomousActions = false;
                                     break;
@@ -780,7 +766,7 @@ public class SkAssistantFragment extends Fragment {
                         yq workspace = new yq(context, scId);
                         workspace.a(libraryManager, fileManager, dataManager);
 
-                        if ("LAYOUT_EDIT".equals(category)) {
+                        if ("UI_DESIGNER".equals(category)) {
                             sb.append("Current Layout XML:\n");
                             sb.append(SketchwareXmlBridge.getRawXml(context, scId, projectFile)).append("\n\n");
 
@@ -790,7 +776,7 @@ public class SkAssistantFragment extends Fragment {
 
                             sb.append("View Hierarchy (JSON):\n");
                             sb.append(AiViewTreeManager.buildViewTree(views, rootBean).toString(2)).append("\n");
-                        } else if ("CODE_EDIT".equals(category) || "IMPORT_EDIT".equals(category)) {
+                        } else if ("LOGIC_ENGINEER".equals(category) || "IMPORT_LOGIC".equals(category)) {
                             String javaCode = new Jx(workspace.N, projectFile, dataManager).generateCode(false, scId);
                             sb.append("Current Java:\n").append(javaCode).append("\n");
 
@@ -818,19 +804,19 @@ public class SkAssistantFragment extends Fragment {
                                     }
                                 }
                             }
-                        } else if ("LIBRARY_EDIT".equals(category)) {
+                        } else if ("LIBRARY_MANAGER".equals(category)) {
                             sb.append("Enabled: firebase=").append(libraryManager.d().useYn)
                                     .append(", appcompat=").append(libraryManager.c().useYn).append("\n");
-                        } else if ("MANIFEST_EDIT".equals(category)) {
+                        } else if ("SYSTEM_MANIFEST".equals(category)) {
                             sb.append("Permissions: ").append(dataManager.l.q).append("\n");
-                        } else if ("CUSTOM_VIEW_EDIT".equals(category) || "COMPONENT_EDIT".equals(category)) {
+                        } else if ("CUSTOM_DESIGN".equals(category) || "COMPONENT_ARCHITECT".equals(category)) {
                             sb.append("Custom Views: ").append(fileManager.d.size()).append("\n");
                             ArrayList<ComponentBean> components = dataManager.e(projectFile.getJavaName());
                             sb.append("Current Components:\n");
                             for (ComponentBean c : components) {
                                 sb.append("- id:").append(c.componentId).append(", type:").append(c.type).append("\n");
                             }
-                            if ("COMPONENT_EDIT".equals(category)) {
+                            if ("COMPONENT_ARCHITECT".equals(category)) {
                                 sb.append("\nAVAILABLE COMPONENT TYPES AND THEIR REQUIREMENTS:\n")
                                         .append("- INTENT: No extra params.\n")
                                         .append("- SHAREDPREF: Use the component ID as the file name.\n")
@@ -1093,19 +1079,19 @@ public class SkAssistantFragment extends Fragment {
                 if (action == null) continue;
 
                 switch (category) {
-                    case "LAYOUT_EDIT":
+                    case "UI_DESIGNER":
                         layoutSpecialist.handleAction(action);
                         break;
-                    case "COMPONENT_EDIT":
+                    case "COMPONENT_ARCHITECT":
                         componentSpecialist.handleAction(action);
                         break;
-                    case "CODE_EDIT":
+                    case "LOGIC_ENGINEER":
                         codeSpecialist.handleAction(action);
                         break;
-                    case "LIBRARY_EDIT":
+                    case "LIBRARY_MANAGER":
                         librarySpecialist.handleAction(action);
                         break;
-                    case "MANIFEST_EDIT":
+                    case "SYSTEM_MANIFEST":
                         manifestSpecialist.handleAction(action);
                         break;
                     default:
@@ -1441,11 +1427,11 @@ public class SkAssistantFragment extends Fragment {
                             hasActions = true;
                             msgHolder.btnApply.setVisibility(View.VISIBLE);
                             String btnText = "Apply Changes";
-                            if ("COMPONENT_EDIT".equals(msg.category)) {
+                            if ("COMPONENT_ARCHITECT".equals(msg.category)) {
                                 btnText = "Add Component";
-                            } else if ("LAYOUT_EDIT".equals(msg.category)) {
+                            } else if ("UI_DESIGNER".equals(msg.category)) {
                                 btnText = "Apply Layout";
-                            } else if ("CODE_EDIT".equals(msg.category)) {
+                            } else if ("LOGIC_ENGINEER".equals(msg.category)) {
                                 btnText = "Apply Logic";
                             }
                             msgHolder.btnApply.setText(btnText);

@@ -75,7 +75,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                     "2. OUTPUT: Your XML will be processed by user IDE.\n" +
                     "RESPONSE CONTRACT (JSON ONLY):\n" +
                     "{\n" +
-                    "  \"category\": \"LAYOUT_EDIT\",\n" +
+                    "  \"category\": \"UI_DESIGNER\",\n" +
                     "  \"thought_process\": \"Brief step-by-step logic\",\n" +
                     "  \"summary\": \"One-line summary to show the user\",\n" +
                     "  \"actions\": [\n" +
@@ -92,14 +92,14 @@ public class LayoutSpecialist extends BaseSpecialist {
                         @Override
                         public void onSuccess(String response) {
                             setStatus(null);
-                            fragment.handleAiResponse(response, "LAYOUT_EDIT");
+                            fragment.handleAiResponse(response, "UI_DESIGNER");
                         }
 
                         @Override
                         public void onSuccess(String response, int promptTokens, int completionTokens, int totalTokens) {
                             setStatus(null);
                             fragment.updateTokenUsage(promptTokens, completionTokens, totalTokens);
-                            fragment.handleAiResponse(response, "LAYOUT_EDIT");
+                            fragment.handleAiResponse(response, "UI_DESIGNER");
                         }
 
                         @Override

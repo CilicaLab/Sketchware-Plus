@@ -23,7 +23,7 @@ public class ChatSpecialist extends BaseSpecialist {
 
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(1000); } catch (Exception ignored) {}
-            String contextStr = fragment.gatherScopedContext(androidContext, "CHAT", prompt);
+            String contextStr = fragment.gatherScopedContext(androidContext, "CHAT_ASSISTANT", prompt);
 
             String systemPrompt = "You are the very friendly Companion.\n" +
                     "Provide helpful, concise, and friendly responses to the user's questions.\n" +
@@ -31,7 +31,7 @@ public class ChatSpecialist extends BaseSpecialist {
                     "CRITICAL: Put your actual conversational response in the 'summary' field.\n\n" +
                     "RESPONSE CONTRACT:\n" +
                     "{\n" +
-                    "  \"category\": \"CHAT\",\n" +
+                    "  \"category\": \"CHAT_ASSISTANT\",\n" +
                     "  \"summary\": \"<Your actual response here>\",\n" +
                     "  \"actions\": []\n" +
                     "}\n" +
@@ -39,7 +39,7 @@ public class ChatSpecialist extends BaseSpecialist {
 
             Activity activity = fragment.getActivity();
             if (activity != null) {
-                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "CHAT"));
+                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "CHAT_ASSISTANT"));
             }
         });
     }

@@ -34,7 +34,7 @@ public class ComponentSpecialist extends BaseSpecialist {
 
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(1000); } catch (Exception ignored) {}
-            String contextStr = fragment.gatherScopedContext(androidContext, "COMPONENT_EDIT", prompt);
+            String contextStr = fragment.gatherScopedContext(androidContext, "COMPONENT_ARCHITECT", prompt);
 
             String systemPrompt = "COMPONENT EXPERT AGENT PROTOCOL:\n" +
                     "1. IDENTIFY: Determine the Component Type and ID (name) from the user's request and chat history.\n" +
@@ -46,7 +46,7 @@ public class ComponentSpecialist extends BaseSpecialist {
                     "3. EXECUTE: Only if BOTH Type and ID are clearly specified, use ADD_COMPONENT.\n\n" +
                     "RESPONSE CONTRACT:\n" +
                     "{\n" +
-                    "  \"category\": \"COMPONENT_EDIT\",\n" +
+                    "  \"category\": \"COMPONENT_ARCHITECT\",\n" +
                     "  \"thought_process\": \"Logic for identifying the component\",\n" +
                     "  \"summary\": \"Confirmation of adding the component\",\n" +
                     "  \"actions\": [ {\"type\":\"ADD_COMPONENT\",\"componentType\":\"...\",\"id\":\"...\",\"params\":[...] } ]\n" +
@@ -56,7 +56,7 @@ public class ComponentSpecialist extends BaseSpecialist {
 
             Activity activity = fragment.getActivity();
             if (activity != null) {
-                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "COMPONENT_EDIT"));
+                activity.runOnUiThread(() -> fragment.executeRequest(systemPrompt, prompt, contextStr, "COMPONENT_ARCHITECT"));
             }
         });
     }
