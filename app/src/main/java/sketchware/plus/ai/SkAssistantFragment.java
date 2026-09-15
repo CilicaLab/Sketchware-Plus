@@ -116,12 +116,13 @@ public class SkAssistantFragment extends Fragment {
     private static final int MAX_RETRIES = 2;
     private volatile boolean isRequestCanceled = false;
 
-    private LayoutSpecialist layoutSpecialist;
-    private ComponentSpecialist componentSpecialist;
-    private CodeSpecialist codeSpecialist;
-    private LibrarySpecialist librarySpecialist;
-    private ManifestSpecialist manifestSpecialist;
-    private ChatSpecialist chatSpecialist;
+    public LayoutSpecialist layoutSpecialist;
+    public ComponentSpecialist componentSpecialist;
+    public CodeSpecialist codeSpecialist;
+    public LibrarySpecialist librarySpecialist;
+    public ManifestSpecialist manifestSpecialist;
+    public ChatSpecialist chatSpecialist;
+    private ToolOrchestrator toolOrchestrator;
 
     public static SkAssistantFragment newInstance(String scId, ProjectFileBean projectFile) {
         SkAssistantFragment fragment = new SkAssistantFragment();
@@ -157,6 +158,7 @@ public class SkAssistantFragment extends Fragment {
         librarySpecialist = new LibrarySpecialist(this);
         manifestSpecialist = new ManifestSpecialist(this);
         chatSpecialist = new ChatSpecialist(this);
+        toolOrchestrator = new ToolOrchestrator(this);
     }
 
     private void initializeSession() {
@@ -305,82 +307,7 @@ public class SkAssistantFragment extends Fragment {
      * component request, code help, etc., and routes to the dedicated specialist.
      */
     private void routeRequest(String prompt) {
-        setStatus("Query mapping...");
-        Context context = getContext();
-        if (context == null) return;
-
-        jC.projectOperationsExecutor.execute(() -> {
-            try { Thread.sleep(800); } catch (Exception ignored) {}
-            
-            String routerPrompt = "You are the intent router for the Sketchware Plus SK Assistant.\n" +
-                    "Analyze the current user request and the recent chat history to classify it into EXACTLY ONE of these categories:\n" +
-                    "1. UI_DESIGNER: Changing UI, views, colors, sizes, or XML layout.\n" +
-                    "2. COMPONENT_ARCHITECT: Adding components (Firebase, Intent, Timer, SharedPref, etc.) or answering follow-up questions about them.\n" +
-                    "3. LOGIC_ENGINEER: Help with Java logic, imports, or explaining codes or part of codes in the project.\n" +
-                    "4. LIBRARY_MANAGER: Enabling libraries (Appcompat, Firebase, AdMob, GoogleMaps).\n" +
-                    "5. SYSTEM_MANIFEST: Adding permissions or manifest attributes.\n" +
-                    "6. CHAT_ASSISTANT: General questions, greetings, or non-technical help.\n\n" +
-                    "Respond with ONLY this JSON: {\"category\": \"CATEGORY_NAME\", \"reasoning\": \"Short reason\"}";
-
-            String fullUserPrompt = "RECENT HISTORY:\n" + getChatHistory().toString() + "\n\nCURRENT REQUEST: " + prompt;
-
-            Activity activity = getActivity();
-            if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    Context c = getContext();
-                    if (c == null) return;
-                    AiClient.askAi(c, routerPrompt, fullUserPrompt, 0.1f, new AiClient.AiCallback() {
-                        @Override
-                        public void onSuccess(String rawResponse) {
-                            if (isRequestCanceled) return;
-                            try {
-                                String cleanJson = rawResponse.trim();
-                                Matcher matcher = Pattern.compile("\\{.*\\}", Pattern.DOTALL).matcher(cleanJson);
-                                if (matcher.find()) cleanJson = matcher.group(0);
-                                
-                                JSONObject json = new JSONObject(cleanJson);
-                                String category = json.optString("category", "CHAT_ASSISTANT");
-                                String reasoning = json.optString("reasoning", "");
-
-                                setStatus("Admin Objective: " + category.toLowerCase().replace("_", " "));
-
-                                // Small delay before handing off to specialist
-                                jC.projectOperationsExecutor.execute(() -> {
-                                    try { Thread.sleep(1000); } catch (Exception ignored) {}
-                                    if (getActivity() != null && !isRequestCanceled) {
-                                        getActivity().runOnUiThread(() -> {
-                                            switch (category) {
-                                                case "UI_DESIGNER": layoutSpecialist.process(prompt, reasoning); break;
-                                                case "COMPONENT_ARCHITECT": componentSpecialist.process(prompt, reasoning); break;
-                                                case "LOGIC_ENGINEER": codeSpecialist.process(prompt, reasoning); break;
-                                                case "LIBRARY_MANAGER": librarySpecialist.process(prompt, reasoning); break;
-                                                case "SYSTEM_MANIFEST": manifestSpecialist.process(prompt, reasoning); break;
-                                                default: chatSpecialist.process(prompt, reasoning); break;
-                                            }
-                                        });
-                                    }
-                                });
-                            } catch (Exception e) {
-                                log("Router parse failed, falling back to chat: " + e.getMessage());
-                                chatSpecialist.process(prompt, "Fallback due to error");
-                            }
-                        }
-
-                        @Override
-                        public void onError(String error) {
-                            log("Routing failed: " + error);
-                            if (getActivity() != null) {
-                                getActivity().runOnUiThread(() -> {
-                                    if (!"Canceled".equals(error)) {
-                                        chatSpecialist.process(prompt, "Fallback due to AI error");
-                                    }
-                                });
-                            }
-                        }
-                    });
-                });
-            }
-        });
+        toolOrchestrator.start(prompt);
     }
 
     public void setStatus(String status) {
@@ -517,7 +444,7 @@ public class SkAssistantFragment extends Fragment {
                 .show();
     }
 
-    private JSONArray getChatHistory() {
+    public JSONArray getChatHistory() {
         JSONArray chatHistory = new JSONArray();
         int startIndex = Math.max(0, messages.size() - 4);
         try {
@@ -556,7 +483,7 @@ public class SkAssistantFragment extends Fragment {
                 activity.runOnUiThread(() -> {
                     Context c = getContext();
                     if (c == null) return;
-                    AiClient.askAi(c, systemPrompt, getChatHistory(), AiClient.AiTemperatureType.ASSISTANT_MODE, new AiClient.AiCallback() {
+                    AiClient.askAi(c, systemPrompt, new JSONArray(), AiClient.AiTemperatureType.ASSISTANT_MODE, new AiClient.AiCallback() {
                         @Override
                         public void onSuccess(String response) {}
 
@@ -582,7 +509,7 @@ public class SkAssistantFragment extends Fragment {
         Context c = getContext();
         if (c == null || isRequestCanceled) return;
         
-        AiClient.askAi(c, systemPrompt, "USER REQUEST: " + prompt + "\n\nCONTEXT:\n" + context + "\n\nHISTORY:\n" + getChatHistory().toString(), AiClient.AiTemperatureType.ASSISTANT_MODE, new AiClient.AiCallback() {
+        AiClient.askAi(c, systemPrompt, "USER REQUEST: " + prompt + "\n\nCONTEXT:\n" + context, AiClient.AiTemperatureType.ASSISTANT_MODE, new AiClient.AiCallback() {
             @Override
             public void onSuccess(String response) {
                 if (isRequestCanceled) return;
@@ -622,6 +549,14 @@ public class SkAssistantFragment extends Fragment {
         messages.add(new Message("system", content));
         adapter.notifyItemInserted(messages.size() - 1);
         recyclerView.scrollToPosition(messages.size() - 1);
+    }
+
+    public void addAssistantMessage(String content) {
+        if (content == null || content.trim().isEmpty()) return;
+        messages.add(new Message("assistant", content));
+        adapter.notifyItemInserted(messages.size() - 1);
+        recyclerView.scrollToPosition(messages.size() - 1);
+        saveHistory();
     }
 
     public void setUndoVisible(boolean visible) {
@@ -1432,7 +1367,7 @@ public class SkAssistantFragment extends Fragment {
                             } else if ("UI_DESIGNER".equals(msg.category)) {
                                 btnText = "Apply Layout";
                             } else if ("LOGIC_ENGINEER".equals(msg.category)) {
-                                btnText = "Apply Logic";
+                                btnText = "Continue";
                             }
                             msgHolder.btnApply.setText(btnText);
                             msgHolder.btnApply.setOnClickListener(v -> {

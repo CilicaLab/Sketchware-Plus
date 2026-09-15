@@ -63,22 +63,28 @@ object AiClient {
         fun onSuccess(response: String, promptTokens: Int, completionTokens: Int, totalTokens: Int) {
             onSuccess(response)
         }
+        fun onToolCall(toolCalls: JSONArray, content: String?) {}
+        fun onToolCall(toolCalls: JSONArray, content: String?, promptTokens: Int, completionTokens: Int, totalTokens: Int) {
+            onToolCall(toolCalls, content)
+        }
         fun onError(error: String)
     }
 
     @JvmStatic
-    @Deprecated("Use askAi with context, systemPrompt, chatHistory, AiTemperatureType, and callback")
-    fun askAi(context: Context, systemPrompt: String, userPrompt: String, temperature: Float, callback: AiCallback) {
-        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), temperature, callback)
+    @JvmOverloads
+    fun askAi(context: Context, systemPrompt: String, userPrompt: String, temperature: Float, tools: JSONArray? = null, callback: AiCallback) {
+        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), temperature, tools, callback)
     }
 
     @JvmStatic
-    fun askAi(context: Context, systemPrompt: String, userPrompt: String, type: AiTemperatureType, callback: AiCallback) {
-        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), type, callback)
+    @JvmOverloads
+    fun askAi(context: Context, systemPrompt: String, userPrompt: String, type: AiTemperatureType, tools: JSONArray? = null, callback: AiCallback) {
+        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), type, tools, callback)
     }
 
     @JvmStatic
-    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, type: AiTemperatureType, callback: AiCallback) {
+    @JvmOverloads
+    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, type: AiTemperatureType, tools: JSONArray? = null, callback: AiCallback) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val tempValue = aiPref.all[type.key]
         val temperature = when (tempValue) {
@@ -86,11 +92,12 @@ object AiClient {
             is String -> (tempValue.toIntOrNull() ?: 20) / 100f
             else -> 0.2f
         }
-        askAi(context, systemPrompt, chatHistory, temperature, callback)
+        askAi(context, systemPrompt, chatHistory, temperature, tools, callback)
     }
 
     @JvmStatic
-    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, callback: AiCallback) {
+    @JvmOverloads
+    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray? = null, callback: AiCallback) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
@@ -101,10 +108,10 @@ object AiClient {
             return
         }
 
-        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, callback, false) }
+        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, false) }
     }
 
-    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, callback: AiCallback, isRetry: Boolean) {
+    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, callback: AiCallback, isRetry: Boolean) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
@@ -119,6 +126,10 @@ object AiClient {
             val jsonBody = JSONObject().apply {
                 put("model", model)
                 put("temperature", temperature.toDouble())
+                if (tools != null && tools.length() > 0) {
+                    put("tools", tools)
+                    put("tool_choice", "auto")
+                }
                 val messages = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
@@ -145,19 +156,20 @@ object AiClient {
                 if (response.isSuccessful && response.body != null) {
                     val responseData = response.body!!.string()
                     val responseObject = JSONObject(responseData)
-                    val content = responseObject.getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content").trim()
-
+                    val choice = responseObject.getJSONArray("choices").getJSONObject(0)
+                    val message = choice.getJSONObject("message")
+                    
                     val usage = responseObject.optJSONObject("usage")
-                    if (usage != null) {
-                        val promptTokens = usage.optInt("prompt_tokens", 0)
-                        val completionTokens = usage.optInt("completion_tokens", 0)
-                        val totalTokens = usage.optInt("total_tokens", 0)
-                        callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
+                    val promptTokens = usage?.optInt("prompt_tokens", 0) ?: 0
+                    val completionTokens = usage?.optInt("completion_tokens", 0) ?: 0
+                    val totalTokens = usage?.optInt("total_tokens", 0) ?: 0
+
+                    if (message.has("tool_calls")) {
+                        val content = message.optString("content", null)
+                        callback.onToolCall(message.getJSONArray("tool_calls"), content, promptTokens, completionTokens, totalTokens)
                     } else {
-                        callback.onSuccess(content)
+                        val content = message.optString("content", "").trim()
+                        callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
                     }
                 } else if (response.code == 429 && !isRetry) {
                     val errorBody = response.body?.string() ?: ""
@@ -167,7 +179,7 @@ object AiClient {
                             TimeUnit.MILLISECONDS.sleep(delayMillis)
                         } catch (ignored: InterruptedException) {
                         }
-                        performAiRequest(context, systemPrompt, chatHistory, temperature, callback, true)
+                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, true)
                     }
                 } else {
                     val errorMsg = response.body?.string() ?: "Unknown error"

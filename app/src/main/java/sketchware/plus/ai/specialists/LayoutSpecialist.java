@@ -68,21 +68,30 @@ public class LayoutSpecialist extends BaseSpecialist {
 
             String context = contextBuilder.toString();
 
-            String systemPrompt = "You are the Layout/UI specialist. Analyze the user's request and update or modify the layout XML accordingly. Respond ONLY in valid JSON.\n\n" +
-                    getLayoutRules() + "\n\n" +
-                    "BRIDGE PROTOCOL:\n" +
-                    "1. INPUT: The 'Current Layout XML' provided by user, and do not modify the root layout for it is auto handled by user IDE\n" +
-                    "2. OUTPUT: Your XML will be processed by user IDE.\n" +
-                    "RESPONSE CONTRACT (JSON ONLY):\n" +
-                    "{\n" +
-                    "  \"category\": \"UI_DESIGNER\",\n" +
-                    "  \"thought_process\": \"Brief step-by-step logic\",\n" +
-                    "  \"summary\": \"One-line summary to show the user\",\n" +
-                    "  \"actions\": [\n" +
-                    "    {\"type\":\"UPDATE_LAYOUT_FULL_XML\",\"xml\":\"<Complete Standard Android XML Layout>\"}\n" +
-                    "  ]\n" +
-                    "}";
+            String systemPrompt = """
+    You are an expert Android Layout/UI Specialist. Analyze the user's request and update the layout XML strictly following the constraints below.
 
+    CRITICAL RULES:
+    1. Output MUST be valid, parseable JSON ONLY. Do not wrap response in markdown code blocks (no ```json).
+    2. Do NOT change the root layout XML tag type unless explicitly instructed (the root tag frame is IDE-managed).
+    3. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines).
+
+    LAYOUT RULES:
+    """ + getLayoutRules() + """
+
+    RESPONSE CONTRACT (JSON ONLY):
+    {
+      "category": "UI_DESIGNER",
+      "thought_process": "<Brief UI decisions detailing layout logic step-by-step>",
+      "summary": "<One-line display for summary user>",
+      "actions": [
+        {
+          "type": "UPDATE_LAYOUT_FULL_XML",
+          "xml": "<Complete, Android XML and escaped layout properly valid,>"
+        }
+      ]
+    }
+    """;
             Activity activity = fragment.getActivity();
             if (activity != null) {
                 activity.runOnUiThread(() -> {

@@ -113,19 +113,23 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
 
         binding.title.setText(Helper.getResString(R.string.component_title_add_component));
         binding.componentList.setHasFixedSize(true);
-        binding.componentList.setAdapter(new ComponentsAdapter());
         binding.componentList.setLayoutManager(flexboxLayoutManager);
+        binding.componentList.setAdapter(new ComponentsAdapter());
 
         binding.componentList.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                FlexboxLayoutManager lm = (FlexboxLayoutManager) recyclerView.getLayoutManager();
-                if (lm == null) return;
-                int first = lm.findFirstCompletelyVisibleItemPosition();
-                int last = lm.findLastCompletelyVisibleItemPosition();
-                int total = binding.componentList.getAdapter().getItemCount();
-                binding.dividerTop.setVisibility(first > 0 ? View.VISIBLE : View.GONE);
-                binding.dividerBottom.setVisibility(last < total - 1 ? View.VISIBLE : View.GONE);
+                if (dy == 0 && dx == 0) return; 
+                recyclerView.post(() -> {
+                    if (binding == null) return;
+                    FlexboxLayoutManager lm = (FlexboxLayoutManager) recyclerView.getLayoutManager();
+                    if (lm == null) return;
+                    int first = lm.findFirstCompletelyVisibleItemPosition();
+                    int last = lm.findLastCompletelyVisibleItemPosition();
+                    int total = binding.componentList.getAdapter().getItemCount();
+                    binding.dividerTop.setVisibility(first > 0 ? View.VISIBLE : View.GONE);
+                    binding.dividerBottom.setVisibility(last < total - 1 ? View.VISIBLE : View.GONE);
+                });
             }
         });
     }

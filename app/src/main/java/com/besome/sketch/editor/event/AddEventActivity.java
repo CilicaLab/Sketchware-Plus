@@ -3,6 +3,8 @@ package com.besome.sketch.editor.event;
 import android.animation.Animator;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -344,7 +346,7 @@ public class AddEventActivity extends BaseAppCompatActivity implements View.OnCl
         super.onResume();
         gB.a(container, 500);
         if (projectFile != null) {
-            initialize();
+            new Handler(Looper.getMainLooper()).postDelayed(this::initialize, 150);
         }
     }
 

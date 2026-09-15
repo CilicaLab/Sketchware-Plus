@@ -126,8 +126,26 @@ public class SourceCodeAide {
     }
 
     /**
-     * Extracts a specific range of lines.
+     * Lists all method names declared in the source code.
      */
+    public static JSONObject listMethods(String source) {
+        JSONObject result = new JSONObject();
+        JSONArray methods = new JSONArray();
+        String regex = "(public|protected|private|static|\\s) +[\\w<>\\[\\]]+\\s+([\\w$]+)\\s*\\(";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(source);
+        
+        while (matcher.find()) {
+            methods.put(matcher.group(2));
+        }
+
+        try {
+            result.put("status", "success");
+            result.put("methods", methods);
+            result.put("count", methods.length());
+        } catch (Exception ignored) {}
+        return result;
+    }
     public static JSONObject getLineRange(String source, int startLine, int endLine) {
         JSONObject result = new JSONObject();
         String[] lines = source.split("\n");

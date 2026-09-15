@@ -65,30 +65,27 @@ public class LibrarySpecialist extends BaseSpecialist {
     }
 
     public void applyLibrary(String name) {
-        new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Enable Library")
-                .setMessage("Enable '" + name + "' library?")
-                .setPositiveButton("Enable", (dialog, which) -> {
-                    String xmlName = projectFile.getXmlName();
-                    fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
-                    iC libraryManager = jC.c(scId);
-                    ProjectLibraryBean lib = null;
-                    if (name.equalsIgnoreCase("appcompat")) lib = libraryManager.c();
-                    else if (name.equalsIgnoreCase("firebase")) lib = libraryManager.d();
-                    else if (name.equalsIgnoreCase("admob")) lib = libraryManager.b();
-                    else if (name.equalsIgnoreCase("googlemap")) lib = libraryManager.e();
+        try {
+            String xmlName = projectFile.getXmlName();
+            fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
+            iC libraryManager = jC.c(scId);
+            ProjectLibraryBean lib = null;
+            if (name.equalsIgnoreCase("appcompat")) lib = libraryManager.c();
+            else if (name.equalsIgnoreCase("firebase")) lib = libraryManager.d();
+            else if (name.equalsIgnoreCase("admob")) lib = libraryManager.b();
+            else if (name.equalsIgnoreCase("googlemap")) lib = libraryManager.e();
 
-                    if (lib != null) {
-                        lib.useYn = "Y";
-                        libraryManager.k();
-                        fragment.addSystemMessage("Library '" + name + "' enabled.");
-                        fragment.setUndoVisible(true);
-                    } else {
-                        fragment.addSystemMessage("Unknown library: " + name);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+            if (lib != null) {
+                lib.useYn = "Y";
+                libraryManager.k();
+                fragment.addSystemMessage("Library '" + name + "' enabled automatically.");
+                fragment.setUndoVisible(true);
+            } else {
+                fragment.addSystemMessage("Unknown library: " + name);
+            }
+        } catch (Exception e) {
+            fragment.addSystemMessage("Error enabling library: " + e.getMessage());
+        }
     }
 
     public void applyLocalLibrary(String libName) {

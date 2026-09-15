@@ -64,42 +64,39 @@ public class ManifestSpecialist extends BaseSpecialist {
     }
 
     public void applyPermission(String permission) {
-        new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Add Permission")
-                .setMessage("Add '" + permission + "' to manifest?")
-                .setPositiveButton("Add", (dialog, which) -> {
-                    String xmlName = projectFile.getXmlName();
-                    fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
-                    eC dataManager = jC.a(scId);
+        try {
+            String xmlName = projectFile.getXmlName();
+            fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
+            eC dataManager = jC.a(scId);
 
-                    int permMask = 0;
-                    if (permission.contains("CALL_PHONE")) permMask = jq.PERMISSION_CALL_PHONE;
-                    else if (permission.contains("INTERNET")) permMask = jq.PERMISSION_INTERNET;
-                    else if (permission.contains("VIBRATE")) permMask = jq.PERMISSION_VIBRATE;
-                    else if (permission.contains("ACCESS_NETWORK_STATE")) permMask = jq.PERMISSION_ACCESS_NETWORK_STATE;
-                    else if (permission.contains("CAMERA")) permMask = jq.PERMISSION_CAMERA;
-                    else if (permission.contains("READ_EXTERNAL_STORAGE")) permMask = jq.PERMISSION_READ_EXTERNAL_STORAGE;
-                    else if (permission.contains("WRITE_EXTERNAL_STORAGE")) permMask = jq.PERMISSION_WRITE_EXTERNAL_STORAGE;
-                    else if (permission.contains("RECORD_AUDIO")) permMask = jq.PERMISSION_RECORD_AUDIO;
-                    else if (permission.contains("BLUETOOTH")) permMask = jq.PERMISSION_BLUETOOTH;
-                    else if (permission.contains("BLUETOOTH_ADMIN")) permMask = jq.PERMISSION_BLUETOOTH_ADMIN;
-                    else if (permission.contains("ACCESS_FINE_LOCATION")) permMask = jq.PERMISSION_ACCESS_FINE_LOCATION;
+            int permMask = 0;
+            if (permission.contains("CALL_PHONE")) permMask = jq.PERMISSION_CALL_PHONE;
+            else if (permission.contains("INTERNET")) permMask = jq.PERMISSION_INTERNET;
+            else if (permission.contains("VIBRATE")) permMask = jq.PERMISSION_VIBRATE;
+            else if (permission.contains("ACCESS_NETWORK_STATE")) permMask = jq.PERMISSION_ACCESS_NETWORK_STATE;
+            else if (permission.contains("CAMERA")) permMask = jq.PERMISSION_CAMERA;
+            else if (permission.contains("READ_EXTERNAL_STORAGE")) permMask = jq.PERMISSION_READ_EXTERNAL_STORAGE;
+            else if (permission.contains("WRITE_EXTERNAL_STORAGE")) permMask = jq.PERMISSION_WRITE_EXTERNAL_STORAGE;
+            else if (permission.contains("RECORD_AUDIO")) permMask = jq.PERMISSION_RECORD_AUDIO;
+            else if (permission.contains("BLUETOOTH")) permMask = jq.PERMISSION_BLUETOOTH;
+            else if (permission.contains("BLUETOOTH_ADMIN")) permMask = jq.PERMISSION_BLUETOOTH_ADMIN;
+            else if (permission.contains("ACCESS_FINE_LOCATION")) permMask = jq.PERMISSION_ACCESS_FINE_LOCATION;
 
-                    if (permMask != 0) {
-                        dataManager.l.addPermission(permMask);
-                    }
+            if (permMask != 0) {
+                dataManager.l.addPermission(permMask);
+            }
 
-                    yq workspace = new yq(getContext(), scId);
-                    BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(scId);
-                    Ix ix = new Ix(dataManager.l, jC.b(scId).c, builtInLibManager);
-                    ix.setYq(workspace);
-                    workspace.a("AndroidManifest.xml", ix.a());
+            yq workspace = new yq(getContext(), scId);
+            BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(scId);
+            Ix ix = new Ix(dataManager.l, jC.b(scId).c, builtInLibManager);
+            ix.setYq(workspace);
+            workspace.a("AndroidManifest.xml", ix.a());
 
-                    fragment.addSystemMessage("Permission added.");
-                    fragment.setUndoVisible(true);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+            fragment.addSystemMessage("Permission '" + permission + "' added automatically.");
+            fragment.setUndoVisible(true);
+        } catch (Exception e) {
+            fragment.addSystemMessage("Error adding permission: " + e.getMessage());
+        }
     }
 
     public void applyManifestInjection(String type, String value) {

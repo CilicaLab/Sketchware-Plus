@@ -1932,8 +1932,11 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
                     intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
                     startActivityForResult(intent, 222);
                 } else if (tag.equals("componentAdd")) {
-                    AddComponentBottomSheet addComponentBottomSheet = AddComponentBottomSheet.newInstance(scId, M, () -> a(7, 0xff2ca5e2));
-                    addComponentBottomSheet.show(getSupportFragmentManager(), null);
+                    if (getSupportFragmentManager().findFragmentByTag("AddComponentBottomSheet") == null && 
+                        getSupportFragmentManager().findFragmentByTag("com.besome.sketch.editor.component.AddComponentBottomSheet") == null) {
+                        AddComponentBottomSheet addComponentBottomSheet = AddComponentBottomSheet.newInstance(scId, M, () -> a(7, 0xff2ca5e2));
+                        addComponentBottomSheet.show(getSupportFragmentManager(), "AddComponentBottomSheet");
+                    }
                 } else if (tag.equals("blockImport")) {
                     I();
                 }

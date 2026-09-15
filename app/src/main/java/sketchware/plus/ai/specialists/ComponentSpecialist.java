@@ -124,4 +124,37 @@ public class ComponentSpecialist extends BaseSpecialist {
             fragment.addSystemMessage("Error adding component: " + e.getMessage());
         }
     }
+
+    public void applyAddComponent(int type, String id) {
+        try {
+            eC dataManager = jC.a(scId);
+            String javaName = projectFile.getJavaName();
+            String typeName = ComponentBean.getComponentTypeName(type);
+
+            fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+            
+            List<String> params = new ArrayList<>();
+            if (type == ComponentBean.COMPONENT_TYPE_SHAREDPREF ||
+                type == ComponentBean.COMPONENT_TYPE_FIREBASE ||
+                type == ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE) {
+                params.add(id);
+            } else if (type == ComponentBean.COMPONENT_TYPE_FILE_PICKER) {
+                params.add("image/*");
+            }
+
+            if (params.isEmpty()) {
+                dataManager.a(javaName, type, id);
+            } else {
+                dataManager.a(javaName, type, id, params.get(0));
+            }
+            
+            dataManager.k();
+            fragment.refreshDesigner();
+            fragment.addSystemMessage("Component '" + id + "' (" + typeName + ") added automatically.");
+            fragment.setUndoVisible(true);
+            
+        } catch (Exception e) {
+            fragment.addSystemMessage("Error adding component: " + e.getMessage());
+        }
+    }
 }
