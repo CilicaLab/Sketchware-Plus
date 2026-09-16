@@ -20,10 +20,10 @@
         android:layout_height="72dp"
         android:layout_marginStart="20dp"
         android:layout_marginTop="8dp"
-        android:src="@drawable/sketch_app_icon"
-        app:shapeAppearance="?attr/shapeAppearanceCornerLarge"
+        android:src="@drawable/app_icon_plus"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:shapeAppearance="?attr/shapeAppearanceCornerLarge" />
 
     <TextView
         android:id="@+id/app_name"

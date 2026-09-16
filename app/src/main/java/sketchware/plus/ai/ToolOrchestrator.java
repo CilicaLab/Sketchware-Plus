@@ -89,11 +89,13 @@ public class ToolOrchestrator {
         String systemPrompt = "You are the Autonomous SK Assistant for Sketchware Plus.\n" +
                 "Project Context: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "STRATEGY & RULES:\n" +
-                "1. GATHER INFO FIRST: Use 'get_layout_xml', 'list_methods', or 'list_available_components' to see existing project structure.\n" +
-                "2. NO REDUNDANT SEARCH: Do NOT search the web for Sketchware-specific component IDs. Use 'list_available_components' to find the correct IDs for both built-in and local components.\n" +
-                "3. ACTION-ORIENTED: Once you know what to do, use the tool IMMEDIATELY. Don't waste reasoning steps on web searches if a tool provides the info.\n" +
-                "4. MODIFY CODE: To patch logic, use 'read_method' to find the anchor, then 'add_java_patch'.\n" +
-                "5. COMPLETION: Summarize your changes once done. Don't call tools in the final response.";
+                "1. GATHER INFO FIRST: Use 'get_layout_xml', 'list_methods', 'list_project_files', 'search_project_files', 'search_in_code', or 'list_available_components' to see existing project structure.\n" +
+                "2. NO HALLUCINATION: Only call tools that are explicitly defined in the provided tools list. Do NOT invent tool names.\n" +
+                "3. NO REDUNDANT SEARCH: Do NOT search the web for Sketchware-specific component IDs. Use 'list_available_components' to find the correct IDs for both built-in and local components.\n" +
+                "4. ACTION-ORIENTED: Once you know what to do, use the tool IMMEDIATELY. Don't waste reasoning steps on web searches if a tool provides the info.\n" +
+                "5. MODIFY CODE: To patch logic, use 'read_method' to find the anchor, then 'add_java_patch'.\n" +
+                "6. COMPLETION: Summarize your changes once done. Don't call tools in the final response.\n" +
+                "7. JSON STRICTNESS: Ensure all tool arguments are valid JSON objects stringified.";
 
         JSONArray tools = AssistantToolRegistry.getAllTools();
 
@@ -114,7 +116,7 @@ public class ToolOrchestrator {
                     if (thought != null && !thought.trim().isEmpty()) {
                         fragment.setStatus(thought.trim());
                     }
-                    handleToolCalls(toolCalls, chatHistory);
+                    handleToolCalls(toolCalls, thought, chatHistory);
                 });
             }
 
@@ -127,21 +129,46 @@ public class ToolOrchestrator {
             }
 
             @Override
+            public void onRetry(int retryCount, long delayMillis) {
+                mainHandler.post(() -> {
+                    fragment.setStatus("Rate limit reached. Retrying in " + String.format("%.1f", delayMillis / 1000.0) + "s... (Attempt " + retryCount + ")");
+                });
+            }
+
+            @Override
             public void onSuccess(String response) {
                 onSuccess(response, 0, 0, 0);
             }
         });
     }
 
-    private void handleToolCalls(JSONArray toolCalls, JSONArray chatHistory) {
+    private void handleToolCalls(JSONArray toolCalls, String thought, JSONArray chatHistory) {
         if (isCanceled) return;
 
         jC.projectOperationsExecutor.execute(() -> {
             try {
+                // Prepare sanitized tool calls for history
+                JSONArray sanitizedToolCalls = new JSONArray();
+                for (int i = 0; i < toolCalls.length(); i++) {
+                    JSONObject originalCall = toolCalls.getJSONObject(i);
+                    JSONObject sanitizedCall = new JSONObject(originalCall.toString());
+                    
+                    // CRITICAL: Ensure 'arguments' is a STRING, even if the model sent an object
+                    if (sanitizedCall.has("function")) {
+                        JSONObject function = sanitizedCall.getJSONObject("function");
+                        Object args = function.opt("arguments");
+                        if (args != null && !(args instanceof String)) {
+                            function.put("arguments", args.toString());
+                        }
+                    }
+                    sanitizedToolCalls.put(sanitizedCall);
+                }
+
                 // Add the tool_calls message from assistant to history
                 JSONObject assistantMsg = new JSONObject();
                 assistantMsg.put("role", "assistant");
-                assistantMsg.put("tool_calls", toolCalls);
+                assistantMsg.put("content", thought); // Include thoughts if present
+                assistantMsg.put("tool_calls", sanitizedToolCalls);
                 chatHistory.put(assistantMsg);
 
                 for (int i = 0; i < toolCalls.length(); i++) {
@@ -149,7 +176,26 @@ public class ToolOrchestrator {
                     String id = call.getString("id");
                     JSONObject function = call.getJSONObject("function");
                     String name = function.getString("name");
-                    JSONObject args = new JSONObject(function.getString("arguments"));
+                    
+                    Object argsRaw = function.get("arguments");
+                    JSONObject args;
+                    if (argsRaw instanceof String) {
+                        String argsStr = (String) argsRaw;
+                        // Robust repair for common model glitches like {""}, {" "}, or missing closing brace
+                        String trimmed = argsStr.trim();
+                        if (trimmed.equals("{\"\"}") || trimmed.equals("{ \"\" }") || trimmed.equals("{}") || trimmed.isEmpty()) {
+                            argsStr = "{}";
+                        }
+                        try {
+                            args = new JSONObject(argsStr);
+                        } catch (JSONException e) {
+                            args = new JSONObject(); // Fallback to empty for malformed arguments
+                        }
+                    } else if (argsRaw instanceof JSONObject) {
+                        args = (JSONObject) argsRaw;
+                    } else {
+                        args = new JSONObject();
+                    }
 
                     fragment.setStatus("Executing: " + name + "...");
                     String result = dispatchTool(name, args);
@@ -194,6 +240,21 @@ public class ToolOrchestrator {
                 fileList.put("files", files);
                 return fileList.toString();
 
+            case "search_project_files":
+                String sQuery = args.getString("query").toLowerCase();
+                JSONObject sResult = new JSONObject();
+                JSONArray sFiles = new JSONArray();
+                for (ProjectFileBean pf : jC.b(fragment.scId).b()) {
+                    if (pf.getJavaName().toLowerCase().contains(sQuery) || pf.getXmlName().toLowerCase().contains(sQuery)) {
+                        JSONObject file = new JSONObject();
+                        file.put("java", pf.getJavaName());
+                        file.put("xml", pf.getXmlName());
+                        sFiles.put(file);
+                    }
+                }
+                sResult.put("files", sFiles);
+                return sResult.toString();
+
             case "get_layout_xml":
                 return SketchwareXmlBridge.getRawXml(context, fragment.scId, fragment.projectFile);
 
@@ -213,6 +274,7 @@ public class ToolOrchestrator {
             case "list_methods":
             case "get_full_code":
             case "read_method":
+            case "search_in_code":
                 String javaName = args.optString("javaName", fragment.projectFile.getJavaName());
                 String source = new yq(context, fragment.scId).getFileSrc(
                     javaName, 
@@ -224,6 +286,8 @@ public class ToolOrchestrator {
                     return SourceCodeAide.listMethods(source).toString();
                 } else if ("get_full_code".equals(name)) {
                     return source;
+                } else if ("search_in_code".equals(name)) {
+                    return SourceCodeAide.findSnippet(source, args.getString("query"), args.optInt("contextLines", 2)).toString();
                 } else {
                     return SourceCodeAide.findMethod(source, args.getString("methodName")).toString();
                 }

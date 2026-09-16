@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
+import sketchware.plus.R;
+
 public class AppIconManager {
 
     private static final String PREF_NAME = "app_settings";
@@ -26,22 +28,22 @@ public class AppIconManager {
     };
 
     public static final String[] ICON_NAMES = {
-            "Original", "Deep Blue", "Purple", "Dark", "Light", "Gold", "Red", "Green", "Pink", "Platinum", "Orange", "Cyan"
+            "Plus", "Deep Blue", "Purple", "Dark", "Light", "Gold", "Red", "Green", "Pink", "Platinum", "Orange", "Cyan"
     };
 
     public static final int[] ICON_DRAWABLES = {
-            sketchware.plus.R.mipmap.ic_launcher_original,
-            sketchware.plus.R.mipmap.ic_launcher_blue,
-            sketchware.plus.R.mipmap.ic_launcher_purple,
-            sketchware.plus.R.mipmap.ic_launcher_dark,
-            sketchware.plus.R.mipmap.ic_launcher_light,
-            sketchware.plus.R.mipmap.ic_launcher_gold,
-            sketchware.plus.R.mipmap.ic_launcher_red,
-            sketchware.plus.R.mipmap.ic_launcher_green,
-            sketchware.plus.R.mipmap.ic_launcher_pink,
-            sketchware.plus.R.mipmap.ic_launcher_platinum,
-            sketchware.plus.R.mipmap.ic_launcher_orange,
-            sketchware.plus.R.mipmap.ic_launcher_cyan
+            R.drawable.app_icon_plus,
+            R.drawable.app_icon_deep_blue,
+            R.drawable.app_icon_purple,
+            R.drawable.app_icon_dark,
+            R.drawable.app_icon_light,
+            R.drawable.app_icon_gold,
+            R.drawable.app_icon_red,
+            R.drawable.app_icon_green,
+            R.drawable.app_icon_pink,
+            R.drawable.app_icon_platinum,
+            R.drawable.app_icon_orange,
+            R.drawable.app_icon_cyan
     };
 
     public static void switchIcon(Context context, int index) {

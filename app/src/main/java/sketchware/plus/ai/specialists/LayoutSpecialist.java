@@ -18,6 +18,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 
 import a.a.a.eC;
@@ -116,6 +117,11 @@ public class LayoutSpecialist extends BaseSpecialist {
                             log("Layout AI Error: " + error);
                             setStatus(null);
                             fragment.addSystemMessage("Error: " + error);
+                        }
+
+                        @Override
+                        public void onRetry(int retryCount, long delayMillis) {
+                            setStatus("Rate limit hit. Retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s... (Attempt " + retryCount + ")");
                         }
                     });
                 });

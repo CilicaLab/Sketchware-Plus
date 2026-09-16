@@ -113,7 +113,7 @@
             android:name=".LauncherOriginal"
             android:enabled="true"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_original"
+            android:icon="@drawable/app_icon_plus"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -125,7 +125,7 @@
             android:name=".LauncherBlue"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_blue"
+            android:icon="@drawable/app_icon_deep_blue"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -137,7 +137,7 @@
             android:name=".LauncherPurple"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_purple"
+            android:icon="@drawable/app_icon_purple"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -149,7 +149,7 @@
             android:name=".LauncherDark"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_dark"
+            android:icon="@drawable/app_icon_dark"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -161,7 +161,7 @@
             android:name=".LauncherLight"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_light"
+            android:icon="@drawable/app_icon_light"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -173,7 +173,7 @@
             android:name=".LauncherGold"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_gold"
+            android:icon="@drawable/app_icon_gold"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -185,7 +185,7 @@
             android:name=".LauncherRed"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_red"
+            android:icon="@drawable/app_icon_red"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -197,7 +197,7 @@
             android:name=".LauncherGreen"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_green"
+            android:icon="@drawable/app_icon_green"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -209,7 +209,7 @@
             android:name=".LauncherPink"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_pink"
+            android:icon="@drawable/app_icon_pink"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -221,7 +221,7 @@
             android:name=".LauncherPlatinum"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_platinum"
+            android:icon="@drawable/app_icon_platinum"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -233,7 +233,7 @@
             android:name=".LauncherOrange"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_orange"
+            android:icon="@drawable/app_icon_orange"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -245,7 +245,7 @@
             android:name=".LauncherCyan"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_cyan"
+            android:icon="@drawable/app_icon_cyan"
             android:targetActivity="sketchware.plus.activities.main.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

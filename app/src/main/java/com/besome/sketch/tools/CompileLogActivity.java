@@ -253,6 +253,13 @@ public class CompileLogActivity extends BaseAppCompatActivity {
                     SketchwareUtil.toastError(error);
                 });
             }
+
+            @Override
+            public void onRetry(int retryCount, long delayMillis) {
+                runOnUiThread(() -> {
+                    SketchwareUtil.toast("Rate limit hit. Retrying in " + (delayMillis / 1000) + "s...");
+                });
+            }
         });
     }
 

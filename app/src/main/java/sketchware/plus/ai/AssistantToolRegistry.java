@@ -31,6 +31,12 @@ public class AssistantToolRegistry {
         tools.put(createTool("list_project_files", "Lists all Java, Kotlin, and XML files available in the current project.", 
                 new ParameterBuilder().build()));
 
+        tools.put(createTool("search_project_files", "Find files by name pattern (e.g., searching for 'MainActivity' or 'Gson').", 
+                new ParameterBuilder()
+                    .addProperty("query", "string", "The search query (file name or part of it).")
+                    .setRequired("query")
+                    .build()));
+
         tools.put(createTool("get_layout_xml", "Returns the current Activity's XML layout code and view hierarchy.", 
                 new ParameterBuilder().build()));
 
@@ -64,6 +70,14 @@ public class AssistantToolRegistry {
                 new ParameterBuilder()
                     .addProperty("javaName", "string", "The file name.")
                     .setRequired("javaName")
+                    .build()));
+
+        tools.put(createTool("search_in_code", "Search for a specific keyword or snippet within a Java/Kotlin file. Returns matching lines with context.", 
+                new ParameterBuilder()
+                    .addProperty("javaName", "string", "The file name, e.g., MainActivity.java")
+                    .addProperty("query", "string", "The keyword or code snippet to find.")
+                    .addProperty("contextLines", "integer", "Number of lines of context to include around matches (default 2).")
+                    .setRequired("javaName", "query")
                     .build()));
 
         tools.put(createTool("add_java_patch", "Apply a persistent code patch to the project's generated source code.", 

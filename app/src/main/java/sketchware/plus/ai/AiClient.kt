@@ -11,9 +11,12 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.regex.Pattern
+import android.os.Handler
+import android.os.Looper
 
 object AiClient {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var currentCall: Call? = null
 
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -68,6 +71,7 @@ object AiClient {
             onToolCall(toolCalls, content)
         }
         fun onError(error: String)
+        fun onRetry(retryCount: Int, delayMillis: Long) {}
     }
 
     @JvmStatic
@@ -108,10 +112,10 @@ object AiClient {
             return
         }
 
-        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, false) }
+        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, 0) }
     }
 
-    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, callback: AiCallback, isRetry: Boolean) {
+    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, callback: AiCallback, retryCount: Int) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
@@ -171,15 +175,20 @@ object AiClient {
                         val content = message.optString("content", "").trim()
                         callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
                     }
-                } else if (response.code == 429 && !isRetry) {
+                } else if (response.code == 429 && retryCount < 5) {
                     val errorBody = response.body?.string() ?: ""
                     val delayMillis = parseRetryAfter(errorBody)
+                    
+                    mainHandler.post {
+                        callback.onRetry(retryCount + 1, delayMillis)
+                    }
+
                     executor.execute {
                         try {
                             TimeUnit.MILLISECONDS.sleep(delayMillis)
                         } catch (ignored: InterruptedException) {
                         }
-                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, true)
+                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, retryCount + 1)
                     }
                 } else {
                     val errorMsg = response.body?.string() ?: "Unknown error"

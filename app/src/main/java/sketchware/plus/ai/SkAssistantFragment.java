@@ -499,6 +499,12 @@ public class SkAssistantFragment extends Fragment {
                                 getActivity().runOnUiThread(() -> tokenUsageContainer.setVisibility(View.GONE));
                             }
                         }
+
+                        @Override
+                        public void onRetry(int retryCount, long delayMillis) {
+                            // Don't spam UI for background ping, just log
+                            log("Background ping rate limited, retrying in " + delayMillis + "ms");
+                        }
                     });
                 });
             }
@@ -541,6 +547,11 @@ public class SkAssistantFragment extends Fragment {
                         }
                     });
                 }
+            }
+
+            @Override
+            public void onRetry(int retryCount, long delayMillis) {
+                setStatus("Rate limit hit. Retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s... (Attempt " + retryCount + ")");
             }
         });
     }
@@ -682,6 +693,11 @@ public class SkAssistantFragment extends Fragment {
                         }
                     });
                 }
+            }
+
+            @Override
+            public void onRetry(int retryCount, long delayMillis) {
+                setStatus("Repairing response... rate limit hit, retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s...");
             }
         });
     }
@@ -927,6 +943,11 @@ public class SkAssistantFragment extends Fragment {
                         }
                     });
                 }
+            }
+
+            @Override
+            public void onRetry(int retryCount, long delayMillis) {
+                setStatus("Auto-fixing layout... rate limit hit, retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s...");
             }
         });
     }
