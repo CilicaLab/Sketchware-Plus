@@ -112,10 +112,16 @@ object AiClient {
             return
         }
 
+        isCanceledByUser = false
         executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, 0) }
     }
 
     private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, callback: AiCallback, retryCount: Int) {
+        if (isCanceledByUser) {
+            callback.onError("Canceled")
+            return
+        }
+
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
@@ -185,10 +191,17 @@ object AiClient {
 
                     executor.execute {
                         try {
-                            TimeUnit.MILLISECONDS.sleep(delayMillis)
+                            var elapsed = 0L
+                            while (elapsed < delayMillis) {
+                                if (isCanceledByUser) return@execute
+                                TimeUnit.MILLISECONDS.sleep(100)
+                                elapsed += 100
+                            }
                         } catch (ignored: InterruptedException) {
                         }
-                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, retryCount + 1)
+                        if (!isCanceledByUser) {
+                            performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, retryCount + 1)
+                        }
                     }
                 } else {
                     val errorMsg = response.body?.string() ?: "Unknown error"
@@ -206,8 +219,12 @@ object AiClient {
         }
     }
 
+    @Volatile
+    private var isCanceledByUser = false
+
     @JvmStatic
     fun cancelCurrentRequest() {
+        isCanceledByUser = true
         currentCall?.cancel()
     }
 
