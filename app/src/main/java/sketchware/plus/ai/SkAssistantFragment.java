@@ -366,7 +366,7 @@ public class SkAssistantFragment extends Fragment {
         // Remove the user's last message if it was just sent? 
         // No, keep it but show cancellation.
         
-        messages.add(new Message("system", "Request cancelled by user."));
+        messages.add(new Message("system", "User cancelled this request."));
         adapter.notifyItemInserted(messages.size() - 1);
         recyclerView.scrollToPosition(messages.size() - 1);
     }
