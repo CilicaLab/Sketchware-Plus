@@ -9,7 +9,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -75,7 +74,7 @@ public class CodeSpecialist extends BaseSpecialist {
         isProcessing = true;
         jC.projectOperationsExecutor.execute(() -> {
             try {
-                ProjectFileBean projectFile = fragment.projectFile;
+                ProjectFileBean projectFile = getProjectFile();
                 if (projectFile == null) return;
 
                 String currentJava = projectFile.getJavaName();
@@ -335,9 +334,9 @@ public class CodeSpecialist extends BaseSpecialist {
                         return;
                     }
                     jC.projectOperationsExecutor.execute(() -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                         JSONObject result = SourceCodeAide.addJavaCommandToManager(
-                                context, scId, javaName, reference,
+                                context, getScId(), javaName, reference,
                                 action.optInt("distance"), action.optInt("front"), action.optInt("back"),
                                 action.optString("command"), action.optString("inputCode")
                         );
@@ -369,8 +368,8 @@ public class CodeSpecialist extends BaseSpecialist {
         Context context = getContext();
         if (context == null) return null;
         try {
-            yq workspace = new yq(context, scId);
-            return workspace.getFileSrc(javaName, jC.b(scId), jC.a(scId), jC.c(scId));
+            yq workspace = new yq(context, getScId());
+            return workspace.getFileSrc(javaName, jC.b(getScId()), jC.a(getScId()), jC.c(getScId()));
         } catch (Exception e) {
             fragment.getActivity().runOnUiThread(() -> fragment.addSystemMessage("Error generating source for " + javaName));
             return null;
@@ -393,8 +392,8 @@ public class CodeSpecialist extends BaseSpecialist {
 
     public void applyAddBlock(String eventKey, String opCode, JSONArray jParams, boolean isSync) {
         Runnable r = () -> {
-            eC dataManager = jC.a(scId);
-            String javaName = projectFile.getJavaName();
+            eC dataManager = jC.a(getScId());
+            String javaName = getProjectFile().getJavaName();
             ArrayList<BlockBean> blocks = dataManager.a(javaName, eventKey);
             if (blocks == null) {
                 dataManager.a(javaName, EventBean.EVENT_TYPE_ACTIVITY, 0, javaName, eventKey.contains("_") ? eventKey.split("_")[1] : eventKey);
@@ -435,10 +434,10 @@ public class CodeSpecialist extends BaseSpecialist {
 
     public void applyImport(String importPath) {
         if (importPath == null || importPath.isEmpty()) return;
-        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
-        eC dataManager = jC.a(scId);
-        dataManager.a(projectFile.getJavaName(), EventBean.EVENT_TYPE_ACTIVITY, 0, "", "Import");
-        ArrayList<BlockBean> blocks = dataManager.a(projectFile.getJavaName(), "Import");
+        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
+        eC dataManager = jC.a(getScId());
+        dataManager.a(getProjectFile().getJavaName(), EventBean.EVENT_TYPE_ACTIVITY, 0, "", "Import");
+        ArrayList<BlockBean> blocks = dataManager.a(getProjectFile().getJavaName(), "Import");
         BlockBean importBlock = new BlockBean("0", "none", " ", "createImport");
         importBlock.parameters.add(importPath);
         blocks.add(importBlock);

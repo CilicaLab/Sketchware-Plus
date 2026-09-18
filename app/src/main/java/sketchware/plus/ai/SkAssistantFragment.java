@@ -186,6 +186,10 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void setProjectFile(ProjectFileBean projectFile) {
+        if (this.projectFile != null && !this.projectFile.getXmlName().equals(projectFile.getXmlName())) {
+            // Activity changed, reset session to avoid context leakage from previous activity
+            isSessionInitialized = false;
+        }
         this.projectFile = projectFile;
         if (isAdded()) {
             initializeSession();
@@ -1159,24 +1163,26 @@ public class SkAssistantFragment extends Fragment {
 
 
     private void loadHistory() {
+        final List<Message> loadedMessages = new ArrayList<>();
         if (FileUtil.isExistFile(historyPath)) {
             try {
                 String content = FileUtil.readFile(historyPath);
                 JSONArray array = new JSONArray(content);
-                final List<Message> loadedMessages = new ArrayList<>();
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
                     loadedMessages.add(new Message(obj.getString("role"), obj.getString("content")));
                 }
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        messages.addAll(loadedMessages);
-                        if (adapter != null) {
-                            adapter.notifyDataSetChanged();
-                        }
-                    });
-                }
             } catch (Exception ignored) {}
+        }
+        
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                messages.clear();
+                messages.addAll(loadedMessages);
+                if (adapter != null) {
+                    adapter.notifyDataSetChanged();
+                }
+            });
         }
     }
 

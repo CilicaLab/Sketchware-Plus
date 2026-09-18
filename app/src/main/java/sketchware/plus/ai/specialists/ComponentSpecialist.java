@@ -100,14 +100,14 @@ public class ComponentSpecialist extends BaseSpecialist {
                 }
             }
 
-            eC dataManager = jC.a(scId);
-            String javaName = projectFile.getJavaName();
+            eC dataManager = jC.a(getScId());
+            String javaName = getProjectFile().getJavaName();
 
             new MaterialAlertDialogBuilder(getContext())
                     .setTitle("Add Component")
                     .setMessage("Add " + typeStr + " component with ID '" + id + "'?")
                     .setPositiveButton("Add", (dialog, which) -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                         if (finalParams.isEmpty()) {
                             dataManager.a(javaName, type, id);
                         } else {
@@ -127,11 +127,11 @@ public class ComponentSpecialist extends BaseSpecialist {
 
     public void applyAddComponent(int type, String id) {
         try {
-            eC dataManager = jC.a(scId);
-            String javaName = projectFile.getJavaName();
+            eC dataManager = jC.a(getScId());
+            String javaName = getProjectFile().getJavaName();
             String typeName = ComponentBean.getComponentTypeName(type);
 
-            fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+            fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
             
             List<String> params = new ArrayList<>();
             if (type == ComponentBean.COMPONENT_TYPE_SHAREDPREF ||

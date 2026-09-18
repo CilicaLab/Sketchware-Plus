@@ -66,9 +66,9 @@ public class LibrarySpecialist extends BaseSpecialist {
 
     public void applyLibrary(String name) {
         try {
-            String xmlName = projectFile.getXmlName();
-            fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
-            iC libraryManager = jC.c(scId);
+            String xmlName = getProjectFile().getXmlName();
+            fragment.undoSnapshot = new ProjectSnapshot(getScId(), xmlName);
+            iC libraryManager = jC.c(getScId());
             ProjectLibraryBean lib = null;
             if (name.equalsIgnoreCase("appcompat")) lib = libraryManager.c();
             else if (name.equalsIgnoreCase("firebase")) lib = libraryManager.d();
@@ -101,7 +101,7 @@ public class LibrarySpecialist extends BaseSpecialist {
                             return;
                         }
 
-                        ManageLocalLibrary manager = new ManageLocalLibrary(scId);
+                        ManageLocalLibrary manager = new ManageLocalLibrary(getScId());
                         boolean alreadyEnabled = false;
                         for (HashMap<String, Object> lib : manager.list) {
                             if (libName.equals(lib.get("name"))) {
@@ -128,7 +128,7 @@ public class LibrarySpecialist extends BaseSpecialist {
                             newLib.put("assetsPath", new File(libFolder, "assets").getAbsolutePath());
 
                             manager.list.add(newLib);
-                            String configPath = new FilePathUtil().getPathLocalLibrary(scId);
+                            String configPath = new FilePathUtil().getPathLocalLibrary(getScId());
                             FileUtil.writeFile(configPath, GsonUtils.getGson().toJson(manager.list));
 
                             fragment.addSystemMessage("Local library '" + libName + "' enabled.");

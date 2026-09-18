@@ -51,16 +51,16 @@ public class LayoutSpecialist extends BaseSpecialist {
 
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(1200); } catch (Exception ignored) {}
-            String currentXml = SketchwareXmlBridge.getRawXml(androidContext, scId, projectFile);
+            String currentXml = SketchwareXmlBridge.getRawXml(androidContext, getScId(), getProjectFile());
 
             StringBuilder contextBuilder = new StringBuilder();
-            contextBuilder.append("Current Activity: ").append(projectFile.getXmlName()).append("\n");
+            contextBuilder.append("Current Activity: ").append(getProjectFile().getXmlName()).append("\n");
             contextBuilder.append("Current Layout XML:\n").append(currentXml).append("\n\n");
 
             try {
-                InjectRootLayoutManager rootManager = new InjectRootLayoutManager(scId);
-                ViewBean rootBean = rootManager.toBean(projectFile.getXmlName());
-                ArrayList<ViewBean> views = jC.a(scId).d(projectFile.getXmlName());
+                InjectRootLayoutManager rootManager = new InjectRootLayoutManager(getScId());
+                ViewBean rootBean = rootManager.toBean(getProjectFile().getXmlName());
+                ArrayList<ViewBean> views = jC.a(getScId()).d(getProjectFile().getXmlName());
                 contextBuilder.append("View Hierarchy (JSON):\n");
                 contextBuilder.append(AiViewTreeManager.buildViewTree(views, rootBean).toString(2)).append("\n");
             } catch (Exception e) {
@@ -75,7 +75,8 @@ public class LayoutSpecialist extends BaseSpecialist {
     CRITICAL RULES:
     1. Output MUST be valid, parseable JSON ONLY. Do not wrap response in markdown code blocks (no ```json).
     2. Do NOT change the root layout XML tag type unless explicitly instructed (the root tag frame is IDE-managed).
-    3. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines).
+    3. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines
+    al).
 
     LAYOUT RULES:
     """ + getLayoutRules() + """
@@ -155,7 +156,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                 applyDeleteView(action.getString("id"), false);
                 break;
             case "UPDATE_LAYOUT_FULL_XML":
-                applyXml(action.getString("xml"), projectFile.getXmlName());
+                applyXml(action.getString("xml"), getProjectFile().getXmlName());
                 break;
             case "CUSTOM_VIEW":
                 applyCustomView(action.getString("name"), action.optString("xml"));
@@ -170,13 +171,13 @@ public class LayoutSpecialist extends BaseSpecialist {
     }
 
     public void applyXml(String xml, String targetXmlName) {
-        String finalXmlName = targetXmlName != null ? targetXmlName : projectFile.getXmlName();
+        String finalXmlName = targetXmlName != null ? targetXmlName : getProjectFile().getXmlName();
         String title = "Review & Apply Layout" + (targetXmlName != null ? " to " + targetXmlName : "");
         showPreviewDialog(title, xml, finalXmlName);
     }
 
     private void showPreviewDialog(String title, String xml, String finalXmlName) {
-        View previewView = LayoutPreviewer.createPreview(getContext(), scId, xml, finalXmlName);
+        View previewView = LayoutPreviewer.createPreview(getContext(), getScId(), xml, finalXmlName);
 
         if (previewView == null) {
             SketchwareUtil.toastError("Failed to render preview. Falling back to code editor.");
@@ -189,8 +190,8 @@ public class LayoutSpecialist extends BaseSpecialist {
                 .setView(previewView)
                 .setPositiveButton("Apply", (dialog, which) -> {
                     try {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, finalXmlName);
-                        SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), scId, finalXmlName, xml);
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), finalXmlName);
+                        SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), getScId(), finalXmlName, xml);
                         fragment.addSystemMessage("Layout applied to " + finalXmlName);
                         fragment.setUndoVisible(true);
                         fragment.refreshDesigner();
@@ -218,8 +219,8 @@ public class LayoutSpecialist extends BaseSpecialist {
                 .setPositiveButton("Apply", (dialog, which) -> {
                     String editedXml = codeInput.getText().toString();
                     try {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, finalXmlName);
-                        SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), scId, finalXmlName, editedXml);
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), finalXmlName);
+                        SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), getScId(), finalXmlName, editedXml);
                         fragment.addSystemMessage("Layout applied to " + finalXmlName);
                         fragment.setUndoVisible(true);
                         fragment.refreshDesigner();
@@ -247,13 +248,13 @@ public class LayoutSpecialist extends BaseSpecialist {
                 return;
             }
 
-            eC dataManager = jC.a(scId);
-            InjectRootLayoutManager rootManager = new InjectRootLayoutManager(scId);
-            ArrayList<ViewBean> views = dataManager.d(projectFile.getXmlName());
+            eC dataManager = jC.a(getScId());
+            InjectRootLayoutManager rootManager = new InjectRootLayoutManager(getScId());
+            ArrayList<ViewBean> views = dataManager.d(getProjectFile().getXmlName());
             ViewBean target = null;
 
             if ("root".equals(viewId)) {
-                target = rootManager.toBean(projectFile.getXmlName());
+                target = rootManager.toBean(getProjectFile().getXmlName());
             } else {
                 for (ViewBean v : views) {
                     if (viewId.equals(v.id)) {
@@ -284,9 +285,9 @@ public class LayoutSpecialist extends BaseSpecialist {
                 attr.put(finalKey, finalValue);
                 new ViewBeanFactory(finalTarget).applyAttributes(attr);
                 if ("root".equals(viewId)) {
-                    rootManager.set(projectFile.getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
+                    rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
                 }
-                dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                 fragment.refreshDesigner();
                 return;
             }
@@ -297,14 +298,14 @@ public class LayoutSpecialist extends BaseSpecialist {
                     .setTitle("Apply Modification")
                     .setMessage(summary)
                     .setPositiveButton("Apply", (dialog, which) -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                         HashMap<String, String> attr = new HashMap<>();
                         attr.put(finalActionKey, finalValue);
                         new ViewBeanFactory(finalTarget).applyAttributes(attr);
                         if ("root".equals(viewId)) {
-                            rootManager.set(projectFile.getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
+                            rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
                         }
-                        dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                        dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.refreshDesigner();
                         fragment.addSystemMessage("View '" + viewId + "' modified.");
                         fragment.setUndoVisible(true);
@@ -340,8 +341,8 @@ public class LayoutSpecialist extends BaseSpecialist {
                 normalizedAttrs.put(finalKey, normalizeValue(cleanKey, attributes.get(key)));
             }
 
-            eC dataManager = jC.a(scId);
-            ArrayList<ViewBean> views = dataManager.d(projectFile.getXmlName());
+            eC dataManager = jC.a(getScId());
+            ArrayList<ViewBean> views = dataManager.d(getProjectFile().getXmlName());
 
             for (ViewBean v : views) {
                 if (newId.equals(v.id)) {
@@ -356,8 +357,8 @@ public class LayoutSpecialist extends BaseSpecialist {
             bean.index = index;
 
             if ("root".equals(parentId)) {
-                InjectRootLayoutManager rootManager = new InjectRootLayoutManager(scId);
-                bean.parentType = ViewBeanParser.getViewTypeByClassName(rootManager.getLayoutByFileName(projectFile.getXmlName()).getClassName());
+                InjectRootLayoutManager rootManager = new InjectRootLayoutManager(getScId());
+                bean.parentType = ViewBeanParser.getViewTypeByClassName(rootManager.getLayoutByFileName(getProjectFile().getXmlName()).getClassName());
             } else {
                 bean.parentType = ViewBean.VIEW_TYPE_LAYOUT_LINEAR; 
                 for (ViewBean v : views) {
@@ -371,8 +372,8 @@ public class LayoutSpecialist extends BaseSpecialist {
             new ViewBeanFactory(bean).applyAttributes(normalizedAttrs);
 
             if (!snapshot) {
-                dataManager.a(projectFile.getXmlName(), bean);
-                dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                dataManager.a(getProjectFile().getXmlName(), bean);
+                dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                 fragment.refreshDesigner();
                 return;
             }
@@ -381,9 +382,9 @@ public class LayoutSpecialist extends BaseSpecialist {
                     .setTitle("Add View")
                     .setMessage("Add " + type + " '" + newId + "' to " + parentId + "?")
                     .setPositiveButton("Add", (dialog, which) -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
-                        dataManager.a(projectFile.getXmlName(), bean);
-                        dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
+                        dataManager.a(getProjectFile().getXmlName(), bean);
+                        dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.refreshDesigner();
                         fragment.addSystemMessage("View '" + newId + "' added.");
                         fragment.setUndoVisible(true);
@@ -397,8 +398,8 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     public void applyDeleteView(String viewId, boolean snapshot) {
         try {
-            eC dataManager = jC.a(scId);
-            ArrayList<ViewBean> views = dataManager.d(projectFile.getXmlName());
+            eC dataManager = jC.a(getScId());
+            ArrayList<ViewBean> views = dataManager.d(getProjectFile().getXmlName());
             ViewBean target = null;
             for (ViewBean v : views) {
                 if (viewId.equals(v.id)) {
@@ -414,11 +415,11 @@ public class LayoutSpecialist extends BaseSpecialist {
 
             ViewBean finalTarget = target;
             if (!snapshot) {
-                ArrayList<ViewBean> affected = dataManager.b(projectFile.getXmlName(), finalTarget);
+                ArrayList<ViewBean> affected = dataManager.b(getProjectFile().getXmlName(), finalTarget);
                 for (int i = affected.size() - 1; i >= 0; i--) {
-                    dataManager.a(projectFile, affected.get(i));
+                    dataManager.a(getProjectFile(), affected.get(i));
                 }
-                dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                 fragment.refreshDesigner();
                 return;
             }
@@ -427,12 +428,12 @@ public class LayoutSpecialist extends BaseSpecialist {
                     .setTitle("Delete View")
                     .setMessage("Delete view '" + viewId + "' and all its children?")
                     .setPositiveButton("Delete", (dialog, which) -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
-                        ArrayList<ViewBean> affected = dataManager.b(projectFile.getXmlName(), finalTarget);
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
+                        ArrayList<ViewBean> affected = dataManager.b(getProjectFile().getXmlName(), finalTarget);
                         for (int i = affected.size() - 1; i >= 0; i--) {
-                            dataManager.a(projectFile, affected.get(i));
+                            dataManager.a(getProjectFile(), affected.get(i));
                         }
-                        dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                        dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.refreshDesigner();
                         fragment.addSystemMessage("View '" + viewId + "' deleted.");
                         fragment.setUndoVisible(true);
@@ -446,8 +447,8 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     public void applyMoveView(String viewId, String newParentId, int newIndex, boolean snapshot) {
         try {
-            eC dataManager = jC.a(scId);
-            ArrayList<ViewBean> views = dataManager.d(projectFile.getXmlName());
+            eC dataManager = jC.a(getScId());
+            ArrayList<ViewBean> views = dataManager.d(getProjectFile().getXmlName());
             ViewBean target = null;
             for (ViewBean v : views) {
                 if (viewId.equals(v.id)) {
@@ -479,7 +480,7 @@ public class LayoutSpecialist extends BaseSpecialist {
             if (!snapshot) {
                 finalTarget.parent = newParentId;
                 finalTarget.index = newIndex;
-                dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                 fragment.refreshDesigner();
                 return;
             }
@@ -488,10 +489,10 @@ public class LayoutSpecialist extends BaseSpecialist {
                     .setTitle("Move View")
                     .setMessage("Move '" + viewId + "' to parent '" + newParentId + "' at index " + newIndex + "?")
                     .setPositiveButton("Move", (dialog, which) -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(scId, projectFile.getXmlName());
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                         finalTarget.parent = newParentId;
                         finalTarget.index = newIndex;
-                        dataManager.n(new yq(getContext(), scId).projectMyscPath + "view");
+                        dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.refreshDesigner();
                         fragment.addSystemMessage("View '" + viewId + "' moved.");
                         fragment.setUndoVisible(true);
@@ -508,9 +509,9 @@ public class LayoutSpecialist extends BaseSpecialist {
                 .setTitle("Create Custom View")
                 .setMessage("Create '" + name + "'?" + (initialXml != null ? " with initial layout?" : ""))
                 .setPositiveButton("Create", (dialog, which) -> {
-                    String xmlName = projectFile.getXmlName();
-                    fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
-                    hC fileManager = jC.b(scId);
+                    String xmlName = getProjectFile().getXmlName();
+                    fragment.undoSnapshot = new ProjectSnapshot(getScId(), xmlName);
+                    hC fileManager = jC.b(getScId());
 
                     boolean exists = false;
                     for (ProjectFileBean cv : fileManager.d) {
@@ -527,7 +528,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                     }
 
                     try {
-                        SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), scId, name + ".xml", initialXml != null ? initialXml : "<LinearLayout android:layout_width=\"match_parent\" android:layout_height=\"match_parent\" android:orientation=\"vertical\"/>");
+                        SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), getScId(), name + ".xml", initialXml != null ? initialXml : "<LinearLayout android:layout_width=\"match_parent\" android:layout_height=\"match_parent\" android:orientation=\"vertical\"/>");
                         fragment.addSystemMessage("Custom View '" + name + "' " + (exists ? "updated" : "created") + ".");
                         fragment.setUndoVisible(true);
                         fragment.refreshDesigner();

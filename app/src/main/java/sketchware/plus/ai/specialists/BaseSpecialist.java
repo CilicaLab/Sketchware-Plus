@@ -9,13 +9,17 @@ import com.besome.sketch.beans.ProjectFileBean;
 
 public abstract class BaseSpecialist {
     protected final SkAssistantFragment fragment;
-    protected final String scId;
-    protected final ProjectFileBean projectFile;
 
     public BaseSpecialist(SkAssistantFragment fragment) {
         this.fragment = fragment;
-        this.scId = fragment.scId;
-        this.projectFile = fragment.projectFile;
+    }
+
+    protected String getScId() {
+        return fragment.scId;
+    }
+
+    protected ProjectFileBean getProjectFile() {
+        return fragment.projectFile;
     }
 
     public abstract void process(String prompt, String reasoning);

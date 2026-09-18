@@ -66,9 +66,9 @@ public class ManifestSpecialist extends BaseSpecialist {
 
     public void applyPermission(String permission) {
         try {
-            String xmlName = projectFile.getXmlName();
-            fragment.undoSnapshot = new ProjectSnapshot(scId, xmlName);
-            eC dataManager = jC.a(scId);
+            String xmlName = getProjectFile().getXmlName();
+            fragment.undoSnapshot = new ProjectSnapshot(getScId(), xmlName);
+            eC dataManager = jC.a(getScId());
 
             int permMask = 0;
             if (permission.contains("CALL_PHONE")) permMask = jq.PERMISSION_CALL_PHONE;
@@ -90,7 +90,7 @@ public class ManifestSpecialist extends BaseSpecialist {
             // Also persistently add it to the project's Permission Manager JSON file
             try {
                 FilePathUtil pathUtil = new FilePathUtil();
-                String permissionFilePath = pathUtil.getPathPermission(scId);
+                String permissionFilePath = pathUtil.getPathPermission(getScId());
                 ArrayList<String> permList = new ArrayList<>();
                 if (FileUtil.isExistFile(permissionFilePath)) {
                     String existingContent = FileUtil.readFile(permissionFilePath);
@@ -109,9 +109,9 @@ public class ManifestSpecialist extends BaseSpecialist {
                 log("Failed to write to Permission Manager json: " + ex.getMessage());
             }
 
-            yq workspace = new yq(getContext(), scId);
-            BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(scId);
-            Ix ix = new Ix(dataManager.l, jC.b(scId).c, builtInLibManager);
+            yq workspace = new yq(getContext(), getScId());
+            BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(getScId());
+            Ix ix = new Ix(dataManager.l, jC.b(getScId()).c, builtInLibManager);
             ix.setYq(workspace);
             workspace.a("AndroidManifest.xml", ix.a());
 
@@ -129,7 +129,7 @@ public class ManifestSpecialist extends BaseSpecialist {
                 .setPositiveButton("Add", (dialog, which) -> {
                     try {
                         if ("ATTR".equals(type)) {
-                            String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/Injection/androidmanifest/attributes.json";
+                            String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + getScId() + "/Injection/androidmanifest/attributes.json";
                             ArrayList<HashMap<String, Object>> data = new ArrayList<>();
                             if (FileUtil.isExistFile(path)) {
                                 data = GsonUtils.getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
@@ -141,7 +141,7 @@ public class ManifestSpecialist extends BaseSpecialist {
                             data.add(item);
                             FileUtil.writeFile(path, GsonUtils.getGson().toJson(data));
                         } else if ("COMPONENT".equals(type)) {
-                            String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/Injection/androidmanifest/app_components.txt";
+                            String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + getScId() + "/Injection/androidmanifest/app_components.txt";
                             String content = FileUtil.isExistFile(path) ? FileUtil.readFile(path) : "";
                             content += "\n" + value;
                             FileUtil.writeFile(path, content);
