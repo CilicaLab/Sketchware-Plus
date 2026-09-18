@@ -329,6 +329,15 @@ public class SkAssistantFragment extends Fragment {
                     adapter.notifyItemInserted(messages.size() - 1);
                     recyclerView.scrollToPosition(messages.size() - 1);
                 }
+                
+                // Toggle File/Activity selector clickable state based on AI status
+                if (getActivity() instanceof DesignActivity da) {
+                    View fileNameContainer = da.findViewById(R.id.file_name_container);
+                    if (fileNameContainer != null) {
+                        fileNameContainer.setEnabled(!isThinking);
+                        fileNameContainer.setAlpha(isThinking ? 0.5f : 1.0f);
+                    }
+                }
             });
         }
     }

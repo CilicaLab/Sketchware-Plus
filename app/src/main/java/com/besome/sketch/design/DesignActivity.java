@@ -804,6 +804,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     @Override
     public void onClick(View view) {
         if (view.getId() == R.id.file_name_container) {
+            // Prevent changing activity while AI is thinking
+            if (view.getAlpha() < 1.0f) {
+                SketchwareUtil.toast("Cannot change Activity while SK Assistant is running.");
+                return;
+            }
             if (viewPager.getCurrentItem() == 0) {
                 showAvailableViews();
             } else {
