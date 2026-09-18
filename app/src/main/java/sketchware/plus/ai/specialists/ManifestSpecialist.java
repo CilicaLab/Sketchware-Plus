@@ -19,6 +19,7 @@ import a.a.a.yq;
 import sketchware.plus.ai.ProjectSnapshot;
 import sketchware.plus.ai.SkAssistantFragment;
 import sketchware.plus.util.library.BuiltInLibraryManager;
+import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
 import mod.hey.studios.util.Helper;
@@ -84,6 +85,28 @@ public class ManifestSpecialist extends BaseSpecialist {
 
             if (permMask != 0) {
                 dataManager.l.addPermission(permMask);
+            }
+
+            // Also persistently add it to the project's Permission Manager JSON file
+            try {
+                FilePathUtil pathUtil = new FilePathUtil();
+                String permissionFilePath = pathUtil.getPathPermission(scId);
+                ArrayList<String> permList = new ArrayList<>();
+                if (FileUtil.isExistFile(permissionFilePath)) {
+                    String existingContent = FileUtil.readFile(permissionFilePath);
+                    if (!existingContent.trim().isEmpty()) {
+                        permList = GsonUtils.getGson().fromJson(existingContent, Helper.TYPE_STRING);
+                    }
+                }
+                if (permList == null) {
+                    permList = new ArrayList<>();
+                }
+                if (!permList.contains(permission)) {
+                    permList.add(permission);
+                    FileUtil.writeFile(permissionFilePath, GsonUtils.getGson().toJson(permList));
+                }
+            } catch (Exception ex) {
+                log("Failed to write to Permission Manager json: " + ex.getMessage());
             }
 
             yq workspace = new yq(getContext(), scId);
