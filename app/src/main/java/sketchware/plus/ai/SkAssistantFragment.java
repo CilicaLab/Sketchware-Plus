@@ -267,8 +267,6 @@ public class SkAssistantFragment extends Fragment {
             }
         });
 
-        // Initial background ping to get current context size
-        refreshContextUsage();
 
         return view;
     }
@@ -474,54 +472,6 @@ public class SkAssistantFragment extends Fragment {
         return chatHistory;
     }
 
-    private void refreshContextUsage() {
-        if (tokenUsageContainer == null) return;
-        
-        // Show a "loading" state if we don't have usage yet
-        if (lastTotalTokens == 0) {
-            tokenUsageContainer.setVisibility(View.VISIBLE);
-            tvTokenUsage.setText("... / ...");
-        }
-
-        Context context = getContext();
-        if (context == null) return;
-
-        jC.projectOperationsExecutor.execute(() -> {
-            String ctx = gatherScopedContext(context, "CHAT_ASSISTANT", ""); 
-            String systemPrompt = "CONTEXT:\n" + ctx + "\n\nINSTRUCTION: Calculate current context size. Respond with exactly 'READY'.";
-
-            Activity activity = getActivity();
-            if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    Context c = getContext();
-                    if (c == null) return;
-                    AiClient.askAi(c, systemPrompt, new JSONArray(), AiClient.AiTemperatureType.ASSISTANT_MODE, new AiClient.AiCallback() {
-                        @Override
-                        public void onSuccess(String response) {}
-
-                        @Override
-                        public void onSuccess(String response, int promptTokens, int completionTokens, int totalTokens) {
-                            updateTokenUsage(promptTokens, completionTokens, totalTokens);
-                        }
-
-                        @Override
-                        public void onError(String error) {
-                            log("Initial usage ping failed: " + error);
-                            if (getActivity() != null) {
-                                getActivity().runOnUiThread(() -> tokenUsageContainer.setVisibility(View.GONE));
-                            }
-                        }
-
-                        @Override
-                        public void onRetry(int retryCount, long delayMillis) {
-                            // Don't spam UI for background ping, just log
-                            log("Background ping rate limited, retrying in " + delayMillis + "ms");
-                        }
-                    });
-                });
-            }
-        });
-    }
 
     public void executeRequest(String systemPrompt, String prompt, String context, String category) {
         Context c = getContext();
