@@ -76,7 +76,7 @@ public class LayoutSpecialist extends BaseSpecialist {
     1. Output MUST be valid, parseable JSON ONLY. Do not wrap response in markdown code blocks (no ```json).
     2. Do NOT change the root layout XML tag type unless explicitly instructed (the root tag frame is IDE-managed).
     3. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines
-    al).
+    4.always add a main base layout to your modifycations).
 
     LAYOUT RULES:
     """ + getLayoutRules() + """
