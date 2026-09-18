@@ -15,10 +15,4 @@
         android:title="Design Drawer"
         app:showAsAction="always" />
 
-    <item
-        android:id="@+id/menu_design_ast"
-        android:orderInCategory="120"
-        android:title="Activity Blocks AST"
-        app:showAsAction="never" />
-
 </menu>

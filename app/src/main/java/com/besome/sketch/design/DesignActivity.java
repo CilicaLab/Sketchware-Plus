@@ -739,15 +739,9 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
-        if (itemId == R.id.design_actionbar_titleopen_drawer) {
-            if (!drawer.isDrawerOpen(GravityCompat.END)) {
-                drawer.openDrawer(GravityCompat.END);
-            }
-        } else if (itemId == R.id.design_option_menu_title_save_project) {
+        if (itemId == R.id.design_option_menu_title_save_project) {
             HapticManager.vibrateSave(null);
             saveProject();
-        } else if (itemId == R.id.menu_design_ast) {
-            showProjectBlocksInspector();
         }
 
         return super.onOptionsItemSelected(item);
@@ -1475,76 +1469,6 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         }
     }
 
-    private void showProjectBlocksInspector() {
-        try {
-            eC logicManager = jC.a(sc_id);
-            JSONObject activityAST = new JSONObject();
-            String currentActivityName = projectFile.getJavaName();
-
-            HashMap<String, ArrayList<BlockBean>> events = logicManager.d.get(currentActivityName);
-            if (events != null) {
-                for (String eventName : events.keySet()) {
-                    ArrayList<BlockBean> blocks = events.get(eventName);
-                    if (blocks != null && !blocks.isEmpty()) {
-                        Map<Integer, BlockBean> map = new HashMap<>();
-                        for (BlockBean b : blocks) {
-                            try {
-                                map.put(Integer.parseInt(b.id), b);
-                            } catch (Exception ignored) {
-                            }
-                        }
-                        activityAST.put(eventName, blockToAST(blocks.get(0), map));
-                    }
-                }
-            }
-
-            JSONObject resultNode = new JSONObject();
-            resultNode.put(currentActivityName, activityAST);
-            String prettyJson = resultNode.toString(4)
-                    .replace("\\n", "\n")
-                    .replace("\\/", "/")
-                    .replace("\\\\", "\\");
-
-            BottomSheetDialog dialog = new BottomSheetDialog(this);
-            TextView tv = new TextView(this);
-            tv.setText(prettyJson);
-            tv.setTextIsSelectable(true);
-            tv.setPadding(32, 32, 32, 32);
-
-            ScrollView sv = new ScrollView(this);
-            sv.addView(tv);
-            dialog.setContentView(sv);
-            dialog.show();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private JSONObject blockToAST(BlockBean block, Map<Integer, BlockBean> blockMap) throws Exception {
-        if (block == null) return null;
-
-        JSONObject node = new JSONObject();
-        try {
-            node.put("id", block.id);
-        } catch (Exception ignored) {
-        }
-        node.put("opCode", block.opCode);
-        node.put("spec", block.spec);
-        node.put("type", block.type);
-        node.put("parameters", new JSONArray(block.parameters));
-
-        if (block.subStack1 != -1) {
-            node.put("subStack1", blockToAST(blockMap.get(block.subStack1), blockMap));
-        }
-        if (block.subStack2 != -1) {
-            node.put("subStack2", blockToAST(blockMap.get(block.subStack2), blockMap));
-        }
-        if (block.nextBlock != -1) {
-            node.put("nextBlock", blockToAST(blockMap.get(block.nextBlock), blockMap));
-        }
-
-        return node;
-    }
 
     private static class ProjectLoader extends BaseTask {
         private final Bundle savedInstanceState;

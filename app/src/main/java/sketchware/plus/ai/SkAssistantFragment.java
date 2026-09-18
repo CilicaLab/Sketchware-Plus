@@ -378,7 +378,7 @@ public class SkAssistantFragment extends Fragment {
         
 
         
-        messages.add(new Message("system", "User cancelled this request."));
+        messages.add(new Message("system", "AI response has been stopped."));
         adapter.notifyItemInserted(messages.size() - 1);
         recyclerView.scrollToPosition(messages.size() - 1);
     }
@@ -771,7 +771,15 @@ public class SkAssistantFragment extends Fragment {
                             sb.append("Enabled: firebase=").append(libraryManager.d().useYn)
                                     .append(", appcompat=").append(libraryManager.c().useYn).append("\n");
                         } else if ("SYSTEM_MANIFEST".equals(category)) {
-                            sb.append("Permissions: ").append(dataManager.l.q).append("\n");
+                            sb.append("Current Conceptual Manifest (AST Model):\n");
+                            try {
+                                BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(scId);
+                                Ix manifestGenerator = new Ix(dataManager.l, fileManager.b(), builtInLibManager);
+                                manifestGenerator.setYq(workspace);
+                                sb.append(manifestGenerator.a()).append("\n");
+                            } catch (Exception e) {
+                                sb.append("Error generating manifest preview: ").append(e.getMessage()).append("\n");
+                            }
                         } else if ("CUSTOM_DESIGN".equals(category) || "COMPONENT_ARCHITECT".equals(category)) {
                             sb.append("Custom Views: ").append(fileManager.d.size()).append("\n");
                             ArrayList<ComponentBean> components = dataManager.e(projectFile.getJavaName());
