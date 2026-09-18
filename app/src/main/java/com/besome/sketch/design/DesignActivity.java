@@ -739,7 +739,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
-        if (itemId == R.id.design_option_menu_title_save_project) {
+        if (itemId == R.id.design_actionbar_titleopen_drawer) {
+            if (!drawer.isDrawerOpen(GravityCompat.END)) {
+                drawer.openDrawer(GravityCompat.END);
+            }
+        } else if (itemId == R.id.design_option_menu_title_save_project) {
             HapticManager.vibrateSave(null);
             saveProject();
         }
