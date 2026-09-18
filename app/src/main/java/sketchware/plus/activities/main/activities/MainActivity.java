@@ -363,9 +363,9 @@ public class MainActivity extends BasePermissionAppCompatActivity {
     @NonNull
     private BottomSheetDialogView getBottomSheetDialogView() {
         BottomSheetDialogView bottomSheetDialog = new BottomSheetDialogView(this);
-        bottomSheetDialog.setTitle("Major changes in v7.0.0");
+        bottomSheetDialog.setTitle("Major changes in v7.0.1");
         bottomSheetDialog.setDescription("""
-                There have been major changes since v6.3.0 fix1, \
+                There have been major changes since v7.0.0, \
                 and it's very important to know them all if you want your projects to still work.
                 
                 You can view all changes whenever you want at the About Sketchware Plus screen.""");

@@ -21,6 +21,13 @@
         app:summary="@string/system_settings_description_show_build_details"
         app:title="@string/system_settings_title_show_build_details" />
 
+    <SwitchPreferenceCompat
+        app:defaultValue="false"
+        app:iconSpaceReserved="false"
+        app:key="P12I11"
+        app:summary="@string/system_settings_description_show_system_profiler"
+        app:title="@string/system_settings_title_show_system_profiler" />
+
     <PreferenceCategory
         app:iconSpaceReserved="false"
         app:title="AI Features">

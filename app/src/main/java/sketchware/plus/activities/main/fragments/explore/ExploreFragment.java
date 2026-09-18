@@ -1,5 +1,7 @@
 package sketchware.plus.activities.main.fragments.explore;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.LayoutInflater;
@@ -49,11 +51,17 @@ public class ExploreFragment extends Fragment {
         composeProfiler = view.findViewById(R.id.compose_profiler);
         swipeRefresh = view.findViewById(R.id.swipe_refresh);
 
+        SharedPreferences prefs = requireContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+        boolean showProfiler = prefs.getBoolean("P12I11", false);
+        composeProfiler.setVisibility(showProfiler ? View.VISIBLE : View.GONE);
+
         swipeRefresh.setOnRefreshListener(this::loadData);
         swipeRefresh.setColorSchemeResources(R.color.color_primary);
 
-        composeProfiler.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
-        ProfilerUIHelper.setContent(composeProfiler);
+        if (showProfiler) {
+            composeProfiler.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+            ProfilerUIHelper.setContent(composeProfiler);
+        }
 
         contributionGraph.setOnCellClickListener((date, count) -> 
             Toast.makeText(getContext(), date + ": " + count + " contributions", Toast.LENGTH_SHORT).show()
@@ -96,8 +104,14 @@ public class ExploreFragment extends Fragment {
         Map<String, Integer> data = ActivityTracker.loadActivity(ActivityTracker.DEFAULT_FILE_PATH);
         contributionGraph.setActivityData(data);
         
-        // Refresh Profiler UI content to pick up latest BuildStatsManager values
-        ProfilerUIHelper.setContent(composeProfiler);
+        SharedPreferences prefs = requireContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+        boolean showProfiler = prefs.getBoolean("P12I11", false);
+        composeProfiler.setVisibility(showProfiler ? View.VISIBLE : View.GONE);
+
+        if (showProfiler) {
+            // Refresh Profiler UI content to pick up latest BuildStatsManager values
+            ProfilerUIHelper.setContent(composeProfiler);
+        }
         
         // Auto-scroll to the end (current month)
         hscrollContribution.post(() -> hscrollContribution.fullScroll(View.FOCUS_RIGHT));

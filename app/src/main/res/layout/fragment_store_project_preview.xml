@@ -89,7 +89,7 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
                     android:textIsSelectable="true"
-                    tools:text="Meet Sketchware Plus v7.0.0!\nFinally, the long-awaited version has been released!" /> />
+                    tools:text="Meet Sketchware Plus v7.0.1!\nFinally, the long-awaited version has been released!" />
             </com.google.android.material.card.MaterialCardView>
 
             <TextView

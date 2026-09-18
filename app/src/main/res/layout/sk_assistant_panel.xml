@@ -22,8 +22,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="4dp"
-        android:layout_marginVertical="8dp"
-        app:cardCornerRadius="16dp"
+        android:layout_marginVertical="4dp"
+        app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
         app:strokeWidth="1dp"
         app:strokeColor="?attr/colorOutlineVariant"
@@ -31,58 +31,88 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="8dp">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="4dp">
 
-            <View
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/token_usage_container"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:layout_marginEnd="4dp"
-                android:visibility="gone"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:cardBackgroundColor="?attr/colorSurfaceContainer">
-
-                <TextView
-                    android:id="@+id/tv_token_usage"
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/token_usage_container"
                     android:layout_width="wrap_content"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="4dp"
+                    android:visibility="gone"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/colorOutlineVariant"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainer">
+
+                    <TextView
+                        android:id="@+id/tv_token_usage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingHorizontal="8dp"
+                        android:text="0 / 0"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <View
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:paddingHorizontal="12dp"
-                    android:text="0 / 0"
-                    android:textColor="?attr/colorPrimary"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-            </com.google.android.material.card.MaterialCardView>
+                    android:layout_weight="1" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_undo"
-                style="@style/Widget.Material3.Button.IconButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:visibility="gone"
-                app:icon="@drawable/ic_mtrl_undo"
-                app:iconTint="?attr/colorPrimary" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_undo"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:insetLeft="0dp"
+                    android:insetTop="0dp"
+                    android:insetRight="0dp"
+                    android:insetBottom="0dp"
+                    android:visibility="gone"
+                    app:iconSize="18dp"
+                    app:icon="@drawable/ic_mtrl_undo"
+                    app:iconTint="?attr/colorPrimary" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_clear"
-                style="@style/Widget.Material3.Button.IconButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                app:icon="@drawable/ic_mtrl_delete"
-                app:iconTint="?attr/colorError" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_clear"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="32dp"
+                    android:insetLeft="0dp"
+                    android:insetTop="0dp"
+                    android:insetRight="0dp"
+                    android:insetBottom="0dp"
+                    android:layout_height="32dp"
+                    app:iconSize="18dp"
+                    app:icon="@drawable/ic_mtrl_delete"
+                    app:iconTint="?attr/colorError" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alpha="0.5"
+                android:drawableStart="@drawable/ic_mtrl_warning"
+                android:drawablePadding="8dp"
+                android:drawableTint="#FFFFC107"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:text="SK Assistant is in development. Industry quality not guaranteed."
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

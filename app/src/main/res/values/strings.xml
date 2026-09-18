@@ -7,6 +7,8 @@
     <string name="system_settings_description_ai_code_generation_temp">Control the focus of SK code generation</string>
     <string name="system_settings_title_ai_assistant_mode_temp">SK Assistant Mode Temperature</string>
     <string name="system_settings_description_ai_assistant_mode_temp">Control the focus of SK Assistant Mode</string>
+    <string name="system_settings_title_show_system_profiler">Show System Profiler</string>
+    <string name="system_settings_description_show_system_profiler">Show the real-time system performance profiler in the Explore tab</string>
     <string-array name="ai_focus_entries">
         <item>Max Focus</item>
         <item>Medium Focus</item>
