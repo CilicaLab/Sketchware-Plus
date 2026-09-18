@@ -272,9 +272,23 @@ public class AddViewActivity extends BaseAppCompatActivity {
         ProjectFileBean projectFileBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY, fileName, getSelectedButtonIndex(binding.screenOrientationSelector), getSelectedButtonIndex(binding.keyboardSettingsSelector), featureToolbar, !featureStatusBar, featureFab, featureDrawer);
         Intent intent = new Intent();
         intent.putExtra("project_file", projectFileBean);
+        
+        ArrayList<ViewBean> views;
         if (presetName != null) {
-            intent.putExtra("preset_views", getPresetData(presetName));
+            views = getPresetData(presetName);
+        } else {
+            // Inject a default root1 LinearLayout when creating a blank activity
+            views = new ArrayList<>();
+            ViewBean rootBean = new ViewBean("root1", ViewBean.VIEW_TYPE_LAYOUT_LINEAR);
+            rootBean.parent = "root";
+            rootBean.index = 0;
+            rootBean.layout.width = -1; // MATCH_PARENT
+            rootBean.layout.height = -1; // MATCH_PARENT
+            rootBean.layout.orientation = 1; // VERTICAL
+            views.add(rootBean);
         }
+        intent.putExtra("preset_views", views);
+        
         setResult(RESULT_OK, intent);
         bB.a(getApplicationContext(), getString(R.string.design_manager_message_add_complete, new Object[0]), bB.TOAST_NORMAL).show();
         finish();
