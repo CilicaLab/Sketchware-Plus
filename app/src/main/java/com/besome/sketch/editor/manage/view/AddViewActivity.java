@@ -277,9 +277,10 @@ public class AddViewActivity extends BaseAppCompatActivity {
         if (presetName != null) {
             views = getPresetData(presetName);
         } else {
-            // Inject a default root1 LinearLayout when creating a blank activity
+            // Inject a default LinearLayout when creating a blank activity.
             views = new ArrayList<>();
-            ViewBean rootBean = new ViewBean("root1", ViewBean.VIEW_TYPE_LAYOUT_LINEAR);
+            ViewBean rootBean = new ViewBean();
+            rootBean.type = ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
             rootBean.parent = "root";
             rootBean.index = 0;
             rootBean.layout.width = -1; // MATCH_PARENT

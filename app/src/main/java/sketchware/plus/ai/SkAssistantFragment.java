@@ -372,8 +372,7 @@ public class SkAssistantFragment extends Fragment {
         AiClient.cancelCurrentRequest();
         setStatus(null);
         
-        // Remove the user's last message if it was just sent? 
-        // No, keep it but show cancellation.
+
         
         messages.add(new Message("system", "User cancelled this request."));
         adapter.notifyItemInserted(messages.size() - 1);
