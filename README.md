@@ -6,7 +6,6 @@
 
 [![GitHub contributors](https://img.shields.io/github/contributors/CilicaLab/Sketchware-Plus)](https://github.com/CilicaLab/Sketchware-Plus/graphs/contributors)
 [![GitHub last commit](https://img.shields.io/github/last-commit/CilicaLab/Sketchware-Plus)](https://github.com/CilicaLab/Sketchware-Plus/commits/)
-[![Discord server stats](https://img.shields.io/discord/790686719753846785)](http://discord.gg/kq39yhT4rX)
 [![Total downloads](https://img.shields.io/github/downloads/CilicaLab/Sketchware-Plus/total)](https://github.com/CilicaLab/Sketchware-Plus/releases)
 
 Sketchware Plus is a community-driven enhancement of the original Sketchware, built upon the foundations of [Sketchware Pro](https://github.com/Sketchware-Pro/Sketchware-Pro). This project focuses on providing modern development tools and advanced AI integration to the Sketchware ecosystem.
