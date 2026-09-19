@@ -23,7 +23,6 @@ import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.BaseTransientBottomBar;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.gson.JsonParseException;
 import com.topjohnwu.superuser.Shell;
 
 import java.io.File;
@@ -97,37 +96,28 @@ public class ConfigActivity extends BaseAppCompatActivity {
 
     @NonNull
     private static HashMap<String, Object> readSettings() {
-        HashMap<String, Object> settings;
-
         if (SETTINGS_FILE.exists()) {
-            Exception toLog;
-
             try {
-                String content = FileUtil.readFile(SETTINGS_FILE.getAbsolutePath());
-                if (content.trim().isEmpty()) {
-                    settings = new HashMap<>();
+                String content = FileUtil.readFile(SETTINGS_FILE.getAbsolutePath()).trim();
+                if (content.isEmpty() || content.equals("null")) {
+                    HashMap<String, Object> settings = new HashMap<>();
                     restoreDefaultSettings(settings);
                     return settings;
                 }
-                settings = getGson().fromJson(content, Helper.TYPE_MAP);
 
+                HashMap<String, Object> settings = getGson().fromJson(content, Helper.TYPE_MAP);
                 if (settings != null) {
                     return settings;
                 }
-
-                toLog = new NullPointerException("settings == null");
-                // fall-through to shared error handler
-            } catch (JsonParseException e) {
-                toLog = e;
-                // fall-through to shared error handler
+            } catch (Exception e) {
+                // Silently handle parsing errors on start.
+                // We'll restore defaults below.
+                LogUtil.e("ConfigActivity", "Failed to parse App Settings from " + SETTINGS_FILE.getAbsolutePath(), e);
             }
-
-            SketchwareUtil.toastError("Couldn't parse App Settings! Restoring defaults.");
-            LogUtil.e("ConfigActivity", "Failed to parse App Settings.", toLog);
         }
-        settings = new HashMap<>();
+        
+        HashMap<String, Object> settings = new HashMap<>();
         restoreDefaultSettings(settings);
-
         return settings;
     }
 
