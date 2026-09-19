@@ -103,7 +103,13 @@ public class ConfigActivity extends BaseAppCompatActivity {
             Exception toLog;
 
             try {
-                settings = getGson().fromJson(FileUtil.readFile(SETTINGS_FILE.getAbsolutePath()), Helper.TYPE_MAP);
+                String content = FileUtil.readFile(SETTINGS_FILE.getAbsolutePath());
+                if (content.trim().isEmpty()) {
+                    settings = new HashMap<>();
+                    restoreDefaultSettings(settings);
+                    return settings;
+                }
+                settings = getGson().fromJson(content, Helper.TYPE_MAP);
 
                 if (settings != null) {
                     return settings;
