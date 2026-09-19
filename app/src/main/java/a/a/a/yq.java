@@ -1,5 +1,7 @@
 package a.a.a;
 
+import sketchware.plus.security.SecurityGuardInjector;
+
 import static com.besome.sketch.Config.VAR_DEFAULT_MIN_SDK_VERSION;
 import static com.besome.sketch.Config.VAR_DEFAULT_TARGET_SDK_VERSION;
 import static mod.hey.studios.util.ProjectFile.getDefaultColor;
@@ -427,6 +429,8 @@ public class yq {
                 sketchApplicationFileContent = sketchApplicationFileContent.replace(
                         "import android.util.Log;", imports);
             }
+
+            sketchApplicationFileContent = SecurityGuardInjector.inject(context, sc_id, sketchApplicationFileContent);
 
             fileUtil.b(javaFilesPath + File.separator
                     + customClassPackageAsFolders + File.separator

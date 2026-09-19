@@ -18,6 +18,7 @@
     <item name="item_used_custom_blocks" type="id" />
     <item name="item_code_shrinking_manager" type="id" />
     <item name="item_stringfog_manager" type="id" />
+    <item name="item_security_guard" type="id" />
     <item name="item_show_src" type="id" />
     <item name="item_xml_command_manager" type="id" />
     <item name="item_java_command_manager" type="id" />

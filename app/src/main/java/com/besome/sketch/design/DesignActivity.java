@@ -126,8 +126,8 @@ import mod.hey.studios.compiler.kotlin.KotlinCompilerBridge;
 import mod.hey.studios.project.custom_blocks.CustomBlocksDialog;
 import mod.hey.studios.project.proguard.ManageProguardActivity;
 import mod.hey.studios.project.proguard.ProguardHandler;
-import mod.hey.studios.project.stringfog.ManageStringFogFragment;
-import mod.hey.studios.project.stringfog.StringfogHandler;
+import sketchware.plus.security.ManageSecurityGuardFragment;
+import sketchware.plus.security.SecurityGuardHandler;
 import mod.hey.studios.util.Helper;
 import mod.hey.studios.util.SystemLogPrinter;
 import sketchware.plus.activities.main.fragments.explore.views.ProfilerUIHelper;
@@ -1102,11 +1102,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     /**
      * Opens {@link ManageStringFogFragment}.
      */
-    void toStringFogManager() {
+    public void toSecurityGuardManager() {
         var fragmentManager = getSupportFragmentManager();
-        if (fragmentManager.findFragmentByTag("stringFogFragment") == null) {
-            var bottomSheet = new ManageStringFogFragment();
-            bottomSheet.show(fragmentManager, "stringFogFragment");
+        if (fragmentManager.findFragmentByTag("securityGuardFragment") == null) {
+            var bottomSheet = new ManageSecurityGuardFragment();
+            bottomSheet.show(fragmentManager, "securityGuardFragment");
         }
     }
 

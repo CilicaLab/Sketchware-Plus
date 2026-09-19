@@ -2204,6 +2204,8 @@ Please try again later"</string>
     <string name="design_drawer_menu_proguard_subtitle">Minimize/obfuscate your app with R8/ProGuard</string>
     <string name="design_drawer_menu_stringfog">StringFog Manager</string>
     <string name="design_drawer_menu_stringfog_subtitle">Encrypt strings in your app at compilation time</string>
+    <string name="design_drawer_menu_security_guard">Security Guard</string>
+    <string name="design_drawer_menu_security_guard_subtitle">Enable advanced anti-cloning and anti-tamper protections</string>
     <string name="design_drawer_menu_subtitle_editor_code">Edit any Java and XML file</string>
     <string name="design_drawer_menu_nativelibs">Native Library Manager</string>
     <string name="design_drawer_menu_nativelibs_subtitle">Add native libraries (.so)</string>
