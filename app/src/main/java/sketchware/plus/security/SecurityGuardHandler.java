@@ -2,6 +2,8 @@ package sketchware.plus.security;
 
 import com.google.gson.Gson;
 import java.util.HashMap;
+
+import mod.jbk.build.BuildProgressReceiver;
 import sketchware.plus.utility.FileUtil;
 import mod.hey.studios.util.Helper;
 
@@ -53,5 +55,20 @@ public class SecurityGuardHandler {
         HashMap<String, Object> config = getConfig();
         config.put(key, value);
         FileUtil.writeFile(configPath, new Gson().toJson(config));
+    }
+
+    public void reportProgress(BuildProgressReceiver receiver) {
+        if (isFeatureEnabled("package_lock")) reportWithDelay(receiver, "Locking package identity...");
+        if (isFeatureEnabled("signature_check")) reportWithDelay(receiver, "Applying anti-cloning shield...");
+        if (isFeatureEnabled("root_detection")) reportWithDelay(receiver, "Injecting root detection...");
+        if (isFeatureEnabled("emulator_detection")) reportWithDelay(receiver, "Injecting emulator protection...");
+        if (isFeatureEnabled("anti_debug")) reportWithDelay(receiver, "Hardening anti-debugger...");
+    }
+
+    private void reportWithDelay(BuildProgressReceiver receiver, String message) {
+        receiver.onProgress(message, 2);
+        try {
+            Thread.sleep(400); // Small delay to make text visible
+        } catch (InterruptedException ignored) {}
     }
 }

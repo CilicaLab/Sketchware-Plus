@@ -37,6 +37,7 @@ import mod.jbk.build.BuildProgressReceiver;
 import mod.jbk.build.BuiltInLibraries;
 import mod.jbk.diagnostic.MissingFileException;
 import sketchware.plus.R;
+import sketchware.plus.security.SecurityGuardHandler;
 import sketchware.plus.utility.AppIconManager;
 import sketchware.plus.utility.BuildStatsManager;
 import sketchware.plus.utility.FileUtil;
@@ -165,6 +166,7 @@ public class BuildService extends Service implements BuildProgressReceiver {
             builder.buildBuiltInLibraryInformation();
             q.b(fileManager, dataManager, libraryManager, builder.getBuiltInLibraryManager());
             q.f();
+            new SecurityGuardHandler(sc_id).reportProgress(this);
             q.e();
             BuildStatsManager.recordStat("Source Generation", System.currentTimeMillis() - start);
 
