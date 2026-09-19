@@ -4,7 +4,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CompoundButton;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -24,7 +23,6 @@ import mod.hey.studios.project.stringfog.StringfogHandler;
 import sketchware.plus.databinding.FragmentSecurityGuardManagerBinding;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.apk.ApkSignatures;
-import sketchware.plus.utility.apk.ApkUtils;
 
 public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
 
@@ -49,12 +47,7 @@ public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
         final StringfogHandler stringfogHandler = new StringfogHandler(scId);
 
         binding.swStringfog.setChecked(stringfogHandler.isStringfogEnabled());
-        binding.swStringfog.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                stringfogHandler.setStringfogEnabled(isChecked);
-            }
-        });
+        binding.swStringfog.setOnCheckedChangeListener((buttonView, isChecked) -> stringfogHandler.setStringfogEnabled(isChecked));
 
         setupToggle(binding.swPackageLock, "package_lock");
         setupToggle(binding.swSignatureCheck, "signature_check");
@@ -65,22 +58,14 @@ public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
 
         updateUI();
 
-        binding.btnViewSignature.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                viewSignatureDetails();
-            }
-        });
+        binding.btnViewSignature.setOnClickListener(v -> viewSignatureDetails());
     }
 
     private void setupToggle(MaterialSwitch sw, final String key) {
         sw.setChecked(handler.isFeatureEnabled(key));
-        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                handler.setFeatureValue(key, isChecked);
-                updateUI();
-            }
+        sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            handler.setFeatureValue(key, isChecked);
+            updateUI();
         });
     }
 
@@ -119,10 +104,12 @@ public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
         String binDir = wq.d(scId) + File.separator + "bin";
         List<String> files = FileUtil.listFiles(binDir, "apk");
         String apkPath = null;
-        for (String file : files) {
-            if (file.endsWith(".apk") && !file.endsWith(".unsigned") && !file.endsWith(".aligned")) {
-                apkPath = file;
-                break;
+        if (files != null) {
+            for (String file : files) {
+                if (file.endsWith(".apk") && !file.endsWith(".unsigned") && !file.endsWith(".aligned")) {
+                    apkPath = file;
+                    break;
+                }
             }
         }
 
