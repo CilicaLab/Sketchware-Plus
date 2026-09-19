@@ -37,6 +37,7 @@ import mod.jbk.build.BuildProgressReceiver;
 import mod.jbk.build.BuiltInLibraries;
 import mod.jbk.diagnostic.MissingFileException;
 import sketchware.plus.R;
+import sketchware.plus.utility.AppIconManager;
 import sketchware.plus.utility.BuildStatsManager;
 import sketchware.plus.utility.FileUtil;
 import mod.jbk.util.LogUtil;
@@ -302,9 +303,11 @@ public class BuildService extends Service implements BuildProgressReceiver {
         cancelIntent.setAction(ACTION_CANCEL_BUILD);
         PendingIntent pendingCancelIntent = PendingIntent.getService(this, 0, cancelIntent, PendingIntent.FLAG_IMMUTABLE);
 
+        int iconRes = AppIconManager.ICON_DRAWABLES[AppIconManager.getSelectedIcon(this)];
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
+                .setSmallIcon(iconRes)
+                .setLargeIcon(BitmapFactory.decodeResource(getResources(), iconRes))
                 .setContentTitle("Building project")
                 .setContentText(content)
                 .setOngoing(true)

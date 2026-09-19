@@ -16,6 +16,7 @@ import com.google.firebase.messaging.RemoteMessage;
 
 import sketchware.plus.R;
 import sketchware.plus.activities.main.activities.MainActivity;
+import sketchware.plus.utility.AppIconManager;
 
 public class FirebaseMessagingServiceImpl extends FirebaseMessagingService {
 
@@ -40,7 +41,7 @@ public class FirebaseMessagingServiceImpl extends FirebaseMessagingService {
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         NotificationCompat.Builder notificationBuilder =
                 new NotificationCompat.Builder(this, channelId)
-                        .setSmallIcon(R.drawable.ic_sketchware_24)
+                        .setSmallIcon(AppIconManager.ICON_DRAWABLES[AppIconManager.getSelectedIcon(this)])
                         .setContentTitle(messageTitle)
                         .setContentText(messageBody)
                         .setAutoCancel(true)
