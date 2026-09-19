@@ -45,7 +45,7 @@ public class DebugActivity extends Activity {
         Intent intent = getIntent();
         final String errorMessage = intent != null ? intent.getStringExtra("error") : "No error message available.";
 
-        // Root layout
+        // Root layout.
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFFF8F9FA); 
