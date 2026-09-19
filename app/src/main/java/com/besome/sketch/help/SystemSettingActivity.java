@@ -1,6 +1,7 @@
 package com.besome.sketch.help;
 
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -19,6 +20,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
+import sketchware.plus.databinding.DialogCreateNewFileLayoutBinding;
 import sketchware.plus.databinding.PreferenceActivityBinding;
 
 public class SystemSettingActivity extends BaseAppCompatActivity {
@@ -89,6 +91,73 @@ public class SystemSettingActivity extends BaseAppCompatActivity {
             setupAiFocusPreference("P12I7");
             setupAiFocusPreference("P12I8");
             setupAiFocusPreference("P12I9");
+
+            setupEditTextPreference("P12I3", "AI API Key");
+            setupEditTextPreference("P12I4", "AI Endpoint URL");
+            setupEditTextPreference("P12I5", "AI Model Name");
+        }
+
+        private void setupEditTextPreference(String key, String title) {
+            Preference pref = findPreference(key);
+            if (pref == null) return;
+
+            updateEditTextSummary(pref);
+            pref.setOnPreferenceClickListener(p -> {
+                showEditTextDialog(pref, title);
+                return true;
+            });
+        }
+
+        private void updateEditTextSummary(Preference pref) {
+            if (getPreferenceManager().getSharedPreferences() == null) return;
+            String value = getPreferenceManager().getSharedPreferences().getString(pref.getKey(), "");
+            if (value.isEmpty()) {
+                pref.setSummary("Not set");
+            } else {
+                if (pref.getKey().equals("P12I3")) {
+                    // Mask API key
+                    if (value.length() > 8) {
+                        pref.setSummary(value.substring(0, 4) + "...." + value.substring(value.length() - 4));
+                    } else {
+                        pref.setSummary("********");
+                    }
+                } else {
+                    pref.setSummary(value);
+                }
+            }
+        }
+
+        private void showEditTextDialog(Preference pref, String title) {
+            var binding = DialogCreateNewFileLayoutBinding.inflate(getLayoutInflater());
+            binding.chipGroupTypes.setVisibility(View.GONE);
+            binding.textInputLayout.setHint(title);
+            
+            if (pref.getKey().equals("P12I3")) {
+                binding.inputText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            }
+
+            var prefs = getPreferenceManager().getSharedPreferences();
+            if (prefs != null) {
+                String currentValue = prefs.getString(pref.getKey(), "");
+                binding.inputText.setText(currentValue);
+            }
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(title)
+                    .setView(binding.getRoot())
+                    .setPositiveButton("Save", (dialog, which) -> {
+                        if (binding.inputText.getText() != null) {
+                            String newValue = binding.inputText.getText().toString().trim();
+                            if (getPreferenceManager().getSharedPreferences() != null) {
+                                getPreferenceManager().getSharedPreferences().edit()
+                                        .putString(pref.getKey(), newValue)
+                                        .apply();
+                                updateEditTextSummary(pref);
+                            }
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
         }
 
         private void setupAiFocusPreference(String key) {

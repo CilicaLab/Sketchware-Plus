@@ -32,19 +32,19 @@
         app:iconSpaceReserved="false"
         app:title="AI Features">
 
-        <EditTextPreference
+        <Preference
             app:iconSpaceReserved="false"
             app:key="P12I3"
             app:summary="@string/system_settings_description_ai_api_key"
             app:title="@string/system_settings_title_ai_api_key" />
 
-        <EditTextPreference
+        <Preference
             app:iconSpaceReserved="false"
             app:key="P12I4"
             app:summary="@string/system_settings_description_ai_endpoint_url"
             app:title="@string/system_settings_title_ai_endpoint_url" />
 
-        <EditTextPreference
+        <Preference
             app:iconSpaceReserved="false"
             app:key="P12I5"
             app:summary="@string/system_settings_description_ai_model_name"
