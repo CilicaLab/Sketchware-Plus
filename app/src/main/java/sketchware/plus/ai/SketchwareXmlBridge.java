@@ -8,6 +8,7 @@ import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ViewBean;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -135,7 +136,8 @@ public class SketchwareXmlBridge {
         String children = extractChildren(rawXml);
         
         StringBuilder sb = new StringBuilder();
-        sb.append("<!-- SYSTEM-MANAGED ROOT: ").append(root.getClassName()).append(" -->\n");
+        sb.append("<!-- ACTIVITY ROOT: ").append(root.getClassName()).append(" -->\n");
+        sb.append("<!-- You can change this root type or add containers inside it -->\n");
         sb.append("<").append(root.getClassName());
         
         // Provide only necessary context attributes
@@ -175,29 +177,62 @@ public class SketchwareXmlBridge {
 
     public static String reRootWithOriginalConfig(String scId, String xmlName, String aiXml) {
         InjectRootLayoutManager rootManager = new InjectRootLayoutManager(scId);
-        InjectRootLayoutManager.Root root = rootManager.getLayoutByFileName(xmlName);
+        InjectRootLayoutManager.Root originalRoot = rootManager.getLayoutByFileName(xmlName);
         
-        String innerContent = extractChildren(aiXml);
-        if (innerContent.isEmpty() && !aiXml.contains("</")) {
-            // AI might have returned just a list of tags or a self-closing root
-            // If it's just tags without a root, we take the whole thing
-            if (aiXml.trim().startsWith("<") && !aiXml.trim().startsWith("<" + root.getClassName())) {
-                innerContent = aiXml.trim();
+        String trimmedAiXml = aiXml.trim();
+        
+        // Extract the root tag name from AI's XML
+        String aiRootTag = null;
+        Pattern p = Pattern.compile("^<([\\w\\.]+)", Pattern.MULTILINE);
+        Matcher m = p.matcher(trimmedAiXml);
+        if (m.find()) {
+            aiRootTag = m.group(1);
+        }
+
+        String innerContent;
+        String finalRootClass = originalRoot.getClassName();
+        Map<String, String> finalAttrs = new LinkedHashMap<>(originalRoot.getAttributes());
+
+        // If the AI provided a root that matches our current class, or if it's a known layout,
+        // we extract children. Otherwise, we treat the whole thing as content.
+        if (aiRootTag != null && (aiRootTag.equals(originalRoot.getClassName()) || aiRootTag.contains("Layout") || aiRootTag.contains("View"))) {
+            innerContent = extractChildren(trimmedAiXml);
+            if (innerContent.isEmpty() && !trimmedAiXml.contains("</")) {
+                innerContent = trimmedAiXml;
+            } else {
+                // The AI provided a root, let's see if we should adopt its attributes/class
+                finalRootClass = aiRootTag;
+                // Try to extract attributes from the AI root tag
+                int firstEnd = trimmedAiXml.indexOf(">");
+                if (firstEnd != -1) {
+                    String rootOpenTag = trimmedAiXml.substring(0, firstEnd);
+                    Pattern attrPattern = Pattern.compile("(\\w+:\\w+)=\"([^\"]*)\"");
+                    Matcher attrMatcher = attrPattern.matcher(rootOpenTag);
+                    while (attrMatcher.find()) {
+                        finalAttrs.put(attrMatcher.group(1), attrMatcher.group(2));
+                    }
+                }
             }
+        } else {
+            innerContent = trimmedAiXml;
         }
         
+        // Update the system root configuration
+        rootManager.set(xmlName, new InjectRootLayoutManager.Root(finalRootClass, finalAttrs));
+
         StringBuilder sb = new StringBuilder();
-        sb.append("<").append(root.getClassName()).append(" ");
-        // Re-apply original namespaces and attributes
+        sb.append("<").append(finalRootClass).append(" ");
         sb.append("xmlns:android=\"http://schemas.android.com/apk/res/android\" ");
         sb.append("xmlns:app=\"http://schemas.android.com/apk/res-auto\" ");
         sb.append("xmlns:tools=\"http://schemas.android.com/tools\" ");
         
-        for (Map.Entry<String, String> entry : root.getAttributes().entrySet()) {
-            sb.append(entry.getKey()).append("=\"").append(entry.getValue()).append("\" ");
+        for (Map.Entry<String, String> entry : finalAttrs.entrySet()) {
+            if (!entry.getKey().startsWith("xmlns:")) {
+                sb.append(entry.getKey()).append("=\"").append(entry.getValue()).append("\" ");
+            }
         }
         
-        sb.append(">\n").append(innerContent).append("\n</").append(root.getClassName()).append(">");
+        sb.append(">\n").append(innerContent).append("\n</").append(finalRootClass).append(">");
         return sb.toString();
     }
 

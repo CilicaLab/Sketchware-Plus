@@ -74,10 +74,8 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     CRITICAL RULES:
     1. Output MUST be valid, parseable JSON ONLY. Do not wrap response in markdown code blocks (no ```json).
-    2. Do NOT change the root layout XML tag type unless explicitly instructed (the root tag frame is IDE-managed).
-    3. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines
-    4.always add a main base layout to your modifycations).
-
+    2. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines.
+    
     LAYOUT RULES:
     """ + getLayoutRules() + """
 
@@ -165,9 +163,10 @@ public class LayoutSpecialist extends BaseSpecialist {
     }
 
     private String getLayoutRules() {
-        return "ROOT LAYOUT PROTECTION:\n" +
-                "- The outermost view in the XML is the system-managed root container so do not touch the root layout only modify the views inside.\n" +
-                "- Focus all modifications and new views INSIDE this root container.\n\n";
+        return "LAYOUT ARCHITECTURE:\n" +
+                "- The outermost view in the XML is the Activity's Root Container.\n" +
+                "- You CAN change the Root Container type (e.g., from LinearLayout to ScrollView) if the content requires it.\n" +
+                "- Ensure important containers like 'rootlayout' are placed correctly within this hierarchy.\n\n";
     }
 
     public void applyXml(String xml, String targetXmlName) {
