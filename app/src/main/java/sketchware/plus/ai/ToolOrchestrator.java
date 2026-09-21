@@ -209,9 +209,12 @@ public class ToolOrchestrator {
                     toolResultMsg.put("name", name);
                     toolResultMsg.put("content", result);
                     chatHistory.put(toolResultMsg);
+                    
+                    // Add a small delay between tools to respect RPM limits
+                    try { Thread.sleep(700); } catch (Exception ignored) {}
                 }
 
-                mainHandler.post(() -> executeLoop(chatHistory));
+                mainHandler.postDelayed(() -> executeLoop(chatHistory), 600);
 
             } catch (Exception e) {
                 mainHandler.post(() -> {

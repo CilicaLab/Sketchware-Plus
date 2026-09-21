@@ -826,19 +826,20 @@ public class SkAssistantFragment extends Fragment {
                                 .append(SketchwareXmlBridge.getRawXml(context, scId, projectFile))
                                 .append("\n\n");
 
-                        // Generated Java (only if relevant or requested)
-                        boolean needsJava = userPrompt.toLowerCase().contains("java")
-                                || userPrompt.toLowerCase().contains("code")
-                                || userPrompt.toLowerCase().contains("logic")
-                                || userPrompt.toLowerCase().contains("import");
+                        // Generated Java (only if absolutely relevant)
+                        boolean needsJava = userPrompt.toLowerCase().contains("java code")
+                                || userPrompt.toLowerCase().contains("full source")
+                                || userPrompt.toLowerCase().contains("generated code");
 
-                        if (needsJava || userPrompt.length() < 10) {
+                        if (needsJava) {
                             String javaCode = new Jx(workspace.N, projectFile, dataManager).generateCode(false, scId);
-                            if (javaCode.length() > 5000 && !needsJava) {
-                                sb.append("Current Java Code: [Omitted for length, ask specifically to see it]\n");
+                            if (javaCode.length() > 8000) {
+                                sb.append("Current Java Code: [Omitted for length, too many tokens. Use read_method instead]\n");
                             } else {
                                 sb.append("Current Java Code:\n").append(javaCode).append("\n");
                             }
+                        } else {
+                            sb.append("Java Context: Full source omitted to save tokens. Use 'list_methods' or 'read_method' to inspect logic.\n");
                         }
 
                         // Custom Views
