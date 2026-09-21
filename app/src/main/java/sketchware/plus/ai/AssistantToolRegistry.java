@@ -92,11 +92,11 @@ public class AssistantToolRegistry {
                     .setRequired("javaName", "reference", "command", "inputCode")
                     .build()));
 
-        tools.put(createTool("manage_library", "Enable or disable built-in libraries (Firebase, AdMob, Appcompat, Google Maps).", 
+        tools.put(createTool("manage_local_library", "Enable or disable a local library in the project.", 
                 new ParameterBuilder()
-                    .addProperty("libraryId", "string", "The library identifier (e.g., 'appcompat', 'firebase', 'admob', 'googlemap').")
+                    .addProperty("libraryName", "string", "The folder name of the local library.")
                     .addProperty("enabled", "boolean", "True to enable, False to disable.")
-                    .setRequired("libraryId", "enabled")
+                    .setRequired("libraryName", "enabled")
                     .build()));
 
         tools.put(createTool("add_permission", "Add a standard Android permission to the project manifest.", 

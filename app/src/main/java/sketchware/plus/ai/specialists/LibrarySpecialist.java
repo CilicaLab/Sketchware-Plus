@@ -3,14 +3,13 @@ package sketchware.plus.ai.specialists;
 import android.app.Activity;
 import android.content.Context;
 
-import com.besome.sketch.beans.ProjectLibraryBean;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +19,8 @@ import sketchware.plus.ai.ProjectSnapshot;
 import sketchware.plus.ai.SkAssistantFragment;
 import sketchware.plus.utility.FileUtil;
 import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
+import dev.aldi.sayuti.editor.manage.LocalLibrary;
+import dev.aldi.sayuti.editor.manage.LocalLibrariesUtil;
 import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.GsonUtils;
 
@@ -40,13 +41,14 @@ public class LibrarySpecialist extends BaseSpecialist {
             String contextStr = fragment.gatherScopedContext(androidContext, "LIBRARY_MANAGER", prompt);
 
             String systemPrompt = "You are the Sketchware Plus Library Manager.\n" +
-                    "Identify which Sketchware built-in library the user wants to enable.\n" +
-                    "AVAILABLE LIBRARIES: appcompat, firebase, admob, googlemap.\n\n" +
+                    "Identify which LOCAL library the user wants to enable or disable by looking at the 'AVAILABLE LOCAL LIBRARIES' list in the context.\n" +
+                    "IMPORTANT: Provide the EXACT folder name from that list, including any version numbers.\n" +
+                    "NOTE: You CANNOT manage built-in libraries (AppCompat, Firebase, etc.) as you don't have access to them.\n\n" +
                     "RESPONSE CONTRACT:\n" +
                     "{\n" +
                     "  \"category\": \"LIBRARY_MANAGER\",\n" +
-                    "  \"summary\": \"Enabling library: [name]\",\n" +
-                    "  \"actions\": [ {\"type\":\"ENABLE_LIBRARY\",\"name\":\"...\"} ]\n" +
+                    "  \"summary\": \"[Enabling/Disabling] local library: [name]\",\n" +
+                    "  \"actions\": [ {\"type\":\"[ENABLE_LOCAL_LIBRARY/DISABLE_LOCAL_LIBRARY]\",\"name\":\"...\"} ]\n" +
                     "}\n" +
                     "Reasoning: " + reasoning;
 
@@ -59,88 +61,114 @@ public class LibrarySpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
-        if ("ENABLE_LIBRARY".equals(action.optString("type"))) {
-            applyLibrary(action.getString("name"));
+        String type = action.optString("type");
+        String name = action.getString("name");
+        if ("ENABLE_LOCAL_LIBRARY".equals(type)) {
+            applyLocalLibrary(name);
+        } else if ("DISABLE_LOCAL_LIBRARY".equals(type)) {
+            disableLocalLibrary(name);
+        } else if ("ENABLE_LIBRARY".equals(type)) {
+            applyLibrary(name);
         }
     }
 
     public void applyLibrary(String name) {
-        try {
-            String xmlName = getProjectFile().getXmlName();
-            fragment.undoSnapshot = new ProjectSnapshot(getScId(), xmlName);
-            iC libraryManager = jC.c(getScId());
-            ProjectLibraryBean lib = null;
-            if (name.equalsIgnoreCase("appcompat")) lib = libraryManager.c();
-            else if (name.equalsIgnoreCase("firebase")) lib = libraryManager.d();
-            else if (name.equalsIgnoreCase("admob")) lib = libraryManager.b();
-            else if (name.equalsIgnoreCase("googlemap")) lib = libraryManager.e();
-
-            if (lib != null) {
-                lib.useYn = "Y";
-                libraryManager.k();
-                fragment.addSystemMessage("Library '" + name + "' enabled automatically.");
-                fragment.setUndoVisible(true);
-            } else {
-                fragment.addSystemMessage("Unknown library: " + name);
-            }
-        } catch (Exception e) {
-            fragment.addSystemMessage("Error enabling library: " + e.getMessage());
-        }
+        fragment.addSystemMessage("I'm sorry, I cannot enable or disable built-in libraries (like " + name + ") because I do not have access to them. Please manage them manually through the Library Manager.");
     }
 
     public void applyLocalLibrary(String libName) {
-        new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Enable Local Library")
-                .setMessage("Enable local library '" + libName + "'?")
-                .setPositiveButton("Enable", (dialog, which) -> {
-                    try {
-                        String localLibsDir = FileUtil.getExternalStorageDir() + "/.sketchware/libs/local_libs";
-                        File libFolder = new File(localLibsDir, libName);
-                        if (!libFolder.exists()) {
-                            fragment.addSystemMessage("Local library folder not found: " + libName);
-                            return;
-                        }
+        try {
+            List<LocalLibrary> allAvailable = LocalLibrariesUtil.getAllLocalLibraries();
+            LocalLibrary target = null;
+            
+            // 1. Try exact match (case insensitive)
+            for (LocalLibrary ll : allAvailable) {
+                if (ll.getName().equalsIgnoreCase(libName)) {
+                    target = ll;
+                    break;
+                }
+            }
 
-                        ManageLocalLibrary manager = new ManageLocalLibrary(getScId());
-                        boolean alreadyEnabled = false;
-                        for (HashMap<String, Object> lib : manager.list) {
-                            if (libName.equals(lib.get("name"))) {
-                                alreadyEnabled = true;
-                                break;
-                            }
-                        }
-
-                        if (!alreadyEnabled) {
-                            HashMap<String, Object> newLib = new HashMap<>();
-                            newLib.put("name", libName);
-                            String pkgName = libName; 
-                            File manifest = new File(libFolder, "AndroidManifest.xml");
-                            if (manifest.exists()) {
-                                String content = FileUtil.readFile(manifest.getAbsolutePath());
-                                Pattern p = Pattern.compile("package=\"([^\"]+)\"");
-                                Matcher m = p.matcher(content);
-                                if (m.find()) pkgName = m.group(1);
-                            }
-                            newLib.put("packageName", pkgName);
-                            newLib.put("jarPath", new File(libFolder, "classes.jar").getAbsolutePath());
-                            newLib.put("dexPath", new File(libFolder, "classes.dex").getAbsolutePath());
-                            newLib.put("resPath", new File(libFolder, "res").getAbsolutePath());
-                            newLib.put("assetsPath", new File(libFolder, "assets").getAbsolutePath());
-
-                            manager.list.add(newLib);
-                            String configPath = new FilePathUtil().getPathLocalLibrary(getScId());
-                            FileUtil.writeFile(configPath, GsonUtils.getGson().toJson(manager.list));
-
-                            fragment.addSystemMessage("Local library '" + libName + "' enabled.");
-                            fragment.setUndoVisible(true);
-                        } else {
-                            fragment.addSystemMessage("Local library '" + libName + "' is already enabled.");
-                        }
-                    } catch (Exception e) {
-                        fragment.addSystemMessage("Error enabling local library: " + e.getMessage());
+            // 2. Try 'starts with' match
+            if (target == null) {
+                for (LocalLibrary ll : allAvailable) {
+                    if (ll.getName().toLowerCase().startsWith(libName.toLowerCase())) {
+                        target = ll;
+                        break;
                     }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                }
+            }
+
+            // 3. Try 'contains' match
+            if (target == null) {
+                for (LocalLibrary ll : allAvailable) {
+                    if (ll.getName().toLowerCase().contains(libName.toLowerCase())) {
+                        target = ll;
+                        break;
+                    }
+                }
+            }
+
+            if (target == null) {
+                fragment.addSystemMessage("Could not find a local library matching '" + libName + "' in /.sketchware/libs/local_libs/");
+                return;
+            }
+
+            String actualName = target.getName();
+            if (!actualName.equals(libName)) {
+                fragment.addSystemMessage("Auto-matched library: " + actualName);
+            }
+            
+            ArrayList<HashMap<String, Object>> enabledLibs = LocalLibrariesUtil.getLocalLibraries(getScId());
+            boolean alreadyEnabled = false;
+            for (HashMap<String, Object> lib : enabledLibs) {
+                if (actualName.equals(lib.get("name"))) {
+                    alreadyEnabled = true;
+                    break;
+                }
+            }
+
+            if (!alreadyEnabled) {
+                HashMap<String, Object> newLib = LocalLibrariesUtil.createLibraryMap(actualName, null);
+                enabledLibs.add(newLib);
+                LocalLibrariesUtil.rewriteLocalLibFile(getScId(), GsonUtils.getGson().toJson(enabledLibs));
+
+                fragment.addSystemMessage("Local library '" + actualName + "' enabled successfully.");
+                fragment.setUndoVisible(true);
+            } else {
+                fragment.addSystemMessage("Local library '" + actualName + "' is already enabled in this project.");
+            }
+        } catch (Exception e) {
+            fragment.addSystemMessage("Error enabling local library: " + e.getMessage());
+        }
+    }
+
+    public void disableLocalLibrary(String libName) {
+        try {
+            ArrayList<HashMap<String, Object>> enabledLibs = LocalLibrariesUtil.getLocalLibraries(getScId());
+            boolean removed = false;
+            String actualName = "";
+
+            for (int i = 0; i < enabledLibs.size(); i++) {
+                HashMap<String, Object> lib = enabledLibs.get(i);
+                String currentName = (String) lib.get("name");
+                if (currentName.equalsIgnoreCase(libName) || currentName.toLowerCase().contains(libName.toLowerCase())) {
+                    actualName = currentName;
+                    enabledLibs.remove(i);
+                    removed = true;
+                    break;
+                }
+            }
+
+            if (removed) {
+                LocalLibrariesUtil.rewriteLocalLibFile(getScId(), GsonUtils.getGson().toJson(enabledLibs));
+                fragment.addSystemMessage("Local library '" + actualName + "' disabled successfully.");
+                fragment.setUndoVisible(true);
+            } else {
+                fragment.addSystemMessage("Local library matching '" + libName + "' is not currently enabled.");
+            }
+        } catch (Exception e) {
+            fragment.addSystemMessage("Error disabling local library: " + e.getMessage());
+        }
     }
 }

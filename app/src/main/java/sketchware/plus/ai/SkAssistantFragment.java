@@ -62,6 +62,8 @@ import a.a.a.jC;
 import a.a.a.jq;
 import a.a.a.yq;
 import a.a.a.wq;
+import dev.aldi.sayuti.editor.manage.LocalLibrariesUtil;
+import dev.aldi.sayuti.editor.manage.LocalLibrary;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
 import com.besome.sketch.beans.ComponentBean;
@@ -188,6 +190,7 @@ public class SkAssistantFragment extends Fragment {
     public void setProjectFile(ProjectFileBean projectFile) {
         if (this.projectFile != null && !this.projectFile.getXmlName().equals(projectFile.getXmlName())) {
             // Activity changed, reset session to avoid context leakage from previous activity
+            //I will change this in the future to make it work with all the activities without having to restart the session
             isSessionInitialized = false;
         }
         this.projectFile = projectFile;
@@ -206,7 +209,7 @@ public class SkAssistantFragment extends Fragment {
             patternBg.setPattern(patternBg.convertVectorToBitmap(getContext(), R.drawable.ic_dot_pattern, 30, 30));
             int dotColor = MaterialColors.getColor(view, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
             patternBg.setColor(dotColor);
-            patternBg.setOpacity(40); // Back to subtle since we have better contrast now
+            patternBg.setOpacity(40);
         }
 
         View rootLayout = view.findViewById(R.id.root_layout);
@@ -214,9 +217,7 @@ public class SkAssistantFragment extends Fragment {
             boolean isKeyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
             int keyboardHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
             
-            // Adjust bottom padding to avoid keyboard. 
-            // We use padding instead of margin to keep the background within the safe area if needed, 
-            // but for this specific layout, padding on root works best.
+
             v.setPadding(v.getPaddingLeft(), v.getPaddingTop(), v.getPaddingRight(), keyboardHeight);
             
             if (isKeyboardVisible && !messages.isEmpty()) {
@@ -290,7 +291,7 @@ public class SkAssistantFragment extends Fragment {
         SharedPreferences aiPref = context.getSharedPreferences("P12", Context.MODE_PRIVATE);
         String model = aiPref.getString("P12I5", "");
 
-        // Add user message to local history
+
         messages.add(new Message("user", prompt));
         adapter.notifyItemInserted(messages.size() - 1);
         recyclerView.scrollToPosition(messages.size() - 1);
@@ -317,7 +318,7 @@ public class SkAssistantFragment extends Fragment {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 updateSendButtonState(isThinking);
-                // Remove existing status message if any
+
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     if ("status".equals(messages.get(i).role)) {
                         messages.remove(i);
@@ -502,7 +503,6 @@ public class SkAssistantFragment extends Fragment {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
                         if (!"Canceled".equals(error)) {
-                            SketchwareUtil.toastError("SK Error: " + error);
                             messages.add(new Message("system", "Error: " + error));
                             adapter.notifyItemInserted(messages.size() - 1);
                             recyclerView.scrollToPosition(messages.size() - 1);
@@ -541,7 +541,7 @@ public class SkAssistantFragment extends Fragment {
     public void handleXmlError(String editedXml, String errorMessage, String targetXmlName) {
         if (retryCount < MAX_RETRIES) {
             retryCount++;
-            messages.add(new Message("system", "XML Parse Error. Auto-retrying fix (" + retryCount + "/" + MAX_RETRIES + ")..."));
+            messages.add(new Message("system", "XML Parse Error. Auto retrying fix (" + retryCount + "/" + MAX_RETRIES + ")..."));
             adapter.notifyItemInserted(messages.size() - 1);
             autoFixXml(editedXml, errorMessage, targetXmlName);
         } else {
@@ -584,7 +584,7 @@ public class SkAssistantFragment extends Fragment {
                 cancelSKRequests();
 
 
-                // Auto-dispatch for autonomous specialists (like CodeSpecialist)
+                // Auto dispatch for autonomous specialists (like CodeSpecialist)
                 if ("LOGIC_ENGINEER".equals(actualCategory) && json.has("actions")) {
                     JSONArray actions = json.optJSONArray("actions");
                     if (actions != null && actions.length() > 0) {
@@ -609,7 +609,8 @@ public class SkAssistantFragment extends Fragment {
 
                 retryCount = 0; // reset retry counter on success
             } catch (Exception e) {
-                SketchwareUtil.toastError("SK Parse Error: " + e.getMessage());
+                messages.add(new Message("system", e.getMessage()));
+                adapter.notifyItemInserted(messages.size() - 1);
                 if (retryCount < MAX_RETRIES) {
                     retryCount++;
                     setStatus("Fixing JSON schema...");
@@ -629,8 +630,8 @@ public class SkAssistantFragment extends Fragment {
     }
 
     private void retryFixJson(String category, String malformedResponse) {
-        String systemPrompt = "You are a JSON repair assistant. The user provided a malformed response. " +
-                "Return ONLY the fixed, valid JSON object for the category: " + category + ".\n" +
+        String systemPrompt = "The user provided a malformed response. " +
+                "Return ONLY the fixed, valid JSON object for the IDE.\n" +
                 "Original Response:\n" + malformedResponse;
 
         Context c = getContext();
@@ -718,8 +719,23 @@ public class SkAssistantFragment extends Fragment {
                                 }
                             }
                         } else if ("LIBRARY_MANAGER".equals(category)) {
-                            sb.append("Enabled: firebase=").append(libraryManager.d().useYn)
-                                    .append(", appcompat=").append(libraryManager.c().useYn).append("\n");
+                            List<LocalLibrary> available = LocalLibrariesUtil.getAllLocalLibraries();
+                            if (available.isEmpty()) {
+                                sb.append("No local libraries found in /.sketchware/libs/local_libs/.\n");
+                            } else {
+                                ArrayList<HashMap<String, Object>> enabled = LocalLibrariesUtil.getLocalLibraries(scId);
+                                sb.append("AVAILABLE LOCAL LIBRARIES:\n");
+                                for (LocalLibrary ll : available) {
+                                    boolean isEnabled = false;
+                                    for (HashMap<String, Object> lib : enabled) {
+                                        if (ll.getName().equals(lib.get("name"))) {
+                                            isEnabled = true;
+                                            break;
+                                        }
+                                    }
+                                    sb.append("- ").append(ll.getName()).append(isEnabled ? " [ENABLED]" : " [AVAILABLE]").append("\n");
+                                }
+                            }
                         } else if ("SYSTEM_MANIFEST".equals(category)) {
                             sb.append("Current Conceptual Manifest (AST Model):\n");
                             try {
@@ -836,11 +852,23 @@ public class SkAssistantFragment extends Fragment {
                         }
 
                         // Local Libraries
-                        ManageLocalLibrary localLib = new ManageLocalLibrary(scId);
-                        if (!localLib.list.isEmpty()) {
-                            sb.append("\nEnabled Local Libraries:\n");
-                            for (HashMap<String, Object> lib : localLib.list) {
-                                sb.append("- ").append(lib.get("name")).append(" (").append(lib.get("packageName")).append(")\n");
+                        List<LocalLibrary> available = LocalLibrariesUtil.getAllLocalLibraries();
+                        if (!available.isEmpty()) {
+                            ArrayList<HashMap<String, Object>> enabled = LocalLibrariesUtil.getLocalLibraries(scId);
+                            sb.append("\nLocal Libraries:\n");
+                            for (LocalLibrary ll : available) {
+                                boolean isEnabled = false;
+                                for (HashMap<String, Object> lib : enabled) {
+                                    if (ll.getName().equals(lib.get("name"))) {
+                                        isEnabled = true;
+                                        break;
+                                    }
+                                }
+                                if (isEnabled) {
+                                    sb.append("- ").append(ll.getName()).append(" [ENABLED]\n");
+                                } else if (userPrompt.toLowerCase().contains("library") || userPrompt.toLowerCase().contains("enable")) {
+                                    sb.append("- ").append(ll.getName()).append(" [AVAILABLE]\n");
+                                }
                             }
                         }
 
@@ -881,7 +909,7 @@ public class SkAssistantFragment extends Fragment {
 
 
     private void autoFixXml(String failedXml, String errorMessage, String targetXmlName) {
-        String systemPrompt = "You are a coding assistant specializing in Sketchware Plus. The user provided XML that failed to parse. FIX the XML so it parses correctly. " + getXmlRules();
+        String systemPrompt = "The user provided XML that failed to parse. FIX the XML so it parses correctly. " + getXmlRules();
         String userPrompt = "Failed XML:\n" + failedXml + "\n\nError Message: " + errorMessage + "\n\nPlease provide the corrected XML.";
 
         Context context = getContext();
@@ -907,7 +935,6 @@ public class SkAssistantFragment extends Fragment {
                     getActivity().runOnUiThread(() -> {
                         if (!"Canceled".equals(error)) {
                             log("Auto-fix ERROR: " + error);
-                            SketchwareUtil.toastError("Auto-fix Error: " + error);
                             messages.add(new Message("system", "Auto-fix failed: " + error));
                             adapter.notifyItemInserted(messages.size() - 1);
                         }
@@ -923,12 +950,9 @@ public class SkAssistantFragment extends Fragment {
     }
 
     private String getXmlRules() {
-        return "Rules for Sketchware XML:\n" +
+        return "Rules for Sketchware plus XML:\n" +
                 "- Match the structure of Sketchware's generated XML exactly. Match the property style exactly.\n" +
-                "- Do NOT use standard Android Studio XML conventions if they differ from the example.\n" +
-                "- Use ONLY these attributes: " + AttributeConstants.BUILT_IN_ATTRIBUTES + "\n" +
-                "- Use RelativeLayout attributes for RelativeLayout children: " + AttributeConstants.RELATIVE_ATTRIBUTES + "\n" +
-                "- Do NOT use standard Android Studio namespaces like app: unless necessary for specialized components.\n" +
+                "- you can use standard Android Studio XML conventions .\n" +
                 "- Provide the FULL XML layout code when suggesting changes.";
     }
 

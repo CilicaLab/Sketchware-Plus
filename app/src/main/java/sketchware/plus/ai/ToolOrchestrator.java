@@ -94,8 +94,10 @@ public class ToolOrchestrator {
                 "3. NO REDUNDANT SEARCH: Do NOT search the web for Sketchware-specific component IDs. Use 'list_available_components' to find the correct IDs for both built-in and local components.\n" +
                 "4. ACTION-ORIENTED: Once you know what to do, use the tool IMMEDIATELY. Don't waste reasoning steps on web searches if a tool provides the info.\n" +
                 "5. MODIFY CODE: To patch logic, use 'read_method' to find the anchor, then 'add_java_patch'.\n" +
-                "6. COMPLETION: Summarize your changes once done. Don't call tools in the final response.\n" +
-                "7. JSON STRICTNESS: Ensure all tool arguments are valid JSON objects stringified.";
+                "6. LIBRARY MANAGEMENT: You can ONLY manage LOCAL libraries using 'manage_local_library'. Check 'AVAILABLE LOCAL LIBRARIES' in the context first. You CANNOT enable or disable built-in libraries (AppCompat, Firebase, AdMob, Google Maps) as you don't have access to them.\n" +
+                "7. PRECISION: When enabling or disabling a local library, use the EXACT folder name from the available list (including version numbers).\n" +
+                "8. COMPLETION: Summarize your changes once done. Don't call tools in the final response.\n" +
+                "9. JSON STRICTNESS: Ensure all tool arguments are valid JSON objects stringified.";
 
         JSONArray tools = AssistantToolRegistry.getAllTools();
 
@@ -301,11 +303,14 @@ public class ToolOrchestrator {
                 );
                 return patch.toString();
 
-            case "manage_library":
-                String libId = args.getString("libraryId");
-                boolean enabled = args.getBoolean("enabled");
-                mainHandler.post(() -> fragment.librarySpecialist.applyLibrary(libId));
-                return "Library " + libId + " " + (enabled ? "enabled" : "disabled") + " successfully.";
+            case "manage_local_library":
+                String libName = args.getString("libraryName");
+                boolean libEnabled = args.getBoolean("enabled");
+                mainHandler.post(() -> {
+                    if (libEnabled) fragment.librarySpecialist.applyLocalLibrary(libName);
+                    else fragment.librarySpecialist.disableLocalLibrary(libName);
+                });
+                return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' sent.";
 
             case "add_permission":
                 String perm = args.getString("permission");
