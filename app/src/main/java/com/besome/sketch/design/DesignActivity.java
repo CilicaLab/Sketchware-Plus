@@ -69,6 +69,7 @@ import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.besome.sketch.lib.ui.CustomViewPager;
 import com.besome.sketch.lib.ui.LoadingDialog;
 import com.besome.sketch.tools.CompileLogActivity;
+import com.besome.sketch.tools.QuizBoard;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
@@ -1244,6 +1245,12 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         int cvPadding = (int) SketchwareUtil.getDip(16);
         cv.setPadding(cvPadding, cvPadding, cvPadding, cvPadding);
         root.addView(cv);
+
+        QuizBoard quizBoard = new QuizBoard(this);
+        LinearLayout.LayoutParams quizParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        quizParams.setMargins((int) SketchwareUtil.getDip(16), 0, (int) SketchwareUtil.getDip(16), (int) SketchwareUtil.getDip(8));
+        quizBoard.setLayoutParams(quizParams);
+        root.addView(quizBoard);
 
         TextView heading = new TextView(this);
         heading.setText("Console Output Logs");

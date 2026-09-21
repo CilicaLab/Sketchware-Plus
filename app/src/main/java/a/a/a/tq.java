@@ -138,6 +138,10 @@ public class tq {
         a.add(new QuizBean("The \"onCreate\" event is the first lifecycle event that occurs when an activity is started.", QuizBean.QUIZ_TRUE));
         a.add(new QuizBean("You can not get an item from the list using an index greater than the size of the list.", QuizBean.QUIZ_TRUE));
         a.add(new QuizBean("The items in the \"List\" are ordered by the time save.", QuizBean.QUIZ_TRUE));
+        a.add(new QuizBean("Custom components in Sketchware Plus can use modern Material vector icons.", QuizBean.QUIZ_TRUE));
+        a.add(new QuizBean("Material 3 dynamic color support is available in the Advanced Library settings.", QuizBean.QUIZ_TRUE));
+        a.add(new QuizBean("The Build Details dialog lets you monitor system memory usage during compilation.", QuizBean.QUIZ_TRUE));
+        a.add(new QuizBean("The D8 Dexer must be enabled to use modern Java 8+ features like lambda expressions.", QuizBean.QUIZ_TRUE));
 
         // Questions with options
         a.add(new QuizBean("This component is used to animate Widgets.", QuizBean.QUIZ_ANSWER_B, "MediaPlayer", "ObjectAnimator"));
