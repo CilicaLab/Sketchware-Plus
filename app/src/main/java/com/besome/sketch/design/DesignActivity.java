@@ -1287,7 +1287,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(this)
                 .setTitle("Build Metrics & Diagnostics")
                 .setView(root)
-                .setPositiveButton("Dismiss", null);
+                .setNeutralButton("Dismiss", null);
 
         AlertDialog dialog = dialogBuilder.create();
         dialog.show();
@@ -1556,6 +1556,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         public void execute() {
             DesignActivity activity = getActivity();
             if (activity != null) {
+                activity.showLoadingDialog();
                 activity.btnRun.setEnabled(false);
                 activity.btnOptions.setEnabled(false);
                 activity.progressContainer.setVisibility(View.VISIBLE);
@@ -1624,6 +1625,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
             onProgressUpdate("Finalizing...", 90);
             activity.runOnUiThread(() -> {
+                activity.hideLoadingDialog();
                 activity.updateBottomMenu();
                 activity.refresh();
                 activity.btnRun.setEnabled(true);
