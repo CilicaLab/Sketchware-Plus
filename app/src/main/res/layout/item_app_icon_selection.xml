@@ -9,7 +9,7 @@
     android:clickable="true"
     android:focusable="true"
     app:cardBackgroundColor="?attr/colorSurfaceContainer"
-    app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
+    app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.SketchwarePlus.AppIcon">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,11 +18,12 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/icon"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.SketchwarePlus.AppIcon" />
 
         <TextView
             android:id="@+id/name"

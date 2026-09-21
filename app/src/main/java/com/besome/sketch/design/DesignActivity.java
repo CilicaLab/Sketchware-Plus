@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.content.ServiceConnection;
@@ -69,6 +70,8 @@ import com.besome.sketch.lib.ui.CustomViewPager;
 import com.besome.sketch.lib.ui.LoadingDialog;
 import com.besome.sketch.tools.CompileLogActivity;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.snackbar.Snackbar;
@@ -1182,6 +1185,56 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         }
     }
 
+    private String formatBuildLogs(String rawLogs) {
+        if (rawLogs == null || rawLogs.isEmpty()) return "Initializing project workers...";
+        String[] lines = rawLogs.split("\n");
+        StringBuilder formatted = new StringBuilder();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.contains("Running Eclipse compiler with these arguments") || trimmed.contains("System.out of Eclipse compiler")) {
+                continue;
+            }
+            if (trimmed.startsWith("section ") || trimmed.contains("Reading ") || trimmed.contains("writing ")) {
+                continue;
+            }
+            if (trimmed.contains("Compiling Java files took")) {
+                formatted.append("✔ ").append(trimmed).append("\n\n");
+                continue;
+            }
+            if (trimmed.contains("Failed to compile Java files")) {
+                formatted.append("❌ ").append(trimmed).append("\n");
+                continue;
+            }
+            if (trimmed.toLowerCase().contains("error")) {
+                formatted.append("❗ ").append(trimmed).append("\n");
+                continue;
+            }
+            if (trimmed.toLowerCase().contains("warning")) {
+                formatted.append("⚠ ").append(trimmed).append("\n");
+                continue;
+            }
+            if (trimmed.contains("Processing resources") || trimmed.contains("Aapt")) {
+                formatted.append("▶ Packaging assets & XML resources...\n");
+            } else if (trimmed.contains("Compiling Java")) {
+                formatted.append("▶ Compiling Java source classes...\n");
+            } else if (trimmed.contains("Running dexer") || trimmed.contains("DexMerger")) {
+                formatted.append("▶ Translating bytecode into DEX files...\n");
+            } else if (trimmed.contains("Signing APK")) {
+                formatted.append("▶ Generating security signatures...\n");
+            } else {
+                if (trimmed.length() > 100 && trimmed.contains("/")) {
+                    int lastSlash = trimmed.lastIndexOf("/");
+                    if (lastSlash != -1 && lastSlash < trimmed.length() - 1) {
+                        formatted.append("  • .../").append(trimmed.substring(lastSlash + 1)).append("\n");
+                        continue;
+                    }
+                }
+                formatted.append("  • ").append(trimmed).append("\n");
+            }
+        }
+        return formatted.toString().trim();
+    }
+
     public void showBuildDetailsDialog() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -1189,29 +1242,43 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         ComposeView cv = new ComposeView(this);
         ProfilerUIHelper.setContent(cv, false);
         int cvPadding = (int) SketchwareUtil.getDip(16);
-        cv.setPadding(cvPadding, cvPadding, cvPadding, 0);
+        cv.setPadding(cvPadding, cvPadding, cvPadding, cvPadding);
         root.addView(cv);
+
+        TextView heading = new TextView(this);
+        heading.setText("Console Output Logs");
+        heading.setTextSize(12);
+        heading.setTypeface(Typeface.DEFAULT_BOLD);
+        heading.setPadding((int) SketchwareUtil.getDip(20), (int) SketchwareUtil.getDip(8), (int) SketchwareUtil.getDip(16), (int) SketchwareUtil.getDip(4));
+        root.addView(heading);
+
+        MaterialCardView logCard = new MaterialCardView(this);
+        logCard.setCardBackgroundColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHigh, Color.BLACK));
+        logCard.setStrokeWidth(0);
+        logCard.setRadius(SketchwareUtil.getDip(12));
+        
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        cardParams.setMargins((int) SketchwareUtil.getDip(16), 0, (int) SketchwareUtil.getDip(16), (int) SketchwareUtil.getDip(16));
+        logCard.setLayoutParams(cardParams);
 
         TextView tv = new TextView(this);
         tv.setTypeface(Typeface.MONOSPACE);
         tv.setTextSize(11);
-        int padding = (int) SketchwareUtil.getDip(16);
+        tv.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, Color.WHITE));
+        int padding = (int) SketchwareUtil.getDip(14);
         tv.setPadding(padding, padding, padding, padding);
         
         String initialLogs = SystemLogPrinter.getCapturedLogs();
-        tv.setText(initialLogs);
+        tv.setText(formatBuildLogs(initialLogs));
         tv.setTextIsSelectable(true);
-
-        final int[] lastLength = {initialLogs.length()};
 
         NestedScrollView sv = new NestedScrollView(this);
         sv.addView(tv);
-        LinearLayout.LayoutParams svParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f);
-        sv.setLayoutParams(svParams);
-        root.addView(sv);
+        logCard.addView(sv);
+        root.addView(logCard);
 
         MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(this)
-                .setTitle("Build Details")
+                .setTitle("Build Metrics & Diagnostics")
                 .setView(root)
                 .setPositiveButton("Dismiss", null);
 
@@ -1227,11 +1294,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             public void run() {
                 if (dialog.isShowing()) {
                     String currentLogs = SystemLogPrinter.getCapturedLogs();
-                    if (currentLogs.length() > lastLength[0]) {
-                        tv.append(currentLogs.substring(lastLength[0]));
-                        lastLength[0] = currentLogs.length();
-                        sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
-                    }
+                    tv.setText(formatBuildLogs(currentLogs));
+                    sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
                     if (currentBuildTask != null && !currentBuildTask.isBuildFinished) {
                         handler.postDelayed(this, 1000);
                     }

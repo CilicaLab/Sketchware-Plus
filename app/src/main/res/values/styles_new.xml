@@ -137,4 +137,9 @@
     <style name="ThemeOverlay.SketchwarePro.Chip.ProjectPreview" parent="">
         <item name="chipStyle">@style/Widget.SketchwarePro.Chip.ProjectPreview</item>
     </style>
+
+    <style name="ShapeAppearanceOverlay.SketchwarePlus.AppIcon" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20%</item>
+    </style>
 </resources>
