@@ -2031,19 +2031,8 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
             redo();
         } else if (itemId == R.id.menu_logic_undo) {
             undo();
-        } else if (itemId == R.id.menu_logic_ast) {
-            ArrayList<BlockBean> blocks = o.getBlocks();
-            if (!blocks.isEmpty()) {
-                // Try to find the root block (the first one usually)
-                showASTInspector(blocks, blocks.get(0));
-            } else {
-                SketchwareUtil.toast("No blocks to inspect");
-            }
         } else if (itemId == R.id.menu_logic_showsource) {
             showSourceCode();
-        } else if (itemId == R.id.menu_logic_sk) {
-            SkAssistantDialog dialog = SkAssistantDialog.newInstance(scId, M);
-            dialog.show(getSupportFragmentManager(), "SkAssistantDialog");
         }
 
         return super.onOptionsItemSelected(menuItem);

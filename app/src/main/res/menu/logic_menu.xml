@@ -23,19 +23,6 @@
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/menu_logic_sk"
-        android:icon="@drawable/intelligence_96"
-        android:orderInCategory="100"
-        android:title="SK Assistant"
-        app:showAsAction="ifRoom" />
-
-    <item
-        android:id="@+id/menu_logic_ast"
-        android:orderInCategory="100"
-        android:title="View Blocks AST"
-        app:showAsAction="never" />
-
-    <item
         android:id="@+id/menu_block_helper"
         android:icon="@drawable/ic_mtrl_bookmark"
         android:orderInCategory="100"
