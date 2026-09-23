@@ -2,6 +2,10 @@ package sketchware.plus.ai.specialists;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Typeface;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -23,10 +27,13 @@ import a.a.a.jC;
 import a.a.a.yq;
 import a.a.a.wq;
 import java.io.File;
+
+import sketchware.plus.ai.LogicIrBridge;
 import sketchware.plus.ai.ProjectSnapshot;
 import sketchware.plus.ai.SkAssistantFragment;
 import mod.hilal.saif.blocks.BlocksHandler;
 import sketchware.plus.ai.SourceCodeAide;
+import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.SketchwareUtil;
 
 public class CodeSpecialist extends BaseSpecialist {
@@ -65,9 +72,9 @@ public class CodeSpecialist extends BaseSpecialist {
         } else {
             setStatus("Thinking...");
         }
-        
+
         log("CodeSpecialist: process() triggered. Goal set: " + (refinedGoal != null));
-        
+
         Context androidContext = getContext();
         if (androidContext == null) return;
 
@@ -88,7 +95,7 @@ public class CodeSpecialist extends BaseSpecialist {
                             "GOAL: Analyze the user's intent and refine it into a precise technical plan for patching Java source code.\n" +
                             "1. Explain what you understand the user wants to do.\n" +
                             "2. Create a 'Refined Technical Goal' for persistent memory.\n" +
-                            "3. Mention that you will use Java Commands to apply changes to the project's generated source code.\n\n" +
+                            "3. Mention that you will use Java Commands or Logic IR to apply changes safely to the project.\n\n" +
                             "CRITICAL: You MUST include an 'actions' array in your response.\n\n" +
                             "RESPONSE FORMAT (JSON):\n" +
                             "{\n" +
@@ -98,55 +105,46 @@ public class CodeSpecialist extends BaseSpecialist {
                             "    {\n" +
                             "      \"type\": \"CODE_REFINEMENT\",\n" +
                             "      \"explanation\": \"I understand you want to...\",\n" +
-                            "      \"refined_goal\": \"Specific plan for " + currentJava + "...\",\n" +
-                            "      \"next_step_action\": {\"type\":\"SEARCH_METHOD\", \"javaName\":\"" + currentJava + "\", \"methodName\":\"onCreate\"}\n" +
+                            "      \"refined_goal\": \"Precise technical summary...\",\n" +
+                            "      \"next_step_action\": { ... }\n" +
                             "    }\n" +
                             "  ]\n" +
-                            "}";
+                            "}\n";
 
                     Activity activity = fragment.getActivity();
-                    if (activity != null) {
-                        activity.runOnUiThread(() -> fragment.executeRequest(refinePrompt, originalPrompt, contextStr, "LOGIC_ENGINEER"));
-                    }
-                    return;
-                }
+                    if (activity == null) return;
+                    activity.runOnUiThread(() -> fragment.executeRequest(refinePrompt, originalPrompt, contextStr, "LOGIC_ENGINEER"));
+                } else {
+                    // Phase 2: Step-by-step execution
+                    log("CodeSpecialist: Requesting Next Step for: " + refinedGoal);
 
-                // Phase 2: Iterative Execution
-                log("CodeSpecialist: Requesting Next Step for: " + refinedGoal);
+                    String systemPrompt = "You are the Logic Engineer for Sketchware Plus.\n" +
+                            "REFINED TECHNICAL GOAL: " + refinedGoal + "\n" +
+                            "PREVIOUS STEPS HISTORY:\n" + String.join("\n", stepHistory) + "\n\n" +
+                            "INSTRUCTIONS:\n" +
+                            "1. Review the code/project state provided in context.\n" +
+                            "2. Decide the SINGLE NEXT ACTION to take toward the goal.\n" +
+                            "3. Available Actions:\n" +
+                            "   - GET_LOGIC_IR: {\"type\": \"GET_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate\"}\n" +
+                            "   - APPLY_LOGIC_IR: {\"type\": \"APPLY_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate\", \"javaCode\": \"...\"}\n" +
+                            "   - SEARCH_METHOD: {\"type\": \"SEARCH_METHOD\", \"javaName\": \"main\", \"methodName\": \"initialize\"}\n" +
+                            "   - GET_CODE_RANGE: {\"type\": \"GET_CODE_RANGE\", \"javaName\": \"main\", \"startLine\": 10, \"endLine\": 30}\n" +
+                            "   - FIND_FIELD: {\"type\": \"FIND_FIELD\", \"javaName\": \"main\", \"fieldName\": \"myButton\"}\n" +
+                            "   - ADD_JAVA_COMMAND: {\"type\": \"ADD_JAVA_COMMAND\", \"javaName\": \"main\", \"reference\": \"...\", \"distance\": 0, \"after\": 1, \"before\": 0, \"command\": \"insert\", \"inputCode\": \"...\"}\n" +
+                            "   - MISSION_COMPLETE: {\"type\": \"MISSION_COMPLETE\", \"summary\": \"Final description of completed task.\"}\n" +
+                            "4. Output ONLY valid JSON containing your thought process and an 'actions' array.\n\n" +
+                            "RESPONSE FORMAT (JSON):\n" +
+                            "{\n" +
+                            "  \"category\": \"LOGIC_ENGINEER\",\n" +
+                            "  \"summary\": \"Short description...\",\n" +
+                            "  \"actions\": [\n" +
+                            "    { \"type\": \"...\", ... }\n" +
+                            "  ]\n" +
+                            "}\n";
 
-                String historyBlock = stepHistory.isEmpty() ? "None yet."
-                        : String.join("\n", stepHistory);
+                    Activity activity = fragment.getActivity();
+                    if (activity == null) return;
 
-                String systemPrompt = "You are the Iterative Code Specialist for Sketchware Plus.\n" +"RULES:\n" +
-                        "- MISSION_COMPLETE must be the ONLY action in its response. Never combine it with ADD_JAVA_COMMAND or any other action.\n" +
-                        "MISSION: " + refinedGoal + "\n\n" +
-                        "CAPABILITIES (Include these within the 'actions' array in your JSON):\n" +
-                        "1. SEARCH_METHOD: Finds a method's content and line range. Needs 'javaName' and 'methodName'.\n" +
-                        "2. FIND_FIELD: Finds where a variable is declared. Needs 'javaName' and 'fieldName'.\n" +
-                        "3. GET_CODE_RANGE: Reads a specific block of lines. Needs 'javaName', 'startLine', 'endLine'.\n" +
-                        "4. GET_PATCH_META: Returns exact 'reference' and line offsets for a specific line number. Needs 'javaName', 'targetLine'.\n" +
-                        "5. ADD_JAVA_COMMAND: Creates a persistent code patch in the 'Java Command Manager'.\n" +
-                        "   - Needs: 'javaName', 'reference', 'distance', 'front', 'back', 'command', and 'inputCode'.\n" +
-                        "   - 'reference': The EXACT string in the file to use as an anchor. DO NOT use placeholders like 'REFERENCE'.\n" +
-                        "   - 'command': Must be one of: insert, add, replace, find-replace, find-replace-first, find-replace-all.\n" +
-                        "6. MISSION_COMPLETE: Signal that the task is finished. Needs 'summary'.\n\n" +
-                        "STRATEGY:\n" +
-                        "- If the user specifies a clear code snippet to replace (e.g., 'replace void test() { } with ...'), you can skip SEARCH_METHOD and call ADD_JAVA_COMMAND directly using that snippet as the 'reference'.\n" +
-                        "- Otherwise, SEARCH first, then use GET_PATCH_META to get a precise 'reference' string.\n" +
-                        "- Before calling ADD_JAVA_COMMAND, you MUST have already seen the exact 'reference' text via SEARCH_METHOD, GET_CODE_RANGE, or GET_PATCH_META in this mission's history. Never invent a reference string from memory.\n" +
-                        "- Apply only ONE code patch per response.\n\n" +
-                        "CRITICAL: DO NOT use native tools or function calling. You MUST return a single JSON object in the following format:\n" +
-                        "{\n" +
-                        "  \"category\": \"LOGIC_ENGINEER\",\n" +
-                        "  \"thought_process\": \"Briefly explain your reasoning here.\",\n" +
-                        "  \"summary\": \"A short status message for the user.\",\n" +
-                        "  \"actions\": [\n" +
-                        "    { \"type\": \"ADD_JAVA_COMMAND\", \"javaName\": \"MainActivity.java\", \"reference\": \"public void onCreate(Bundle savedInstanceState) {\", \"distance\": 0, \"front\": 0, \"back\": 0, \"command\": \"add\", \"inputCode\": \"// new logic\" }\n" +
-                        "  ]\n" +
-                        "}";
-
-                Activity activity = fragment.getActivity();
-                if (activity != null) {
                     if (refinedGoal != null) {
                         iterationCount++;
                         if (iterationCount > MAX_ITERATIONS) {
@@ -191,6 +189,14 @@ public class CodeSpecialist extends BaseSpecialist {
                         log("CodeSpecialist: Step trigger failed: " + e.getMessage());
                     }
                 });
+                break;
+
+            case "GET_LOGIC_IR":
+                applyGetLogicIr(action);
+                break;
+
+            case "APPLY_LOGIC_IR":
+                applyLogicIrWithGuardrails(action);
                 break;
 
             case "ADD_JAVA_COMMAND":
@@ -243,6 +249,128 @@ public class CodeSpecialist extends BaseSpecialist {
         }
     }
 
+    private void applyGetLogicIr(JSONObject action) {
+        String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "main");
+        String eventKey = action.optString("eventKey", "onCreate");
+
+        jC.projectOperationsExecutor.execute(() -> {
+            String scId = getScId();
+            JSONObject ir = LogicIrBridge.loadIrFromProject(scId, javaName, eventKey);
+            String javaCode = LogicIrBridge.irToJava(ir);
+
+            fragment.getActivity().runOnUiThread(() -> {
+                fragment.addSystemMessage("--- EVENT LOGIC IR (" + javaName + " / " + eventKey + ") ---\n" +
+                        "Java Representation:\n" + (javaCode.isEmpty() ? "(Empty)" : javaCode) + "\n\n" +
+                        "IR JSON:\n" + ir.toString());
+            });
+        });
+    }
+
+    private void applyLogicIrWithGuardrails(JSONObject action) {
+        Context context = getContext();
+        if (context == null || fragment.getActivity() == null) return;
+
+        String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "main");
+        String eventKey = action.optString("eventKey", "onCreate");
+
+        JSONObject proposedIr = action.optJSONObject("ir");
+        if (proposedIr == null && action.has("javaCode")) {
+            proposedIr = LogicIrBridge.javaToIr(action.optString("javaCode"));
+        }
+
+        if (proposedIr == null) {
+            fragment.getActivity().runOnUiThread(() -> {
+                fragment.addSystemMessage(" Guardrail Error: No valid IR JSON or javaCode supplied for APPLY_LOGIC_IR.");
+            });
+            return;
+        }
+
+        setStatus("Validating proposed logic...");
+
+        // Guardrail Step 1: Dry-run validation
+        LogicIrBridge.ValidationResult validation = LogicIrBridge.validateIr(proposedIr);
+        if (!validation.isValid) {
+            fragment.getActivity().runOnUiThread(() -> {
+                fragment.addSystemMessage(" Logic Guardrail Error: Proposed AI logic failed validation.\nReason: " + validation.errorMessage);
+            });
+            return;
+        }
+
+        // Guardrail Step 2: Generate Current vs Proposed Diff
+        String scId = getScId();
+        JSONObject currentIr = LogicIrBridge.loadIrFromProject(scId, javaName, eventKey);
+        String currentJava = LogicIrBridge.irToJava(currentIr);
+        String proposedJava = validation.generatedJava;
+
+        JSONObject finalIr = proposedIr;
+
+        // Guardrail Step 3: User Confirmation & Diff Dialog
+        fragment.getActivity().runOnUiThread(() -> {
+            ScrollView scrollView = new ScrollView(context);
+            LinearLayout layout = new LinearLayout(context);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(32, 32, 32, 32);
+
+            TextView header = new TextView(context);
+            header.setText("Target: " + javaName + " (" + eventKey + ")\nProposed Blocks: " + validation.blockCount);
+            header.setTextSize(14);
+            header.setTypeface(null, Typeface.BOLD);
+
+            TextView currentTitle = new TextView(context);
+            currentTitle.setText("\n--- CURRENT LOGIC ---");
+            currentTitle.setTypeface(null, Typeface.BOLD);
+
+            TextView currentCode = new TextView(context);
+            currentCode.setText(currentJava.isEmpty() ? "(Empty logic)" : currentJava);
+            currentCode.setTypeface(Typeface.MONOSPACE);
+            currentCode.setTextSize(12);
+
+            TextView proposedTitle = new TextView(context);
+            proposedTitle.setText("\n--- PROPOSED NEW LOGIC ---");
+            proposedTitle.setTypeface(null, Typeface.BOLD);
+
+            TextView proposedCode = new TextView(context);
+            proposedCode.setText(proposedJava);
+            proposedCode.setTypeface(Typeface.MONOSPACE);
+            proposedCode.setTextSize(12);
+
+            layout.addView(header);
+            layout.addView(currentTitle);
+            layout.addView(currentCode);
+            layout.addView(proposedTitle);
+            layout.addView(proposedCode);
+            scrollView.addView(layout);
+
+            new MaterialAlertDialogBuilder(context)
+                    .setTitle("AI Logic Change Confirmation")
+                    .setView(scrollView)
+                    .setPositiveButton("Apply Logic", (dialog, which) -> {
+                        // Guardrail Step 4: Backup original blocks before saving
+                        ArrayList<BlockBean> originalBlocks = jC.a(scId).a(javaName, eventKey);
+
+                        boolean success = LogicIrBridge.saveIrToProject(scId, javaName, eventKey, finalIr);
+                        if (success) {
+                            fragment.addSystemMessage(" Logic applied successfully to " + eventKey + " (" + validation.blockCount + " blocks).");
+                            fragment.refreshDesigner();
+                        } else {
+                            fragment.addSystemMessage(" Failed to persist logic. Restoring original blocks.");
+                            if (originalBlocks != null) {
+                                eC manager = jC.a(scId);
+                                if (manager != null) {
+                                    manager.a(javaName, eventKey, originalBlocks);
+                                    manager.k();
+                                }
+                            }
+                        }
+                    })
+                    .setNegativeButton("Reject", (dialog, which) -> {
+                        fragment.addSystemMessage(" Logic modification rejected by user.");
+                    })
+                    .setCancelable(false)
+                    .show();
+        });
+    }
+
     private void applySearchMethod(String javaName, String methodName) {
         log("CodeSpecialist: Searching method: " + methodName);
         setStatus("Searching method: " + methodName);
@@ -269,7 +397,7 @@ public class CodeSpecialist extends BaseSpecialist {
 
     private void applyFindField(String javaName, String fieldName) {
         log("CodeSpecialist: Finding field: " + fieldName);
-        setStatus("Locating variable: " + fieldName);
+        setStatus("Finding field: " + fieldName);
         jC.projectOperationsExecutor.execute(() -> {
             String source = getGeneratedSource(javaName);
             if (source != null) {
@@ -281,122 +409,100 @@ public class CodeSpecialist extends BaseSpecialist {
 
     private void applyGetPatchMeta(String javaName, int targetLine) {
         log("CodeSpecialist: Getting patch meta for line: " + targetLine);
-        setStatus("Calculating patch parameters...");
+        setStatus("Calculating patch metadata...");
         jC.projectOperationsExecutor.execute(() -> {
             String source = getGeneratedSource(javaName);
             if (source != null) {
                 JSONObject result = SourceCodeAide.getCommandBlockMeta(source, targetLine);
-                displaySourceAideResult("Patch Metadata (Line " + targetLine + ")", result);
+                displaySourceAideResult("Patch Meta for Line: " + targetLine, result);
             }
         });
-    }
-
-    private void applyAddJavaCommand(JSONObject action) {
-        String javaName = action.optString("javaName");
-        String reference = action.optString("reference");
-        String command = action.optString("command");
-        Context context = getContext();
-        if (context == null) return;
-
-        // Validate command
-        if (!VALID_COMMANDS.contains(command)) {
-            stepHistory.add("FAILED: invalid command '" + command + "' — must be one of " + VALID_COMMANDS);
-            fragment.addSystemMessage("Rejected patch: invalid command '" + command + "'.");
-            process(originalPrompt, "Invalid command used, retry with a valid one.");
-            return;
-        }
-
-        // Validate reference actually exists in the current source before bothering the user
-        jC.projectOperationsExecutor.execute(() -> {
-            String source = getGeneratedSource(javaName);
-            if (source == null || reference == null || reference.isEmpty() || !source.contains(reference)) {
-                stepHistory.add("FAILED: reference not found verbatim in " + javaName + ": \"" + reference + "\" (do not reuse this exact reference)");
-                fragment.getActivity().runOnUiThread(() -> {
-                    fragment.addSystemMessage("Rejected patch: reference string not found in " + javaName + ". Re-checking source...");
-                    process(originalPrompt, "Reference not found, use SEARCH_METHOD or GET_PATCH_META to get an exact reference before patching.");
-                });
-                return;
-            }
-            fragment.getActivity().runOnUiThread(() -> showPatchConfirmDialog(action, javaName, reference));
-        });
-    }
-
-    private void showPatchConfirmDialog(JSONObject action, String javaName, String reference) {
-        Context context = getContext();
-        if (context == null) return;
-        activePatchDialog = new MaterialAlertDialogBuilder(context)
-                .setTitle("Confirm Code Patch")
-                .setMessage("Mission: " + refinedGoal + "\n\nFile: " + javaName + "\nRef: " + reference + "\nCmd: " + action.optString("command") + "\n\nApply this step?")
-                .setCancelable(false)
-                .setPositiveButton("Apply", (dialog, which) -> {
-                    if (refinedGoal == null) {
-                        fragment.addSystemMessage("Skipped stale patch — mission already completed.");
-                        return;
-                    }
-                    jC.projectOperationsExecutor.execute(() -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-                        JSONObject result = SourceCodeAide.addJavaCommandToManager(
-                                context, getScId(), javaName, reference,
-                                action.optInt("distance"), action.optInt("front"), action.optInt("back"),
-                                action.optString("command"), action.optString("inputCode")
-                        );
-                        fragment.getActivity().runOnUiThread(() -> {
-                            if ("success".equals(result.optString("status"))) {
-                                stepHistory.add("Applied " + action.optString("command") + " on " + javaName + " near: " + reference);
-                                fragment.addSystemMessage("Patch applied to Java Command Manager. Refreshing viewer...");
-                                fragment.refreshDesigner();
-                                if (refinedGoal != null) process(originalPrompt, "Step applied, continuing loop.");
-                            } else {
-                                stepHistory.add("FAILED: " + action.optString("command") + " on " + javaName + " near: " + reference + " — " + result.optString("message"));
-                                fragment.addSystemMessage("Error applying patch: " + result.optString("message"));
-                                if (refinedGoal != null) process(originalPrompt, "Patch failed, retrying with different approach.");
-                            }
-                        });
-                    });
-                })
-                .setNegativeButton("Abort Mission", (dialog, which) -> {
-                    refinedGoal = null;
-                    originalPrompt = null;
-                    stepHistory.clear();
-                    iterationCount = 0;
-                    fragment.addSystemMessage("Mission aborted.");
-                })
-                .show();
-    }
-
-    private String getGeneratedSource(String javaName) {
-        Context context = getContext();
-        if (context == null) return null;
-        try {
-            yq workspace = new yq(context, getScId());
-            return workspace.getFileSrc(javaName, jC.b(getScId()), jC.a(getScId()), jC.c(getScId()));
-        } catch (Exception e) {
-            fragment.getActivity().runOnUiThread(() -> fragment.addSystemMessage("Error generating source for " + javaName));
-            return null;
-        }
     }
 
     private void displaySourceAideResult(String title, JSONObject result) {
         fragment.getActivity().runOnUiThread(() -> {
             try {
-                if ("success".equals(result.optString("status")) || result.has("content") || result.has("snippets")) {
-                    fragment.addSystemMessage("--- " + title + " ---\n" + result.optString("content", result.toString(2)));
-                    process(originalPrompt, "Information gathered: " + title);
+                if ("success".equals(result.optString("status"))) {
+                    String formatted = result.toString(2);
+                    fragment.addSystemMessage("--- " + title + " ---\n" + formatted);
+                    stepHistory.add(title + ": Success");
                 } else {
-                    fragment.addSystemMessage(title + ": Not found in code.");
-                    process(originalPrompt, "Search failed for: " + title + ". Trying alternative...");
+                    fragment.addSystemMessage( title + " Failed: " + result.optString("message"));
+                    stepHistory.add(title + ": Failed");
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                fragment.addSystemMessage("Error parsing result: " + e.getMessage());
+            }
+        });
+    }
+
+    private String getGeneratedSource(String javaName) {
+        try {
+            ProjectFileBean projectFile = getProjectFile();
+            if (projectFile == null) return null;
+            String scId = getScId();
+            yq workspace = new yq(getContext(), scId);
+            String fullJavaName = javaName.endsWith(".java") ? javaName : javaName + ".java";
+            String path = workspace.projectMyscPath + "app" + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator + fullJavaName;
+            if (FileUtil.isExistFile(path)) {
+                return FileUtil.readFile(path);
+            }
+        } catch (Exception e) {
+            log("CodeSpecialist: Error reading source: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private void applyAddJavaCommand(JSONObject action) {
+        String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "main");
+        String reference = action.optString("reference", "");
+        int distance = action.optInt("distance", 0);
+        int after = action.optInt("after", 0);
+        int before = action.optInt("before", 0);
+        String command = action.optString("command", "insert");
+        String inputCode = action.optString("inputCode", "");
+
+        if (!VALID_COMMANDS.contains(command.toLowerCase())) {
+            fragment.getActivity().runOnUiThread(() ->
+                    fragment.addSystemMessage("Invalid Java Command: " + command));
+            return;
+        }
+
+        jC.projectOperationsExecutor.execute(() -> {
+            JSONObject result = SourceCodeAide.addJavaCommandToManager(
+                    getContext(),
+                    getScId(),
+                    javaName,
+                    reference,
+                    distance,
+                    after,
+                    before,
+                    command,
+                    inputCode
+            );
+
+            fragment.getActivity().runOnUiThread(() -> {
+                if ("success".equals(result.optString("status"))) {
+                    fragment.addSystemMessage(" Java Command added successfully (" + command + " near '" + reference + "')");
+                    stepHistory.add("ADD_JAVA_COMMAND: " + command + " near '" + reference + "'");
+                    fragment.refreshDesigner();
+                } else {
+                    fragment.addSystemMessage(" Failed to add Java Command: " + result.optString("message"));
+                    stepHistory.add("ADD_JAVA_COMMAND: Failed");
+                }
+            });
         });
     }
 
     public void applyAddBlock(String eventKey, String opCode, JSONArray jParams, boolean isSync) {
+        if (eventKey == null || opCode == null) return;
+        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
         Runnable r = () -> {
             eC dataManager = jC.a(getScId());
             String javaName = getProjectFile().getJavaName();
             ArrayList<BlockBean> blocks = dataManager.a(javaName, eventKey);
             if (blocks == null) {
-                dataManager.a(javaName, EventBean.EVENT_TYPE_ACTIVITY, 0, javaName, eventKey.contains("_") ? eventKey.split("_")[1] : eventKey);
+                dataManager.a(javaName, EventBean.EVENT_TYPE_ACTIVITY, 0, "", eventKey);
                 blocks = dataManager.a(javaName, eventKey);
             }
             if (blocks == null) return;
