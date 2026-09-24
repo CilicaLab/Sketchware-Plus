@@ -33,18 +33,6 @@ public class ToolOrchestrator {
     private int iterationCount = 0;
     private boolean isCanceled = false;
 
-    private static final String[] THINKING_PHRASES = {
-        "Analyzing project structure...",
-        "Scanning source code...",
-        "Reasoning about the task...",
-        "Formulating a plan...",
-        "Mapping project dependencies...",
-        "Architecting changes...",
-        "Deep diving into logic...",
-        "Validating Sketchware context...",
-        "Thinking ahead..."
-    };
-
     public ToolOrchestrator(SkAssistantFragment fragment) {
         this.fragment = fragment;
         this.context = fragment.getContext();
@@ -84,7 +72,7 @@ public class ToolOrchestrator {
         }
 
         iterationCount++;
-        fragment.setStatus(getRandomThinkingPhrase());
+        fragment.setStatus("Thinking...");
 
         String systemPrompt = "You are the Autonomous SK Assistant for Sketchware Plus.\n" +
                 "Project Context: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
@@ -362,10 +350,5 @@ public class ToolOrchestrator {
             default:
                 return "Error: Unknown tool '" + name + "'";
         }
-    }
-
-    private String getRandomThinkingPhrase() {
-        int index = (int) (Math.random() * THINKING_PHRASES.length);
-        return THINKING_PHRASES[index] + "....";
     }
 }
