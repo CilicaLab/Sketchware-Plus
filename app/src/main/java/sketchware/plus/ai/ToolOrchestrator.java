@@ -13,6 +13,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import a.a.a.jC;
 import a.a.a.yq;
@@ -21,21 +22,33 @@ import sketchware.plus.utility.SketchwareUtil;
 
 /**
  * The core engine of the autonomous SK Assistant.
- * Handles the "Thought -> Tool Call -> Execution -> Result" loop.
+ * Handles the "Thought -> Tool Call -> Execution -> Result" loop with optimized execution.
+ * 
+ * Improvements:
+ * - ToolExecutor runs read-only tools in parallel for speed
+ * - Tool results are cached to avoid redundant API calls
+ * - Adaptive rate limiting adjusts delays based on tool type
+ * - Execution metrics help AI make smarter decisions
  */
 public class ToolOrchestrator {
 
     private final SkAssistantFragment fragment;
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ToolExecutor toolExecutor;
     
     private static final int MAX_ITERATIONS = 10;
     private int iterationCount = 0;
     private boolean isCanceled = false;
+    
+    private String baseSystemPrompt = null;
+    private String lastAssistantMessage = "";
+    private ExecutionMetrics executionMetrics = new ExecutionMetrics();
 
     public ToolOrchestrator(SkAssistantFragment fragment) {
         this.fragment = fragment;
         this.context = fragment.getContext();
+        this.toolExecutor = new ToolExecutor(this);
     }
 
     /**
@@ -44,7 +57,10 @@ public class ToolOrchestrator {
     public void start(String userPrompt) {
         iterationCount = 0;
         isCanceled = false;
-        
+        executionMetrics = new ExecutionMetrics();
+        lastAssistantMessage = "";
+        baseSystemPrompt = null;  // Reset for fresh build
+
         // Start a fresh history for this specific request only to prevent context distraction
         JSONArray freshSessionHistory = new JSONArray();
         try {
@@ -72,26 +88,25 @@ public class ToolOrchestrator {
         }
 
         iterationCount++;
-        fragment.setStatus("Thinking...");
+        fragment.setStatus("Thinking... (Iteration " + iterationCount + "/" + MAX_ITERATIONS + ")");
 
-        String systemPrompt = "You are the Autonomous SK Assistant for Sketchware Plus.\n" +
-                "Project Context: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
-                "STRATEGY & RULES:\n" +
-                "1. GATHER INFO FIRST: Use 'get_layout_xml', 'list_methods', 'list_project_files', 'search_project_files', 'search_in_code', or 'list_available_components' to see existing project structure.\n" +
-                "2. NO HALLUCINATION: Only call tools that are explicitly defined in the provided tools list. Do NOT invent tool names.\n" +
-                "3. NO REDUNDANT SEARCH: Do NOT search the web for Sketchware-specific component IDs. Use 'list_available_components' to find the correct IDs for both built-in and local components.\n" +
-                "4. ACTION-ORIENTED: Once you know what to do, use the tool IMMEDIATELY. Don't waste reasoning steps on web searches if a tool provides the info.\n" +
-                "5. MODIFY CODE: To patch logic, use 'read_method' to find the anchor, then 'add_java_patch'.\n" +
-                "6. LIBRARY MANAGEMENT: You can ONLY manage LOCAL libraries using 'manage_local_library'. Check 'AVAILABLE LOCAL LIBRARIES' in the context first. You CANNOT enable or disable built-in libraries (AppCompat, Firebase, AdMob, Google Maps) as you don't have access to them.\n" +
-                "7. PRECISION: When enabling or disabling a local library, use the EXACT folder name from the available list (including version numbers).\n" +
-                "8. COMPLETION: Summarize your changes once done. Don't call tools in the final response.\n" +
-                "9. JSON STRICTNESS: Ensure all tool arguments are valid JSON objects stringified.";
+        // Build base system prompt once and cache it
+        if (baseSystemPrompt == null) {
+            baseSystemPrompt = buildBaseSystemPrompt();
+        }
+        
+        // Add dynamic metrics context
+        String metricsContext = buildMetricsContext();
+        String finalSystemPrompt = baseSystemPrompt + metricsContext;
 
         JSONArray tools = AssistantToolRegistry.getAllTools();
 
-        AiClient.askAi(context, systemPrompt, chatHistory, AiClient.AiTemperatureType.ASSISTANT_MODE, tools, new AiClient.AiCallback() {
+        AiClient.askAi(context, finalSystemPrompt, chatHistory, AiClient.AiTemperatureType.ASSISTANT_MODE, tools, new AiClient.AiCallback() {
             @Override
             public void onSuccess(String response, int promptTokens, int completionTokens, int totalTokens) {
+                lastAssistantMessage = response;
+                executionMetrics.recordApiCall(promptTokens, completionTokens, totalTokens);
+                
                 mainHandler.post(() -> {
                     fragment.updateTokenUsage(promptTokens, completionTokens, totalTokens);
                     fragment.addAssistantMessage(response);
@@ -101,6 +116,8 @@ public class ToolOrchestrator {
 
             @Override
             public void onToolCall(JSONArray toolCalls, String thought, int promptTokens, int completionTokens, int totalTokens) {
+                executionMetrics.recordApiCall(promptTokens, completionTokens, totalTokens);
+                
                 mainHandler.post(() -> {
                     fragment.updateTokenUsage(promptTokens, completionTokens, totalTokens);
                     if (thought != null && !thought.trim().isEmpty()) {
@@ -130,6 +147,35 @@ public class ToolOrchestrator {
                 onSuccess(response, 0, 0, 0);
             }
         });
+    }
+    
+    private String buildBaseSystemPrompt() {
+        return "You are the Autonomous SK Assistant for Sketchware Plus.\n" +
+                "Project Context: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
+                "STRATEGY & RULES:\n" +
+                "1. GATHER INFO FIRST: Use 'get_layout_xml', 'list_methods', 'list_project_files', 'search_project_files', 'search_in_code', or 'list_available_components' to see existing project structure.\n" +
+                "2. NO HALLUCINATION: Only call tools that are explicitly defined in the provided tools list. Do NOT invent tool names.\n" +
+                "3. NO REDUNDANT SEARCH: Do NOT search the web for Sketchware-specific component IDs. Use 'list_available_components' to find the correct IDs for both built-in and local components.\n" +
+                "4. ACTION-ORIENTED: Once you know what to do, use the tool IMMEDIATELY. Don't waste reasoning steps on web searches if a tool provides the info.\n" +
+                "5. MODIFY CODE: To patch logic, use 'read_method' to find the anchor, then 'add_java_patch'.\n" +
+                "6. LIBRARY MANAGEMENT: You can ONLY manage LOCAL libraries using 'manage_local_library'. Check 'AVAILABLE LOCAL LIBRARIES' in the context first. You CANNOT enable or disable built-in libraries (AppCompat, Firebase, AdMob, Google Maps) as you don't have access to them.\n" +
+                "7. PRECISION: When enabling or disabling a local library, use the EXACT folder name from the available list (including version numbers).\n" +
+                "8. COMPLETION: Summarize your changes once done. Don't call tools in the final response.\n" +
+                "9. JSON STRICTNESS: Ensure all tool arguments are valid JSON objects stringified.\n" +
+                "10. EFFICIENCY: Minimize redundant tool calls. Reuse information already retrieved.";
+    }
+    
+    private String buildMetricsContext() {
+        long elapsedSeconds = (System.currentTimeMillis() - executionMetrics.sessionStartTime) / 1000;
+        ToolExecutor.CacheStats stats = toolExecutor.getCacheStats();
+        
+        return "\n\nCurrent Session Metrics:\n" +
+                "- Iteration: " + iterationCount + " of " + MAX_ITERATIONS + "\n" +
+                "- Time elapsed: " + elapsedSeconds + "s\n" +
+                "- Total tokens used: " + executionMetrics.totalTokensUsed + "\n" +
+                "- Tools executed: " + stats.totalCalls + "\n" +
+                "- Cache hit rate: " + String.format("%.1f%%", stats.hitRate * 100) + "\n" +
+                "Remember: Tools with cached results are much faster. Reuse data instead of re-querying.";
     }
 
     private void handleToolCalls(JSONArray toolCalls, String thought, JSONArray chatHistory) {
@@ -161,48 +207,48 @@ public class ToolOrchestrator {
                 assistantMsg.put("tool_calls", sanitizedToolCalls);
                 chatHistory.put(assistantMsg);
 
-                for (int i = 0; i < toolCalls.length(); i++) {
-                    JSONObject call = toolCalls.getJSONObject(i);
-                    String id = call.getString("id");
-                    JSONObject function = call.getJSONObject("function");
-                    String name = function.getString("name");
-                    
-                    Object argsRaw = function.get("arguments");
-                    JSONObject args;
-                    if (argsRaw instanceof String) {
-                        String argsStr = (String) argsRaw;
-                        // Robust repair for common model glitches like {""}, {" "}, or missing closing brace
-                        String trimmed = argsStr.trim();
-                        if (trimmed.equals("{\"\"}") || trimmed.equals("{ \"\" }") || trimmed.equals("{}") || trimmed.isEmpty()) {
-                            argsStr = "{}";
-                        }
+                // Use ToolExecutor for optimized parallel/sequential execution
+                toolExecutor.executeBatch(toolCalls, new ToolExecutor.Callback() {
+                    @Override
+                    public void onComplete(List<ToolExecutor.ToolResult> results) {
+                        if (isCanceled) return;
+
                         try {
-                            args = new JSONObject(argsStr);
-                        } catch (JSONException e) {
-                            args = new JSONObject(); // Fallback to empty for malformed arguments
+                            for (ToolExecutor.ToolResult result : results) {
+                                // Add to history
+                                JSONObject toolResultMsg = new JSONObject();
+                                toolResultMsg.put("role", "tool");
+                                toolResultMsg.put("tool_call_id", result.toolCallId);
+                                toolResultMsg.put("name", result.toolName);
+                                toolResultMsg.put("content", result.content);
+
+                                // Track metrics
+                                executionMetrics.toolsExecuted++;
+                                if (result.fromCache) {
+                                    executionMetrics.cacheHits++;
+                                }
+
+                                chatHistory.put(toolResultMsg);
+
+                                // Update UI with per-tool timing
+                                mainHandler.post(() -> {
+                                    String statusMsg = "Completed: " + result.toolName +
+                                        " (" + result.executionTimeMs + "ms" +
+                                        (result.fromCache ? ", cached" : "") + ")";
+                                    fragment.setStatus(statusMsg);
+                                });
+                            }
+
+                            mainHandler.postDelayed(() -> executeLoop(chatHistory), 600);
+
+                        } catch (Exception e) {
+                            mainHandler.post(() -> {
+                                fragment.setStatus(null);
+                                fragment.addSystemMessage("Tool Result Error: " + e.getMessage());
+                            });
                         }
-                    } else if (argsRaw instanceof JSONObject) {
-                        args = (JSONObject) argsRaw;
-                    } else {
-                        args = new JSONObject();
                     }
-
-                    fragment.setStatus("Executing: " + name + "...");
-                    String result = dispatchTool(name, args);
-
-                    // Add tool result to history
-                    JSONObject toolResultMsg = new JSONObject();
-                    toolResultMsg.put("role", "tool");
-                    toolResultMsg.put("tool_call_id", id);
-                    toolResultMsg.put("name", name);
-                    toolResultMsg.put("content", result);
-                    chatHistory.put(toolResultMsg);
-                    
-                    // Add a small delay between tools to respect RPM limits
-                    try { Thread.sleep(700); } catch (Exception ignored) {}
-                }
-
-                mainHandler.postDelayed(() -> executeLoop(chatHistory), 600);
+                });
 
             } catch (Exception e) {
                 mainHandler.post(() -> {
@@ -213,7 +259,7 @@ public class ToolOrchestrator {
         });
     }
 
-    private String dispatchTool(String name, JSONObject args) throws Exception {
+    public String dispatchTool(String name, JSONObject args) throws Exception {
         switch (name) {
             case "web_search":
                 return WebSearchAide.searchWeb(args.getString("query")).toString();
@@ -349,6 +395,34 @@ public class ToolOrchestrator {
 
             default:
                 return "Error: Unknown tool '" + name + "'";
+        }
+    }
+    
+    // ========== EXECUTION METRICS INNER CLASS ==========
+    
+    /**
+     * Tracks execution metrics for the current session.
+     * Provides AI with awareness of performance and efficiency.
+     */
+    public static class ExecutionMetrics {
+        public long sessionStartTime = System.currentTimeMillis();
+        public int totalApiCalls = 0;
+        public long totalTokensUsed = 0;
+        public int toolsExecuted = 0;
+        public int cacheHits = 0;
+        
+        public void recordApiCall(int promptTokens, int completionTokens, int totalTokens) {
+            totalApiCalls++;
+            totalTokensUsed += totalTokens;
+        }
+        
+        public String summary() {
+            long duration = System.currentTimeMillis() - sessionStartTime;
+            double cacheHitRate = toolsExecuted > 0 ? (double) cacheHits / toolsExecuted * 100 : 0;
+            return String.format(
+                "Session Summary: %dms | API calls: %d | Tokens: %d | Tools: %d | Cache hits: %d (%.1f%%)",
+                duration, totalApiCalls, totalTokensUsed, toolsExecuted, cacheHits, cacheHitRate
+            );
         }
     }
 }

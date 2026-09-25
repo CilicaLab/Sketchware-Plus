@@ -32,6 +32,15 @@
         app:iconSpaceReserved="false"
         app:title="AI Features">
 
+        <ListPreference
+            app:defaultValue="custom"
+            app:entries="@array/ai_provider_entries"
+            app:entryValues="@array/ai_provider_values"
+            app:iconSpaceReserved="false"
+            app:key="P12_PROVIDER"
+            app:useSimpleSummaryProvider="true"
+            app:title="@string/system_settings_title_ai_provider" />
+
         <Preference
             app:iconSpaceReserved="false"
             app:key="P12I3"
@@ -49,6 +58,12 @@
             app:key="P12I5"
             app:summary="@string/system_settings_description_ai_model_name"
             app:title="@string/system_settings_title_ai_model_name" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="P12_FETCH_MODELS"
+            app:summary="@string/system_settings_description_ai_fetch_models"
+            app:title="@string/system_settings_title_ai_fetch_models" />
 
         <Preference
             app:iconSpaceReserved="false"

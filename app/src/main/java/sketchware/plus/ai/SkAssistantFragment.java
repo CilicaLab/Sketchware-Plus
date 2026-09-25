@@ -39,18 +39,32 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import android.app.ProgressDialog;
+import android.widget.Toast;
+
 import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import sketchware.plus.databinding.DialogCreateNewFileLayoutBinding;
+import sketchware.plus.utility.HapticManager;
 
 import a.a.a.Ix;
 import a.a.a.Jx;
@@ -110,6 +124,8 @@ public class SkAssistantFragment extends Fragment {
     private EditText etInput;
     private View tokenUsageContainer;
     private TextView tvTokenUsage;
+    private View modelSelectorContainer;
+    private TextView tvCurrentModel;
     private int lastPromptTokens = 0;
     private int lastCompletionTokens = 0;
     private int lastTotalTokens = 0;
@@ -240,6 +256,28 @@ public class SkAssistantFragment extends Fragment {
         tvTokenUsage = view.findViewById(R.id.tv_token_usage);
         tvTokenUsage.setOnClickListener(v -> showTokenDetails());
 
+        modelSelectorContainer = view.findViewById(R.id.model_selector_container);
+        tvCurrentModel = view.findViewById(R.id.tv_current_model);
+        updateCurrentModelBadge();
+
+        if (tvCurrentModel != null) {
+            tvCurrentModel.setOnClickListener(v -> {
+                if (getContext() == null) return;
+                SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+                String provider = aiPref.getString("P12_PROVIDER", "custom");
+                String apiKey = aiPref.getString("P12I3", "").trim();
+                String endpoint = aiPref.getString("P12I4", "").trim();
+
+                boolean isGoogle = "google".equalsIgnoreCase(provider) || apiKey.startsWith("AIzaSy");
+                boolean isFetchable = isGoogle ? !apiKey.isEmpty() : !endpoint.isEmpty();
+
+                if (isFetchable) {
+                    HapticManager.vibrateRun(v);
+                    showQuickModelSelectorDialog();
+                }
+            });
+        }
+
         btnUndo = view.findViewById(R.id.btn_undo);
         btnUndo.setOnClickListener(v -> {
             HapticManager.vibrateRun(v);
@@ -270,6 +308,12 @@ public class SkAssistantFragment extends Fragment {
 
 
         return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateCurrentModelBadge();
     }
 
     private void hideKeyboard() {
@@ -452,6 +496,400 @@ public class SkAssistantFragment extends Fragment {
                 .setTitle("Token Usage Details")
                 .setView(dialogView)
                 .setPositiveButton("Close", null)
+                .show();
+    }
+
+    public void updateCurrentModelBadge() {
+        if (tvCurrentModel == null || getContext() == null) return;
+        SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+        String provider = aiPref.getString("P12_PROVIDER", "custom");
+        String apiKey = aiPref.getString("P12I3", "").trim();
+        String endpoint = aiPref.getString("P12I4", "").trim();
+        String model = aiPref.getString("P12I5", "").trim();
+
+        boolean isGoogle = "google".equalsIgnoreCase(provider) || apiKey.startsWith("AIzaSy");
+        boolean isFetchable = isGoogle ? !apiKey.isEmpty() : !endpoint.isEmpty();
+
+        if (isFetchable) {
+            tvCurrentModel.setClickable(true);
+            tvCurrentModel.setFocusable(true);
+            if (modelSelectorContainer != null) {
+                modelSelectorContainer.setClickable(true);
+                modelSelectorContainer.setFocusable(true);
+                modelSelectorContainer.setAlpha(1.0f);
+            }
+            if (model.isEmpty()) {
+                tvCurrentModel.setText(isGoogle ? "Select Gemini Model" : "Select Model");
+            } else {
+                tvCurrentModel.setText(model);
+            }
+        } else {
+            tvCurrentModel.setClickable(false);
+            tvCurrentModel.setFocusable(false);
+            if (modelSelectorContainer != null) {
+                modelSelectorContainer.setClickable(false);
+                modelSelectorContainer.setFocusable(false);
+                modelSelectorContainer.setAlpha(0.6f);
+            }
+            if (model.isEmpty()) {
+                tvCurrentModel.setText(isGoogle ? "Set API Key First" : "Set Endpoint First");
+            } else {
+                tvCurrentModel.setText(model);
+            }
+        }
+    }
+
+    private void showQuickModelSelectorDialog() {
+        if (getContext() == null) return;
+        SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+        String apiKey = aiPref.getString("P12I3", "");
+        String provider = aiPref.getString("P12_PROVIDER", "custom");
+
+        if (apiKey.isEmpty()) {
+            Toast.makeText(getContext(), "Please set your AI API Key in System Settings first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        boolean isGoogle = "google".equalsIgnoreCase(provider) || apiKey.startsWith("AIzaSy");
+        String title = isGoogle ? "Google AI Model" : "AI Model Selection";
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(title)
+                .setItems(new String[]{"Fetch Available Models", "Type Custom Model Name"}, (dialog, which) -> {
+                    if (which == 0) {
+                        if (isGoogle) {
+                            fetchAndPickGoogleModels(apiKey);
+                        } else {
+                            String endpoint = aiPref.getString("P12I4", "");
+                            fetchAndPickCustomModels(apiKey, endpoint);
+                        }
+                    } else {
+                        showCustomModelInputDialog();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showCustomModelInputDialog() {
+        if (getContext() == null) return;
+        SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+        String currentModel = aiPref.getString("P12I5", "");
+
+        var binding = DialogCreateNewFileLayoutBinding.inflate(getLayoutInflater());
+        binding.chipGroupTypes.setVisibility(View.GONE);
+        binding.textInputLayout.setHint("AI Model Name");
+        binding.inputText.setText(currentModel);
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Enter AI Model Name")
+                .setView(binding.getRoot())
+                .setPositiveButton("Save", (dialog, which) -> {
+                    if (binding.inputText.getText() != null) {
+                        String newModel = binding.inputText.getText().toString().trim();
+                        aiPref.edit().putString("P12I5", newModel).apply();
+                        updateCurrentModelBadge();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void fetchAndPickGoogleModels(String apiKey) {
+        if (getContext() == null) return;
+        ProgressDialog progressDialog = new ProgressDialog(requireContext());
+        progressDialog.setMessage("Fetching available Gemini models...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .build();
+
+        Request request = new Request.Builder()
+                .url("https://generativelanguage.googleapis.com/v1beta/openai/models")
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .get()
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
+                    return;
+                }
+
+                try {
+                    String responseBody = response.body().string();
+                    JSONObject json = new JSONObject(responseBody);
+                    JSONArray data = json.optJSONArray("data");
+
+                    List<String> models = new ArrayList<>();
+                    if (data != null) {
+                        for (int i = 0; i < data.length(); i++) {
+                            JSONObject modelObj = data.getJSONObject(i);
+                            String id = modelObj.optString("id");
+                            if (id.contains("gemini")) {
+                                models.add(id);
+                            }
+                        }
+                    }
+
+                    if (models.isEmpty()) {
+                        fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
+                        return;
+                    }
+
+                    Collections.sort(models);
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            showModelPickerDialog(models);
+                        });
+                    }
+                } catch (Exception e) {
+                    fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
+                }
+            }
+        });
+    }
+
+    private void fetchAndPickGoogleModelsFallback(String apiKey, ProgressDialog progressDialog) {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .build();
+
+        Request request = new Request.Builder()
+                .url("https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey)
+                .get()
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (isAdded()) {
+                    requireActivity().runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        Toast.makeText(requireContext(), "Failed to fetch models: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    });
+                }
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                try {
+                    if (response.body() == null) {
+                        if (isAdded()) {
+                            requireActivity().runOnUiThread(() -> {
+                                progressDialog.dismiss();
+                                Toast.makeText(requireContext(), "Empty response from server", Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        return;
+                    }
+
+                    String responseBody = response.body().string();
+                    if (!response.isSuccessful()) {
+                        String errorMsg = "API request failed (" + response.code() + ")";
+                        try {
+                            JSONObject errorJson = new JSONObject(responseBody);
+                            if (errorJson.has("error")) {
+                                errorMsg = errorJson.getJSONObject("error").optString("message", errorMsg);
+                            }
+                        } catch (Exception ignored) {}
+                        String finalErrorMsg = errorMsg;
+                        if (isAdded()) {
+                            requireActivity().runOnUiThread(() -> {
+                                progressDialog.dismiss();
+                                Toast.makeText(requireContext(), finalErrorMsg, Toast.LENGTH_LONG).show();
+                            });
+                        }
+                        return;
+                    }
+
+                    JSONObject json = new JSONObject(responseBody);
+                    JSONArray modelsArray = json.optJSONArray("models");
+                    List<String> models = new ArrayList<>();
+
+                    if (modelsArray != null) {
+                        for (int i = 0; i < modelsArray.length(); i++) {
+                            JSONObject m = modelsArray.getJSONObject(i);
+                            String name = m.optString("name");
+                            JSONArray methods = m.optJSONArray("supportedGenerationMethods");
+
+                            boolean supportsGenerate = false;
+                            if (methods != null) {
+                                for (int j = 0; j < methods.length(); j++) {
+                                    if ("generateContent".equals(methods.getString(j))) {
+                                        supportsGenerate = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (supportsGenerate) {
+                                if (name.startsWith("models/")) {
+                                    name = name.substring(7);
+                                }
+                                models.add(name);
+                            }
+                        }
+                    }
+
+                    Collections.sort(models);
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            if (models.isEmpty()) {
+                                Toast.makeText(requireContext(), "No compatible Gemini models found", Toast.LENGTH_SHORT).show();
+                            } else {
+                                showModelPickerDialog(models);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            Toast.makeText(requireContext(), "Error parsing models: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    private void fetchAndPickCustomModels(String apiKey, String endpoint) {
+        if (endpoint.isEmpty()) {
+            Toast.makeText(requireContext(), "Please set your AI Endpoint URL in System Settings first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ProgressDialog progressDialog = new ProgressDialog(requireContext());
+        progressDialog.setMessage("Fetching available models...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        String url = endpoint;
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
+        url += "models";
+
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .build();
+
+        Request.Builder builder = new Request.Builder().url(url).get();
+        if (!apiKey.isEmpty()) {
+            builder.addHeader("Authorization", "Bearer " + apiKey);
+        }
+
+        client.newCall(builder.build()).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (isAdded()) {
+                    requireActivity().runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        Toast.makeText(requireContext(), "Failed to fetch models: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    });
+                }
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                try {
+                    if (response.body() == null) {
+                        if (isAdded()) {
+                            requireActivity().runOnUiThread(() -> {
+                                progressDialog.dismiss();
+                                Toast.makeText(requireContext(), "Empty response from server", Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        return;
+                    }
+
+                    String body = response.body().string();
+                    if (!response.isSuccessful()) {
+                        if (isAdded()) {
+                            requireActivity().runOnUiThread(() -> {
+                                progressDialog.dismiss();
+                                Toast.makeText(requireContext(), "Failed to fetch models: HTTP " + response.code(), Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        return;
+                    }
+
+                    JSONObject json = new JSONObject(body);
+                    JSONArray data = json.optJSONArray("data");
+
+                    List<String> models = new ArrayList<>();
+                    if (data != null) {
+                        for (int i = 0; i < data.length(); i++) {
+                            JSONObject m = data.getJSONObject(i);
+                            String id = m.optString("id");
+                            if (!id.isEmpty()) {
+                                models.add(id);
+                            }
+                        }
+                    }
+
+                    Collections.sort(models);
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            if (models.isEmpty()) {
+                                Toast.makeText(requireContext(), "No models returned by server", Toast.LENGTH_SHORT).show();
+                            } else {
+                                showModelPickerDialog(models);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            Toast.makeText(requireContext(), "Error parsing response: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    private void showModelPickerDialog(List<String> models) {
+        if (models == null || models.isEmpty() || !isAdded()) return;
+
+        String[] items = models.toArray(new String[0]);
+        SharedPreferences aiPref = requireContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
+        String currentModel = aiPref.getString("P12I5", "");
+
+        int checkedItem = -1;
+        for (int i = 0; i < items.length; i++) {
+            if (items[i].equalsIgnoreCase(currentModel)) {
+                checkedItem = i;
+                break;
+            }
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select AI Model")
+                .setSingleChoiceItems(items, checkedItem, (dialog, which) -> {
+                    String selectedModel = items[which];
+                    aiPref.edit().putString("P12I5", selectedModel).apply();
+                    updateCurrentModelBadge();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 

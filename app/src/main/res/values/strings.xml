@@ -2138,7 +2138,19 @@ Please try again later"</string>
     <string name="system_settings_description_setting_vibration">Vibrate when widget or block is long-pressed</string>
     <string name="system_settings_description_ai_api_key">Your API key for the AI service</string>
     <string name="system_settings_description_ai_endpoint_url">Base URL for OpenAI-compatible API (e.g. https://api.openai.com/v1)</string>
-    <string name="system_settings_description_ai_model_name">The model to use (e.g. gpt-4o)</string>
+    <string name="system_settings_description_ai_model_name">The model to use (e.g. gpt-4o or gemini-2.0-flash)</string>
+    <string name="system_settings_title_ai_provider">AI Provider</string>
+    <string name="system_settings_description_ai_provider">Select AI provider (Custom OpenAI-compatible or Google Gemini)</string>
+    <string name="system_settings_title_ai_fetch_models">Fetch Available Models</string>
+    <string name="system_settings_description_ai_fetch_models">Automatically fetch available models from your AI provider</string>
+    <string-array name="ai_provider_entries">
+        <item>Custom (OpenAI Compatible)</item>
+        <item>Google AI (Gemini)</item>
+    </string-array>
+    <string-array name="ai_provider_values">
+        <item>custom</item>
+        <item>google</item>
+    </string-array>
     <string name="system_settings_title_automatically_save">Automatically save</string>
     <string name="system_settings_title_setting_vibration">Setting vibration</string>
     <string name="system_settings_title_ai_api_key">AI API Key</string>
