@@ -88,7 +88,7 @@ public class ToolOrchestrator {
         }
 
         iterationCount++;
-        fragment.setStatus("Thinking... (Iteration " + iterationCount + "/" + MAX_ITERATIONS + ")");
+        fragment.setStatus("Thinking...");
 
         // Build base system prompt once and cache it
         if (baseSystemPrompt == null) {
