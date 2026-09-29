@@ -14,6 +14,7 @@ import a.a.a.Jp;
 import a.a.a.KB;
 import a.a.a.ProjectBuilder;
 import a.a.a.oB;
+import mod.jbk.util.LogUtil;
 import sketchware.plus.SketchApplication;
 
 public class BuiltInLibraries {
@@ -555,82 +556,172 @@ public class BuiltInLibraries {
     }
 
     public static void extractCompileAssets(@NonNull BuildProgressReceiver... progressReceivers) {
-        if (!EXTRACTED_COMPILE_ASSETS_PATH.exists()) {
-            if (!EXTRACTED_COMPILE_ASSETS_PATH.mkdirs()) {
-                throw new RuntimeException(new IOException("Failed to create directory " + EXTRACTED_COMPILE_ASSETS_PATH));
+        synchronized (ProjectBuilder.ASSET_LOCK) {
+            if (!EXTRACTED_COMPILE_ASSETS_PATH.exists()) {
+                if (!EXTRACTED_COMPILE_ASSETS_PATH.mkdirs()) {
+                    throw new RuntimeException(new IOException("Failed to create directory " + EXTRACTED_COMPILE_ASSETS_PATH));
+                }
             }
-        }
 
-        String dexsArchiveName = "dexs.zip";
-        String libsArchiveName = "libs.zip";
-        String testkeyArchiveName = "testkey.zip";
+            String dexsArchiveName = "dexs.zip";
+            String libsArchiveName = "libs.zip";
+            String testkeyArchiveName = "testkey.zip";
 
-        String dexsArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, dexsArchiveName).getAbsolutePath();
-        String libsArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, libsArchiveName).getAbsolutePath();
-        String testkeyArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, testkeyArchiveName).getAbsolutePath();
-        String dexsDirectoryPath = BuiltInLibraries.EXTRACTED_BUILT_IN_LIBRARY_DEX_FILES_PATH.getAbsolutePath();
-        String libsDirectoryPath = BuiltInLibraries.EXTRACTED_BUILT_IN_LIBRARIES_PATH.getAbsolutePath();
-        String testkeyDirectoryPath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "testkey").getAbsolutePath();
+            String dexsArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, dexsArchiveName).getAbsolutePath();
+            String libsArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, libsArchiveName).getAbsolutePath();
+            String testkeyArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, testkeyArchiveName).getAbsolutePath();
+            File dexsDir = BuiltInLibraries.EXTRACTED_BUILT_IN_LIBRARY_DEX_FILES_PATH;
+            File libsDir = BuiltInLibraries.EXTRACTED_BUILT_IN_LIBRARIES_PATH;
+            File testkeyDir = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "testkey");
 
-        String baseAssetsPath = "libs" + File.separator;
-        oB fileUtil = new oB(false);
+            String baseAssetsPath = "libs" + File.separator;
 
-        maybeExtractAndroidJar(progressReceivers);
+            maybeExtractAndroidJar(progressReceivers);
 
-        if (ProjectBuilder.hasFileChanged(baseAssetsPath + dexsArchiveName, dexsArchivePath)) {
-            for (BuildProgressReceiver receiver : progressReceivers) {
-                receiver.onProgress("Extracting built-in libraries' DEX files...", 4);
+            String dexsAssetPath = baseAssetsPath + dexsArchiveName;
+            boolean dexsChanged = ProjectBuilder.hasFileChanged(dexsAssetPath, dexsArchivePath);
+            if (dexsChanged || !isDirectoryValid(dexsDir)) {
+                if (!dexsChanged) {
+                    LogUtil.w("BuiltInLibraries", "DEX directory missing/corrupted for asset filename: " + dexsAssetPath + ". Forcing re-extraction.");
+                }
+                extractArchiveWithRetry(dexsAssetPath, dexsArchivePath, dexsDir, () -> {
+                    for (BuildProgressReceiver receiver : progressReceivers) {
+                        receiver.onProgress("Extracting built-in libraries' DEX files...", 4);
+                    }
+                    oB fileUtil = new oB(false);
+                    fileUtil.b(dexsDir.getAbsolutePath());
+                    fileUtil.f(dexsDir.getAbsolutePath());
+                    new KB().a(dexsArchivePath, dexsDir.getAbsolutePath());
+                    if (!isDirectoryValid(dexsDir)) {
+                        throw new IOException("Extracted DEX directory is missing or empty for asset filename: " + dexsAssetPath);
+                    }
+                });
             }
-            /* Delete the directory */
-            fileUtil.b(dexsDirectoryPath);
-            /* Create the directories */
-            fileUtil.f(dexsDirectoryPath);
-            /* Extract dexs.zip to dexs/ */
-            new KB().a(dexsArchivePath, dexsDirectoryPath);
-        }
-        if (ProjectBuilder.hasFileChanged(baseAssetsPath + libsArchiveName, libsArchivePath)) {
-            for (BuildProgressReceiver receiver : progressReceivers) {
-                receiver.onProgress("Extracting built-in libraries' resources...", 5);
+
+            String libsAssetPath = baseAssetsPath + libsArchiveName;
+            boolean libsChanged = ProjectBuilder.hasFileChanged(libsAssetPath, libsArchivePath);
+            if (libsChanged || !isDirectoryValid(libsDir)) {
+                if (!libsChanged) {
+                    LogUtil.w("BuiltInLibraries", "Libraries directory missing/corrupted for asset filename: " + libsAssetPath + ". Forcing re-extraction.");
+                }
+                extractArchiveWithRetry(libsAssetPath, libsArchivePath, libsDir, () -> {
+                    for (BuildProgressReceiver receiver : progressReceivers) {
+                        receiver.onProgress("Extracting built-in libraries' resources...", 5);
+                    }
+                    oB fileUtil = new oB(false);
+                    fileUtil.b(libsDir.getAbsolutePath());
+                    fileUtil.f(libsDir.getAbsolutePath());
+                    new KB().a(libsArchivePath, libsDir.getAbsolutePath());
+                    if (!isDirectoryValid(libsDir)) {
+                        throw new IOException("Extracted libraries directory is missing or empty for asset filename: " + libsAssetPath);
+                    }
+                });
             }
-            /* Delete the directory */
-            fileUtil.b(libsDirectoryPath);
-            /* Create the directories */
-            fileUtil.f(libsDirectoryPath);
-            /* Extract libs.zip to libs/ */
-            new KB().a(libsArchivePath, libsDirectoryPath);
-        }
-        maybeExtractCoreLambdaStubsJar();
-        if (ProjectBuilder.hasFileChanged(baseAssetsPath + testkeyArchiveName, testkeyArchivePath)) {
-            for (BuildProgressReceiver receiver : progressReceivers) {
-                receiver.onProgress("Extracting built-in signing keys...", 6);
+
+            maybeExtractCoreLambdaStubsJar();
+
+            String testkeyAssetPath = baseAssetsPath + testkeyArchiveName;
+            boolean testkeyChanged = ProjectBuilder.hasFileChanged(testkeyAssetPath, testkeyArchivePath);
+            if (testkeyChanged || !isDirectoryValid(testkeyDir)) {
+                if (!testkeyChanged) {
+                    LogUtil.w("BuiltInLibraries", "Testkey directory missing/corrupted for asset filename: " + testkeyAssetPath + ". Forcing re-extraction.");
+                }
+                extractArchiveWithRetry(testkeyAssetPath, testkeyArchivePath, testkeyDir, () -> {
+                    for (BuildProgressReceiver receiver : progressReceivers) {
+                        receiver.onProgress("Extracting built-in signing keys...", 6);
+                    }
+                    oB fileUtil = new oB(false);
+                    fileUtil.b(testkeyDir.getAbsolutePath());
+                    fileUtil.f(testkeyDir.getAbsolutePath());
+                    new KB().a(testkeyArchivePath, testkeyDir.getAbsolutePath());
+                    if (!isDirectoryValid(testkeyDir)) {
+                        throw new IOException("Extracted testkey directory is missing or empty for asset filename: " + testkeyAssetPath);
+                    }
+                });
             }
-            /* Delete the directory */
-            fileUtil.b(testkeyDirectoryPath);
-            /* Create the directories */
-            fileUtil.f(testkeyDirectoryPath);
-            /* Extract testkey.zip to testkey/ */
-            new KB().a(testkeyArchivePath, testkeyDirectoryPath);
         }
     }
 
     public static void maybeExtractAndroidJar(@NonNull BuildProgressReceiver... receivers) {
-        String androidJarArchiveName = "android.jar.zip";
-        String androidJarPath = new File(EXTRACTED_COMPILE_ASSETS_PATH, androidJarArchiveName).getAbsolutePath();
-        if (ProjectBuilder.hasFileChanged("libs" + File.separator + androidJarArchiveName, androidJarPath)) {
-            for (BuildProgressReceiver receiver : receivers) {
-                receiver.onProgress("Extracting built-in android.jar...", 7);
+        synchronized (ProjectBuilder.ASSET_LOCK) {
+            String androidJarArchiveName = "android.jar.zip";
+            String androidJarAssetPath = "libs" + File.separator + androidJarArchiveName;
+            String androidJarZipPath = new File(EXTRACTED_COMPILE_ASSETS_PATH, androidJarArchiveName).getAbsolutePath();
+            File targetJar = new File(EXTRACTED_COMPILE_ASSETS_PATH, "android.jar");
+
+            boolean changed = ProjectBuilder.hasFileChanged(androidJarAssetPath, androidJarZipPath);
+            boolean jarValid = targetJar.exists() && targetJar.length() > 0 && ProjectBuilder.isValidZipArchive(targetJar);
+
+            if (changed || !jarValid) {
+                if (!changed) {
+                    LogUtil.w("BuiltInLibraries", "Target android.jar missing/corrupted for asset filename: " + androidJarAssetPath + ". Forcing re-extraction.");
+                }
+                extractArchiveWithRetry(androidJarAssetPath, androidJarZipPath, targetJar, () -> {
+                    for (BuildProgressReceiver receiver : receivers) {
+                        receiver.onProgress("Extracting built-in android.jar...", 7);
+                    }
+                    new oB().c(targetJar.getAbsolutePath());
+                    new KB().a(androidJarZipPath, EXTRACTED_COMPILE_ASSETS_PATH.getAbsolutePath());
+                    if (!targetJar.exists() || targetJar.length() == 0 || !ProjectBuilder.isValidZipArchive(targetJar)) {
+                        throw new IOException("Extracted android.jar is missing or corrupted at " + targetJar.getAbsolutePath());
+                    }
+                });
             }
-            /* Delete android.jar */
-            new oB().c(EXTRACTED_COMPILE_ASSETS_PATH.getAbsolutePath() + File.separator + "android.jar");
-            /* Extract android.jar.zip to android.jar */
-            new KB().a(androidJarPath, EXTRACTED_COMPILE_ASSETS_PATH.getAbsolutePath());
         }
     }
 
     public static void maybeExtractCoreLambdaStubsJar() {
-        String coreLambdaStubsJarName = "core-lambda-stubs.jar";
-        String coreLambdaStubsJarPath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, coreLambdaStubsJarName).getAbsolutePath();
-        ProjectBuilder.hasFileChanged("libs" + File.separator + coreLambdaStubsJarName, coreLambdaStubsJarPath);
+        synchronized (ProjectBuilder.ASSET_LOCK) {
+            String coreLambdaStubsJarName = "core-lambda-stubs.jar";
+            String coreLambdaStubsAssetPath = "libs" + File.separator + coreLambdaStubsJarName;
+            String coreLambdaStubsJarPath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, coreLambdaStubsJarName).getAbsolutePath();
+            ProjectBuilder.hasFileChanged(coreLambdaStubsAssetPath, coreLambdaStubsJarPath);
+        }
+    }
+
+    private static boolean isDirectoryValid(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) {
+            return false;
+        }
+        File[] files = dir.listFiles();
+        return files != null && files.length > 0;
+    }
+
+    @FunctionalInterface
+    private interface ExtractAction {
+        void run() throws Exception;
+    }
+
+    private static void extractArchiveWithRetry(String assetPath, String zipPath, File targetDirOrFile, ExtractAction action) {
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                action.run();
+                return;
+            } catch (Throwable e) {
+                LogUtil.w("BuiltInLibraries", "Failed attempt " + attempt + "/" + maxRetries + " extracting asset filename: " + assetPath + " (target zip: " + zipPath + ")", e);
+                new File(zipPath).delete();
+                if (targetDirOrFile != null && targetDirOrFile.exists()) {
+                    if (targetDirOrFile.isDirectory()) {
+                        new oB(false).b(targetDirOrFile.getAbsolutePath());
+                    } else {
+                        targetDirOrFile.delete();
+                    }
+                }
+                if (attempt == maxRetries) {
+                    LogUtil.e("BuiltInLibraries", "CRITICAL: Permanent failure extracting asset library: " + assetPath + " (zip: " + zipPath + ")", e);
+                    if (e instanceof RuntimeException) {
+                        throw (RuntimeException) e;
+                    }
+                    throw new RuntimeException("Failed to extract asset library '" + assetPath + "' after " + maxRetries + " attempts", e);
+                }
+                try {
+                    ProjectBuilder.hasFileChanged(assetPath, zipPath);
+                    Thread.sleep(100);
+                } catch (Exception ignored) {
+                }
+            }
+        }
     }
 
     public static class BuiltInLibrary implements Parcelable {

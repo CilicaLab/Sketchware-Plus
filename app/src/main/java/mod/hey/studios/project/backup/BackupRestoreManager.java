@@ -167,7 +167,17 @@ public class BackupRestoreManager {
         new RestoreAsyncTask(new WeakReference<>(act), file, restoreLocalLibs, projectsFragment).execute("");
     }
 
-    private static class BackupAsyncTask extends AsyncTask<String, Integer, String> {
+    public static class BackupProgress {
+        public final int percent;
+        public final String message;
+
+        public BackupProgress(int percent, String message) {
+            this.percent = percent;
+            this.message = message;
+        }
+    }
+
+    private static class BackupAsyncTask extends AsyncTask<String, BackupProgress, String> {
 
         private final String sc_id;
         private final String project_name;
@@ -175,6 +185,7 @@ public class BackupRestoreManager {
         private final WeakReference<Activity> activityWeakReference;
         private BackupFactory bm;
         private AlertDialog dlg;
+        private ProgressMsgBoxBinding loadingDialogBinding;
 
         BackupAsyncTask(WeakReference<Activity> activityWeakReference, String sc_id, String project_name, HashMap<Integer, Boolean> options) {
             this.activityWeakReference = activityWeakReference;
@@ -185,10 +196,20 @@ public class BackupRestoreManager {
 
         @Override
         protected void onPreExecute() {
-            ProgressMsgBoxBinding loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
-            loadingDialogBinding.tvProgress.setText("Creating backup...");
+            loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
+            loadingDialogBinding.tvProgress.setText("Initializing backup...");
+            if (loadingDialogBinding.linearProgressBar != null) {
+                loadingDialogBinding.linearProgressBar.setIndeterminate(false);
+                loadingDialogBinding.linearProgressBar.setMax(100);
+                loadingDialogBinding.linearProgressBar.setProgress(0);
+            }
+            if (loadingDialogBinding.progressBar != null) {
+                loadingDialogBinding.progressBar.setIndeterminate(false);
+                loadingDialogBinding.progressBar.setMax(100);
+                loadingDialogBinding.progressBar.setProgress(0);
+            }
             dlg = new MaterialAlertDialogBuilder(activityWeakReference.get())
-                    .setTitle("Please wait")
+                    .setTitle("Backing up Project")
                     .setCancelable(false)
                     .setView(loadingDialogBinding.getRoot())
                     .create();
@@ -200,6 +221,8 @@ public class BackupRestoreManager {
             bm = new BackupFactory(sc_id);
             bm.setBackupLocalLibs(options.get(0));
             bm.setBackupCustomBlocks(options.get(1));
+            bm.setProgressListener((progressPercent, currentTask) ->
+                    publishProgress(new BackupProgress(progressPercent, currentTask)));
 
             bm.backup(activityWeakReference.get(), project_name);
 
@@ -207,8 +230,26 @@ public class BackupRestoreManager {
         }
 
         @Override
+        protected void onProgressUpdate(BackupProgress... values) {
+            if (values != null && values.length > 0 && loadingDialogBinding != null) {
+                BackupProgress progress = values[0];
+                loadingDialogBinding.tvProgress.setText(progress.message);
+                if (loadingDialogBinding.linearProgressBar != null) {
+                    loadingDialogBinding.linearProgressBar.setIndeterminate(false);
+                    loadingDialogBinding.linearProgressBar.setProgress(progress.percent);
+                }
+                if (loadingDialogBinding.progressBar != null) {
+                    loadingDialogBinding.progressBar.setIndeterminate(false);
+                    loadingDialogBinding.progressBar.setProgress(progress.percent);
+                }
+            }
+        }
+
+        @Override
         protected void onPostExecute(String _result) {
-            dlg.dismiss();
+            if (dlg != null && dlg.isShowing()) {
+                dlg.dismiss();
+            }
 
             if (bm.getOutFile() != null) {
                 SketchwareUtil.toast("Successfully created backup to: " + bm.getOutFile().getAbsolutePath());
@@ -218,7 +259,7 @@ public class BackupRestoreManager {
         }
     }
 
-    private static class RestoreAsyncTask extends AsyncTask<String, Integer, String> {
+    private static class RestoreAsyncTask extends AsyncTask<String, BackupProgress, String> {
 
         private final WeakReference<Activity> activityWeakReference;
         private final String file;
@@ -226,6 +267,7 @@ public class BackupRestoreManager {
         private final boolean restoreLocalLibs;
         private BackupFactory bm;
         private AlertDialog dlg;
+        private ProgressMsgBoxBinding loadingDialogBinding;
         private boolean error = false;
 
         RestoreAsyncTask(WeakReference<Activity> activityWeakReference, String file, boolean restoreLocalLibraries, ProjectsFragment projectsFragment) {
@@ -237,10 +279,20 @@ public class BackupRestoreManager {
 
         @Override
         protected void onPreExecute() {
-            ProgressMsgBoxBinding loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
-            loadingDialogBinding.tvProgress.setText("Restoring...");
+            loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
+            loadingDialogBinding.tvProgress.setText("Initializing restore...");
+            if (loadingDialogBinding.linearProgressBar != null) {
+                loadingDialogBinding.linearProgressBar.setIndeterminate(false);
+                loadingDialogBinding.linearProgressBar.setMax(100);
+                loadingDialogBinding.linearProgressBar.setProgress(0);
+            }
+            if (loadingDialogBinding.progressBar != null) {
+                loadingDialogBinding.progressBar.setIndeterminate(false);
+                loadingDialogBinding.progressBar.setMax(100);
+                loadingDialogBinding.progressBar.setProgress(0);
+            }
             dlg = new MaterialAlertDialogBuilder(activityWeakReference.get())
-                    .setTitle("Please wait")
+                    .setTitle("Restoring Project")
                     .setCancelable(false)
                     .setView(loadingDialogBinding.getRoot())
                     .create();
@@ -251,6 +303,8 @@ public class BackupRestoreManager {
         protected String doInBackground(String... params) {
             bm = new BackupFactory(lC.b());
             bm.setBackupLocalLibs(restoreLocalLibs);
+            bm.setProgressListener((progressPercent, currentTask) ->
+                    publishProgress(new BackupProgress(progressPercent, currentTask)));
 
             try {
                 bm.restore(new File(file));
@@ -263,8 +317,26 @@ public class BackupRestoreManager {
         }
 
         @Override
+        protected void onProgressUpdate(BackupProgress... values) {
+            if (values != null && values.length > 0 && loadingDialogBinding != null) {
+                BackupProgress progress = values[0];
+                loadingDialogBinding.tvProgress.setText(progress.message);
+                if (loadingDialogBinding.linearProgressBar != null) {
+                    loadingDialogBinding.linearProgressBar.setIndeterminate(false);
+                    loadingDialogBinding.linearProgressBar.setProgress(progress.percent);
+                }
+                if (loadingDialogBinding.progressBar != null) {
+                    loadingDialogBinding.progressBar.setIndeterminate(false);
+                    loadingDialogBinding.progressBar.setProgress(progress.percent);
+                }
+            }
+        }
+
+        @Override
         protected void onPostExecute(String _result) {
-            dlg.dismiss();
+            if (dlg != null && dlg.isShowing()) {
+                dlg.dismiss();
+            }
 
             if (!bm.isRestoreSuccess() || error) {
                 SketchwareUtil.toastError("Couldn't restore: " + bm.error, Toast.LENGTH_LONG);

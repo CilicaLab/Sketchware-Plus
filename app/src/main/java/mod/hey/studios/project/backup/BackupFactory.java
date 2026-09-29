@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -58,12 +59,27 @@ public class BackupFactory {
             "fonts", "icons", "images", "sounds"
     };
 
+    public interface BackupProgressListener {
+        void onProgress(int progressPercent, String currentTask);
+    }
+
     final String sc_id;
     File outPath;
     boolean backupLocalLibs;
     boolean backupCustomBlocks;
     String error = "";
     boolean restoreSuccess = true;
+    private BackupProgressListener progressListener;
+
+    public void setProgressListener(BackupProgressListener listener) {
+        this.progressListener = listener;
+    }
+
+    private void reportProgress(int progressPercent, String currentTask) {
+        if (progressListener != null) {
+            progressListener.onProgress(progressPercent, currentTask);
+        }
+    }
 
     /**
      * @param sc_id For backing up, the target project's ID,
@@ -179,6 +195,36 @@ public class BackupFactory {
         }
     }
 
+    public void zipFolderWithProgress(File srcFolder, File destZipFile) throws Exception {
+        List<File> fileList = new ArrayList<>();
+        collectFiles(srcFolder, fileList);
+        int total = Math.max(1, fileList.size());
+
+        try (FileOutputStream fileWriter = new FileOutputStream(destZipFile);
+             ZipOutputStream zip = new ZipOutputStream(fileWriter)) {
+            for (int i = 0; i < fileList.size(); i++) {
+                File file = fileList.get(i);
+                int pct = 85 + ((i + 1) * 12 / total);
+                reportProgress(pct, "Compressing: " + file.getName());
+                addFileToZip(srcFolder, file, zip);
+            }
+            zip.flush();
+        }
+    }
+
+    private static void collectFiles(File folder, List<File> fileList) {
+        File[] srcFolderFiles = folder.listFiles();
+        if (srcFolderFiles != null) {
+            for (File file : srcFolderFiles) {
+                if (file.isDirectory()) {
+                    collectFiles(file, fileList);
+                } else {
+                    fileList.add(file);
+                }
+            }
+        }
+    }
+
     private static void addFileToZip(File rootPath, File srcFile, ZipOutputStream zip) throws Exception {
 
         if (srcFile.isDirectory()) {
@@ -279,6 +325,7 @@ public class BackupFactory {
     /************************ BACKUP ************************/
 
     public void backup(Context context, String project_name) {
+        reportProgress(5, "Preparing backup output...");
         String customFileName = ConfigActivity.getBackupFileName();
 
         String versionName = yB.c(lC.b(sc_id), "sc_ver_name");
@@ -331,6 +378,7 @@ public class BackupFactory {
         FileUtil.makeDir(new File(getBackupDir() + File.separator + projectNameOnly).getAbsolutePath());
 
         // Copy data
+        reportProgress(15, "Backing up project data...");
         File dataF = new File(outFolder, "data");
         FileUtil.makeDir(dataF.getAbsolutePath());
         //6.3.0 fix1
@@ -340,7 +388,10 @@ public class BackupFactory {
         File resF = new File(outFolder, "resources");
         FileUtil.makeDir(resF.getAbsolutePath());
 
-        for (String subfolder : resSubfolders) {
+        for (int i = 0; i < resSubfolders.length; i++) {
+            String subfolder = resSubfolders[i];
+            int pct = 25 + (i * 30 / resSubfolders.length);
+            reportProgress(pct, "Backing up " + subfolder + "...");
             File resSubf = new File(resF, subfolder);
             FileUtil.makeDir(resSubf.getAbsolutePath());
 
@@ -356,11 +407,13 @@ public class BackupFactory {
         }
 
         // Copy project
+        reportProgress(55, "Backing up project configuration...");
         File projectF = new File(outFolder, "project");
         copy(getProjectPath(), projectF);
 
         // Find local libs used and include them in the backup
         if (backupLocalLibs) {
+            reportProgress(65, "Checking local libraries...");
             File localLibs = getLocalLibsPath();
 
             if (localLibs.exists()) {
@@ -377,6 +430,9 @@ public class BackupFactory {
                             String dexPath = jo.optString("dexPath");
                             String jarPath = jo.optString("jarPath");
                             String resPath = jo.optString("resPath");
+
+                            int pct = 65 + ((i + 1) * 15 / Math.max(1, ja.length()));
+                            reportProgress(pct, "Backing up local library: " + (name.isEmpty() ? ("Library " + (i + 1)) : name));
 
                             File libDir = null;
 
@@ -428,6 +484,7 @@ public class BackupFactory {
 
         // Find custom blocks used and include them in the backup
         if (backupCustomBlocks) {
+            reportProgress(82, "Backing up custom blocks...");
             CustomBlocksManager cbm = new CustomBlocksManager(context, sc_id);
 
             Set<ExtraBlockInfo> blocks = new HashSet<>();
@@ -452,7 +509,9 @@ public class BackupFactory {
 
         // Zip final folder
         try {
-            zipFolder(outFolder, outZip);
+            reportProgress(85, "Compressing backup file...");
+            zipFolderWithProgress(outFolder, outZip);
+            reportProgress(98, "Finalizing backup archive...");
             if (!outZip.renameTo(finalZip)) {
                 if (finalZip.exists() && !finalZip.delete()) {
                     Log.e("BackupFactory", "Failed to delete existing backup: " + finalZip.getAbsolutePath());
@@ -462,14 +521,6 @@ public class BackupFactory {
                 }
             }
         } catch (Exception e) {
-            // An error occurred
-
-//            StringBuilder sb = new StringBuilder();
-//            for (StackTraceElement el : e.getStackTrace()) {
-//                sb.append(el.toString());
-//                sb.append("\n");
-//            }
-
             error = Log.getStackTraceString(e);
             outPath = null;
 
@@ -485,6 +536,7 @@ public class BackupFactory {
 
         // Put finalZip to global variable
         outPath = finalZip;
+        reportProgress(100, "Backup complete!");
     }
 
     private String getFormattedDateFrom(String format) {
@@ -528,6 +580,7 @@ public class BackupFactory {
             return;
         }
 
+        reportProgress(10, "Extracting backup archive...");
         // Unzip
         if (!unzip(swbPath, outFolder)) {
             error = "couldn't unzip the backup";
@@ -540,6 +593,7 @@ public class BackupFactory {
         File data = new File(outFolder, "data");
         File res = new File(outFolder, "resources");
 
+        reportProgress(35, "Reading project configuration...");
         HashMap<String, Object> map = getProject(project);
 
         if (map == null) {
@@ -559,10 +613,14 @@ public class BackupFactory {
         }
 
         // Copy data
+        reportProgress(50, "Restoring project data...");
         copy(data, getDataDir());
 
         // Copy res
-        for (String subfolder : resSubfolders) {
+        for (int i = 0; i < resSubfolders.length; i++) {
+            String subfolder = resSubfolders[i];
+            int pct = 60 + (i * 20 / resSubfolders.length);
+            reportProgress(pct, "Restoring " + subfolder + "...");
             File subf = new File(res, subfolder);
 
             copySafe(subf, getResDir(subfolder));
@@ -576,6 +634,7 @@ public class BackupFactory {
 
         // Copy local libs if they do not exist
         if (backupLocalLibs) {
+            reportProgress(85, "Restoring local libraries...");
             File local_libs = new File(outFolder, "local_libs");
 
             if (local_libs.exists()) {
@@ -599,6 +658,7 @@ public class BackupFactory {
         FileUtil.deleteFile(outFolder.getAbsolutePath());
 
         restoreSuccess = true;
+        reportProgress(100, "Restore complete!");
     }
 
     public String getError() {

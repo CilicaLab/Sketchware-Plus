@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.zip.ZipFile;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -83,6 +84,7 @@ import proguard.ProGuard;
 
 public class ProjectBuilder {
     public static final String TAG = "AppBuilder";
+    public static final Object ASSET_LOCK = new Object();
 
     private final File aapt2Binary;
     private final Context context;
@@ -146,33 +148,97 @@ public class ProjectBuilder {
 
     /**
      * Checks if a file on local storage differs from a file in assets, and if so,
-     * replaces the file on local storage with the one in assets.
-     * <p/>
-     * The files' sizes are compared, not content.
+     * replaces the file on local storage with the one in assets. Includes retry logic,
+     * thread synchronization, and zip/archive integrity validation.
      *
      * @param fileInAssets The file in assets relative to assets/ in the APK
      * @param targetFile   The file on local storage
-     * @return If the file in assets has been extracted
+     * @return If the file in assets has been extracted / replaced
      */
     public static boolean hasFileChanged(String fileInAssets, String targetFile) {
-        long length;
-        File compareToFile = new File(targetFile);
-        oB fileUtil = new oB();
-        long lengthOfFileInAssets = fileUtil.a(SketchApplication.getContext(), fileInAssets);
-        if (compareToFile.exists()) {
-            length = compareToFile.length();
-        } else {
-            length = 0;
+        synchronized (ASSET_LOCK) {
+            File compareToFile = new File(targetFile);
+            oB fileUtil = new oB();
+            int maxRetries = 3;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    long lengthOfFileInAssets = fileUtil.a(SketchApplication.getContext(), fileInAssets);
+
+                    boolean cacheValid = compareToFile.exists() 
+                            && compareToFile.length() > 0 
+                            && (lengthOfFileInAssets <= 0 || compareToFile.length() == lengthOfFileInAssets);
+
+                    if (cacheValid && isZipOrJar(targetFile)) {
+                        cacheValid = isValidZipArchive(compareToFile);
+                        if (!cacheValid) {
+                            LogUtil.w(TAG, "Cached file is corrupted zip/jar for asset filename: " + fileInAssets + " at target: " + targetFile + ". Will re-extract.");
+                        }
+                    }
+
+                    if (cacheValid) {
+                        return false;
+                    }
+
+                    if (compareToFile.exists()) {
+                        fileUtil.a(compareToFile);
+                    }
+
+                    LogUtil.d(TAG, "Extracting asset filename: " + fileInAssets + " -> " + targetFile + " (attempt " + attempt + "/" + maxRetries + ")");
+
+                    fileUtil.a(SketchApplication.getContext(), fileInAssets, targetFile);
+
+                    boolean extractionSuccessful = compareToFile.exists() && compareToFile.length() > 0;
+                    if (extractionSuccessful && lengthOfFileInAssets > 0) {
+                        extractionSuccessful = (compareToFile.length() == lengthOfFileInAssets);
+                    }
+                    if (extractionSuccessful && isZipOrJar(targetFile)) {
+                        extractionSuccessful = isValidZipArchive(compareToFile);
+                    }
+
+                    if (!extractionSuccessful) {
+                        fileUtil.a(compareToFile);
+                        throw new IOException("Extracted file failed integrity check for asset filename: " + fileInAssets + " (target: " + targetFile + ")");
+                    }
+
+                    return true;
+                } catch (Throwable e) {
+                    LogUtil.w(TAG, "Failed attempt " + attempt + "/" + maxRetries + " reading/extracting asset filename: " + fileInAssets + " (target: " + targetFile + ")", e);
+                    if (compareToFile.exists()) {
+                        fileUtil.a(compareToFile);
+                    }
+                    if (attempt == maxRetries) {
+                        LogUtil.e(TAG, "CRITICAL: Asset extraction failed permanently for asset filename: " + fileInAssets + " (target: " + targetFile + ")", e);
+                        if (e instanceof RuntimeException) {
+                            throw (RuntimeException) e;
+                        }
+                        throw new RuntimeException("Failed to extract asset filename '" + fileInAssets + "' to '" + targetFile + "' after " + maxRetries + " attempts", e);
+                    }
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+            return true;
         }
-        if (lengthOfFileInAssets == length) {
+    }
+
+    private static boolean isZipOrJar(String path) {
+        if (path == null) return false;
+        String lower = path.toLowerCase();
+        return lower.endsWith(".zip") || lower.endsWith(".jar");
+    }
+
+    public static boolean isValidZipArchive(File file) {
+        if (file == null || !file.exists() || file.length() == 0) {
             return false;
         }
-
-        /* Delete the file */
-        fileUtil.a(compareToFile);
-        /* Copy the file from assets to local storage */
-        fileUtil.a(SketchApplication.getContext(), fileInAssets, targetFile);
-        return true;
+        try (ZipFile zipFile = new ZipFile(file)) {
+            return zipFile.size() > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
