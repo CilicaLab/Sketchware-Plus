@@ -32,12 +32,12 @@ public class EasyDeleteEditText extends RelativeLayout {
     }
 
     private void a() {
-        if (binding.easyEdInput.isEnabled() && binding.easyEdInput.hasFocus() && binding.easyEdInput.length() > 0) {
+        boolean hasError = binding.easyTiInput.isErrorEnabled() && binding.easyTiInput.getError() != null;
+        if (binding.easyEdInput.isEnabled() && binding.easyEdInput.hasFocus() && binding.easyEdInput.length() > 0 && !hasError) {
             binding.imgDelete.setVisibility(View.VISIBLE);
         } else {
             binding.imgDelete.setVisibility(View.GONE);
         }
-
     }
 
     private void initialize(Context context) {
