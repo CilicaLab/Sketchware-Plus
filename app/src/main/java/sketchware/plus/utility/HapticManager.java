@@ -52,6 +52,20 @@ public class HapticManager {
         }
     }
 
+    /**
+     * Unique haptic feedback when AI Assistant is done / completes a task.
+     * Satisfying rumble / "vroom" completion haptic.
+     */
+    public static void vibrateAssistantDone() {
+        Context context = SketchApplication.getContext();
+        if (context != null) {
+            Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0, 25, 40, 25}, new int[]{0, 50, 20, 40}, -1));
+            }
+        }
+    }
+
     private static void vibrateLegacy(long duration) {
         Context context = SketchApplication.getContext();
         Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);

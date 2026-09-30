@@ -992,10 +992,15 @@ public class SkAssistantFragment extends Fragment {
 
     public void addAssistantMessage(String content) {
         if (content == null || content.trim().isEmpty()) return;
-        messages.add(new Message("assistant", content));
+        appendAssistantMessage(new Message("assistant", content));
+    }
+
+    private void appendAssistantMessage(Message msg) {
+        messages.add(msg);
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
         saveHistory();
+        HapticManager.vibrateAssistantDone();
     }
 
     public void setUndoVisible(boolean visible) {
@@ -1043,11 +1048,7 @@ public class SkAssistantFragment extends Fragment {
                 Message msg = new Message("assistant", summary);
                 msg.jsonData = json;
                 msg.category = actualCategory;
-                messages.add(msg);
-
-                adapter.notifyItemInserted(messages.size() - 1);
-                scrollToBottom();
-                saveHistory();
+                appendAssistantMessage(msg);
                 cancelSKRequests();
 
 
@@ -1089,9 +1090,7 @@ public class SkAssistantFragment extends Fragment {
                     // Fallback to plain text chat if JSON is completely broken
                     // We set ignoreTags to true because if JSON parsing failed, 
                     // any embedded tags are likely unreliable "jibberish".
-                    messages.add(new Message("assistant", response, null, true));
-                    adapter.notifyItemInserted(messages.size() - 1);
-                    scrollToBottom();
+                    appendAssistantMessage(new Message("assistant", response, null, true));
                 }
             }
         });
@@ -1390,10 +1389,7 @@ public class SkAssistantFragment extends Fragment {
                 if (isRequestCanceled) return;
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        messages.add(new Message("assistant", response, targetXmlName));
-                        adapter.notifyItemInserted(messages.size() - 1);
-                        scrollToBottom();
-                        saveHistory();
+                        appendAssistantMessage(new Message("assistant", response, targetXmlName));
                     });
                 }
             }
