@@ -54,8 +54,14 @@ public class AboutActivity extends BaseAppCompatActivity {
     private void initViews() {
         binding.toolbar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
         binding.discordButton.setOnClickListener(v -> {
-            String discordLink = aboutAppData.getDiscordInviteLink().getValue();
-            if (discordLink != null) {
+            String remoteLink = aboutAppData.getDiscordInviteLink().getValue();
+            String fallbackLink = Helper.getResString(R.string.link_discord_invite);
+
+            String discordLink = (binding.viewPager.getCurrentItem() == 2 || remoteLink == null || remoteLink.isEmpty())
+                    ? fallbackLink
+                    : remoteLink;
+
+            if (!discordLink.isEmpty()) {
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(discordLink)));
             }
         });
