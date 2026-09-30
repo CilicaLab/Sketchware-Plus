@@ -66,13 +66,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Generate test keystore
-        run: |
-          keytool -genkeypair -v -keystore testkey.keystore \
-            -alias testkey -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass testkey -keypass testkey \
-            -dname "CN=Test,O=Test,C=US"
-
       - name: Build Release APK
         env:
           SKETCHUB_API_KEY: ${{ secrets.SKETCHUB_API_KEY }}
