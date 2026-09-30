@@ -15,114 +15,89 @@ public class AssistantToolRegistry {
      * @return A JSONArray of all tool definitions for the AI request.
      */
     public static JSONArray getAllTools() {
-        JSONArray tools = new JSONArray();
-        tools.put(createTool("web_search", "Search the web for Android documentation, library versions, or code examples using DuckDuckGo.", 
-                new ParameterBuilder()
-                    .addProperty("query", "string", "The search query.")
-                    .setRequired("query")
-                    .build()));
+        JSONArray t = new JSONArray();
 
-        tools.put(createTool("web_browse", "Fetch and read the content of a specific web URL. Use this to read documentation found via search.", 
-                new ParameterBuilder()
-                    .addProperty("url", "string", "The full URL to browse.")
-                    .setRequired("url")
-                    .build()));
+        t.put(createTool("web_search", "Search web (DuckDuckGo)",
+                new ParameterBuilder().addProperty("query", "string", "query").setRequired("query").build()));
 
-        tools.put(createTool("list_project_files", "Lists all Java, Kotlin, and XML files available in the current project.", 
+        t.put(createTool("web_browse", "Fetch content of a URL",
+                new ParameterBuilder().addProperty("url", "string", "full URL").setRequired("url").build()));
+
+        t.put(createTool("list_project_files", "List Java/Kotlin/XML files in project",
                 new ParameterBuilder().build()));
 
-        tools.put(createTool("search_project_files", "Find files by name pattern (e.g., searching for 'MainActivity' or 'Gson').", 
-                new ParameterBuilder()
-                    .addProperty("query", "string", "The search query (file name or part of it).")
-                    .setRequired("query")
-                    .build()));
+        t.put(createTool("search_project_files", "Find files by name",
+                new ParameterBuilder().addProperty("query", "string", "file name or part").setRequired("query").build()));
 
-        tools.put(createTool("get_layout_xml", "Returns the current Activity's XML layout code and view hierarchy.", 
+        t.put(createTool("get_layout_xml", "Get current activity XML + view hierarchy",
                 new ParameterBuilder().build()));
 
-        tools.put(createTool("apply_layout_xml", "Updates the current activity's XML layout. Use this to add, modify or delete views.", 
+        t.put(createTool("apply_layout_xml", "Replace current activity XML layout",
                 new ParameterBuilder()
-                    .addProperty("xml", "string", "The full valid Android XML layout code.")
-                    .addProperty("summary", "string", "A short description of what was changed.")
-                    .setRequired("xml", "summary")
-                    .build()));
+                        .addProperty("xml", "string", "full valid layout XML")
+                        .addProperty("summary", "string", "what changed")
+                        .setRequired("xml", "summary").build()));
 
-        tools.put(createTool("inject_imports", "Injects Java/Kotlin package imports into the current activity screen.", 
+        t.put(createTool("inject_imports", "Add imports to current activity",
+                new ParameterBuilder().addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
+                        .setRequired("packages").build()));
+
+        t.put(createTool("read_method", "Read a method's source",
                 new ParameterBuilder()
-                    .addProperty("packages", "array", "Array of package strings, e.g., [\"java.util.List\", \"android.widget.Button\"]", "string")
-                    .setRequired("packages")
-                    .build()));
+                        .addProperty("javaName", "string", "file, e.g. MainActivity.java")
+                        .addProperty("methodName", "string", "method name")
+                        .setRequired("javaName", "methodName").build()));
 
-        tools.put(createTool("read_method", "Read the source code of a specific Java method by name.", 
+        t.put(createTool("list_methods", "List method names in a file",
+                new ParameterBuilder().addProperty("javaName", "string", "file name").setRequired("javaName").build()));
+
+        t.put(createTool("get_full_code", "Read whole file",
+                new ParameterBuilder().addProperty("javaName", "string", "file name").setRequired("javaName").build()));
+
+        t.put(createTool("search_in_code", "Search keyword in a file, returns lines w/ context",
                 new ParameterBuilder()
-                    .addProperty("javaName", "string", "The name of the file, e.g., MainActivity.java")
-                    .addProperty("methodName", "string", "The name of the method to read.")
-                    .setRequired("javaName", "methodName")
-                    .build()));
+                        .addProperty("javaName", "string", "file name")
+                        .addProperty("query", "string", "keyword/snippet")
+                        .addProperty("contextLines", "integer", "default 2")
+                        .setRequired("javaName", "query").build()));
 
-        tools.put(createTool("list_methods", "List all method names in a specific Java file.", 
+        t.put(createTool("add_java_patch", "Patch generated source code",
                 new ParameterBuilder()
-                    .addProperty("javaName", "string", "The file name, e.g., MainActivity.java")
-                    .setRequired("javaName")
-                    .build()));
+                        .addProperty("javaName", "string", "target file")
+                        .addProperty("reference", "string", "EXACT anchor line")
+                        .addProperty("command", "string", "insert|add|replace|find-replace")
+                        .addProperty("inputCode", "string", "new code")
+                        .addProperty("distance", "integer", "line offset from anchor, default 0")
+                        .addProperty("front", "integer", "lines to delete before anchor")
+                        .addProperty("back", "integer", "lines to delete after anchor")
+                        .setRequired("javaName", "reference", "command", "inputCode").build()));
 
-        tools.put(createTool("get_full_code", "Read the entire source code of a Java/Kotlin file.", 
+        t.put(createTool("manage_local_library", "Enable/disable local library",
                 new ParameterBuilder()
-                    .addProperty("javaName", "string", "The file name.")
-                    .setRequired("javaName")
-                    .build()));
+                        .addProperty("libraryName", "string", "library folder name")
+                        .addProperty("enabled", "boolean", "true=enable")
+                        .setRequired("libraryName", "enabled").build()));
 
-        tools.put(createTool("search_in_code", "Search for a specific keyword or snippet within a Java/Kotlin file. Returns matching lines with context.", 
+        t.put(createTool("add_permission", "Add permission to manifest",
+                new ParameterBuilder().addProperty("permission", "string", "e.g. android.permission.CAMERA")
+                        .setRequired("permission").build()));
+
+        t.put(createTool("add_component", "Add Sketchware component to activity",
                 new ParameterBuilder()
-                    .addProperty("javaName", "string", "The file name, e.g., MainActivity.java")
-                    .addProperty("query", "string", "The keyword or code snippet to find.")
-                    .addProperty("contextLines", "integer", "Number of lines of context to include around matches (default 2).")
-                    .setRequired("javaName", "query")
-                    .build()));
+                        .addProperty("type", "integer", "type ID from list_available_components")
+                        .addProperty("id", "string", "unique instance name")
+                        .setRequired("type", "id").build()));
 
-        tools.put(createTool("add_java_patch", "Apply a persistent code patch to the project's generated source code.", 
-                new ParameterBuilder()
-                    .addProperty("javaName", "string", "Target file name.")
-                    .addProperty("reference", "string", "The EXACT line of code to use as an anchor/reference.")
-                    .addProperty("command", "string", "The operation type: insert, add, replace, find-replace.")
-                    .addProperty("inputCode", "string", "The new code content to apply.")
-                    .addProperty("distance", "integer", "Line offset from reference (default 0).")
-                    .addProperty("front", "integer", "Number of lines to delete before reference.")
-                    .addProperty("back", "integer", "Number of lines to delete after reference.")
-                    .setRequired("javaName", "reference", "command", "inputCode")
-                    .build()));
-
-        tools.put(createTool("manage_local_library", "Enable or disable a local library in the project.", 
-                new ParameterBuilder()
-                    .addProperty("libraryName", "string", "The folder name of the local library.")
-                    .addProperty("enabled", "boolean", "True to enable, False to disable.")
-                    .setRequired("libraryName", "enabled")
-                    .build()));
-
-        tools.put(createTool("add_permission", "Add a standard Android permission to the project manifest.", 
-                new ParameterBuilder()
-                    .addProperty("permission", "string", "The full permission string, e.g., 'android.permission.CAMERA'.")
-                    .setRequired("permission")
-                    .build()));
-
-        tools.put(createTool("add_component", "Add a Sketchware component to the current Activity.", 
-                new ParameterBuilder()
-                    .addProperty("type", "integer", "The component type ID (use list_available_components to find it).")
-                    .addProperty("id", "string", "The unique name for the component instance.")
-                    .setRequired("type", "id")
-                    .build()));
-
-        tools.put(createTool("list_available_components", "Returns a list of all available Sketchware components (built-in and local/custom).", 
+        t.put(createTool("list_available_components", "List built-in + custom components",
                 new ParameterBuilder().build()));
 
-        tools.put(createTool("apply_custom_view", "Create or update a Sketchware Custom View XML file.", 
+        t.put(createTool("apply_custom_view", "Create/update custom view XML",
                 new ParameterBuilder()
-                    .addProperty("name", "string", "The name of the custom view.")
-                    .addProperty("xml", "string", "The XML content.")
-                    .setRequired("name", "xml")
-                    .build()));
+                        .addProperty("name", "string", "view name")
+                        .addProperty("xml", "string", "XML content")
+                        .setRequired("name", "xml").build()));
 
-        return tools;
+        return t;
     }
 
     private static JSONObject createTool(String name, String description, JSONObject parameters) {

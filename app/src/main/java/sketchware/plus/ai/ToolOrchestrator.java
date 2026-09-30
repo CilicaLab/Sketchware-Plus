@@ -148,34 +148,25 @@ public class ToolOrchestrator {
             }
         });
     }
-    
+
     private String buildBaseSystemPrompt() {
-        return "You are the Autonomous SK Assistant for Sketchware Plus.\n" +
-                "Project Context: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
-                "STRATEGY & RULES:\n" +
-                "1. GATHER INFO FIRST: Use 'get_layout_xml', 'list_methods', 'list_project_files', 'search_project_files', 'search_in_code', or 'list_available_components' to see existing project structure.\n" +
-                "2. NO HALLUCINATION: Only call tools that are explicitly defined in the provided tools list. Do NOT invent tool names.\n" +
-                "3. NO REDUNDANT SEARCH: Do NOT search the web for Sketchware-specific component IDs. Use 'list_available_components' to find the correct IDs for both built-in and local components.\n" +
-                "4. ACTION-ORIENTED: Once you know what to do, use the tool IMMEDIATELY. Don't waste reasoning steps on web searches if a tool provides the info.\n" +
-                "5. MODIFY CODE: To patch logic, use 'read_method' to find the anchor, then 'add_java_patch'.\n" +
-                "6. LIBRARY MANAGEMENT: You can ONLY manage LOCAL libraries using 'manage_local_library'. Check 'AVAILABLE LOCAL LIBRARIES' in the context first. You CANNOT enable or disable built-in libraries (AppCompat, Firebase, AdMob, Google Maps) as you don't have access to them.\n" +
-                "7. PRECISION: When enabling or disabling a local library, use the EXACT folder name from the available list (including version numbers).\n" +
-                "8. COMPLETION: Summarize your changes once done. Don't call tools in the final response.\n" +
-                "9. JSON STRICTNESS: Ensure all tool arguments are valid JSON objects stringified.\n" +
-                "10. EFFICIENCY: Minimize redundant tool calls. Reuse information already retrieved.";
+        return "You are the SK Assistant for Sketchware Plus.\n" +
+                "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
+                "RULES:\n" +
+                "1. Gather info first (get_layout_xml, list_methods, list_project_files, search_project_files, search_in_code, list_available_components).\n" +
+                "2. Only call tools from the provided list. Never invent tools.\n" +
+                "3. Don't web search component IDs. Use list_available_components.\n" +
+                "4. Once you know what to do, call the tool right away.\n" +
+                "5. To patch code: read_method for the anchor, then add_java_patch.\n" +
+                "6. manage_local_library works on LOCAL libs only, using the EXACT folder name (with version) from AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) can't be changed.\n" +
+                "7. No redundant tool calls. Reuse info you already have.\n" +
+                "8. Tool args must be valid JSON.\n" +
+                "9. When done, summarize changes with no tool calls.";
     }
-    
+
     private String buildMetricsContext() {
-        long elapsedSeconds = (System.currentTimeMillis() - executionMetrics.sessionStartTime) / 1000;
-        ToolExecutor.CacheStats stats = toolExecutor.getCacheStats();
-        
-        return "\n\nCurrent Session Metrics:\n" +
-                "- Iteration: " + iterationCount + " of " + MAX_ITERATIONS + "\n" +
-                "- Time elapsed: " + elapsedSeconds + "s\n" +
-                "- Total tokens used: " + executionMetrics.totalTokensUsed + "\n" +
-                "- Tools executed: " + stats.totalCalls + "\n" +
-                "- Cache hit rate: " + String.format("%.1f%%", stats.hitRate * 100) + "\n" +
-                "Remember: Tools with cached results are much faster. Reuse data instead of re-querying.";
+        return "\n\nIter " + iterationCount + "/" + MAX_ITERATIONS +
+                ", tokens used: " + executionMetrics.totalTokensUsed;
     }
 
     private void handleToolCalls(JSONArray toolCalls, String thought, JSONArray chatHistory) {

@@ -1,10 +1,14 @@
 package sketchware.plus.ai;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -14,6 +18,9 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.PopupMenu;
+import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -415,7 +422,7 @@ public class SkAssistantFragment extends Fragment {
                     ContextCompat.getColor(context, R.color.scolor_red_01)));
             btnSend.setIconTintResource(android.R.color.white);
         } else {
-            btnSend.setIconResource(R.drawable.paper_plane_48);
+            btnSend.setIconResource(R.drawable.ic_mtrl_send);
             btnSend.setBackgroundTintList(ColorStateList.valueOf(
                     ContextCompat.getColor(context, R.color.color_primary)));
             btnSend.setIconTintResource(android.R.color.white);
@@ -444,7 +451,7 @@ public class SkAssistantFragment extends Fragment {
     public void cancelSKRequests() {
         Context context = getContext();
         if (context == null) return;
-        btnSend.setIconResource(R.drawable.paper_plane_48);
+        btnSend.setIconResource(R.drawable.ic_mtrl_send);
         btnSend.setBackgroundTintList(ColorStateList.valueOf(
                 ContextCompat.getColor(context, R.color.color_primary)));
         btnSend.setIconTintResource(android.R.color.white);
@@ -1799,6 +1806,61 @@ public class SkAssistantFragment extends Fragment {
             msgHolder.cardAssistant.setVisibility(View.GONE);
             msgHolder.cardUser.setVisibility(View.GONE);
             msgHolder.actionContainer.setVisibility(View.GONE);
+
+            View.OnLongClickListener copyLongClickListener = v -> {
+                HapticManager.vibrateRun(v);
+
+                View popupView = LayoutInflater.from(v.getContext()).inflate(R.layout.layout_pill_copy_popup, null);
+
+                popupView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                int popupWidth = popupView.getMeasuredWidth();
+                int popupHeight = popupView.getMeasuredHeight();
+
+                PatternBackgroundView patternBg = popupView.findViewById(R.id.pattern_bg);
+                if (patternBg != null) {
+                    ViewGroup.LayoutParams lp = patternBg.getLayoutParams();
+                    lp.width = popupWidth;
+                    lp.height = popupHeight;
+                    patternBg.setLayoutParams(lp);
+
+                    patternBg.setPattern(patternBg.convertVectorToBitmap(v.getContext(), R.drawable.ic_dot_pattern, 30, 30));
+                    int dotColor = MaterialColors.getColor(popupView, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
+                    patternBg.setColor(dotColor);
+                    patternBg.setOpacity(40);
+                }
+
+                PopupWindow popupWindow = new PopupWindow(
+                        popupView,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        true
+                );
+                popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                popupWindow.setElevation(16f);
+
+                popupView.findViewById(R.id.btn_copy_action).setOnClickListener(btn -> {
+                    HapticManager.vibrateRun(btn);
+                    ClipboardManager clipboard = (ClipboardManager) v.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (clipboard != null) {
+                        ClipData clip = ClipData.newPlainText("Message", contentText);
+                        clipboard.setPrimaryClip(clip);
+                        Toast.makeText(v.getContext(), "Copied to clipboard", Toast.LENGTH_SHORT).show();
+                    }
+                    popupWindow.dismiss();
+                });
+
+                int xOffset = (v.getWidth() - popupWidth) / 2;
+                int yOffset = -(v.getHeight() + popupHeight + 12);
+
+                popupWindow.showAsDropDown(v, xOffset, yOffset);
+                return true;
+            };
+
+            msgHolder.cardUser.setOnLongClickListener(copyLongClickListener);
+            msgHolder.tvContentRight.setOnLongClickListener(copyLongClickListener);
+            msgHolder.cardAssistant.setOnLongClickListener(copyLongClickListener);
+            msgHolder.tvContentLeft.setOnLongClickListener(copyLongClickListener);
+            msgHolder.tvRoleLeft.setOnLongClickListener(copyLongClickListener);
 
             if ("user".equals(msg.role)) {
                 msgHolder.cardUser.setVisibility(View.VISIBLE);
