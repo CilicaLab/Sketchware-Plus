@@ -1,6 +1,5 @@
 package sketchware.plus.activities.importicon.adapters;
 
-
 import android.content.Context;
 import android.graphics.PorterDuff;
 import android.util.Pair;
@@ -8,35 +7,24 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DiffUtil;
-import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import sketchware.plus.databinding.ImportIconListItemBinding;
 import sketchware.plus.utility.SvgUtils;
 
-public class IconAdapter extends ListAdapter<Pair<String, String>, IconAdapter.ViewHolder> {
-    private static final DiffUtil.ItemCallback<Pair<String, String>> DIFF_CALLBACK = new DiffUtil.ItemCallback<>() {
-        @Override
-        public boolean areItemsTheSame(@NonNull Pair<String, String> oldItem, @NonNull Pair<String, String> newItem) {
-            return oldItem.first.equals(newItem.first);
-        }
-
-        @Override
-        public boolean areContentsTheSame(@NonNull Pair<String, String> oldItem, @NonNull Pair<String, String> newItem) {
-            return true;
-        }
-    };
+public class IconAdapter extends RecyclerView.Adapter<IconAdapter.ViewHolder> {
 
     private final SvgUtils svgUtils;
     private final OnIconSelectedListener listener;
     private String selected_icon_type;
     private int selected_color;
+    private List<Pair<String, String>> items = new ArrayList<>();
 
     public IconAdapter(Context context, String selected_icon_type, int selected_color, OnIconSelectedListener listener) {
-        super(DIFF_CALLBACK);
         svgUtils = new SvgUtils(context);
         this.selected_icon_type = selected_icon_type;
         this.selected_color = selected_color;
@@ -45,18 +33,40 @@ public class IconAdapter extends ListAdapter<Pair<String, String>, IconAdapter.V
 
     public void setSelectedIconType(String selected_icon_type) {
         this.selected_icon_type = selected_icon_type;
+        notifyDataSetChanged();
     }
 
     public void setSelectedColor(int selected_color) {
         this.selected_color = selected_color;
+        notifyDataSetChanged();
+    }
+
+    public void setItems(List<Pair<String, String>> items) {
+        this.items = items != null ? items : new ArrayList<>();
+        notifyDataSetChanged();
+    }
+
+    public Pair<String, String> getItem(int position) {
+        if (position >= 0 && position < items.size()) {
+            return items.get(position);
+        }
+        return null;
+    }
+
+    @Override
+    public int getItemCount() {
+        return items.size();
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        String filePath = getItem(position).second + File.separator + selected_icon_type + ".svg";
-        svgUtils.loadImage(holder.itemBinding.img, filePath);
-        holder.itemBinding.img.setColorFilter(selected_color, PorterDuff.Mode.SRC_IN);
-        holder.itemBinding.title.setText(getItem(position).first);
+        Pair<String, String> item = getItem(position);
+        if (item != null) {
+            String filePath = item.second + File.separator + selected_icon_type + ".svg";
+            svgUtils.loadImage(holder.itemBinding.img, filePath);
+            holder.itemBinding.img.setColorFilter(selected_color, PorterDuff.Mode.SRC_IN);
+            holder.itemBinding.title.setText(item.first);
+        }
     }
 
     @Override
@@ -77,12 +87,11 @@ public class IconAdapter extends ListAdapter<Pair<String, String>, IconAdapter.V
             super(binding.getRoot());
             itemBinding = binding;
             binding.getRoot().setOnClickListener(v -> {
-                int position = getLayoutPosition();
-                if (listener != null) {
+                int position = getBindingAdapterPosition();
+                if (position != RecyclerView.NO_POSITION && listener != null) {
                     listener.onIconSelected(position);
                 }
             });
         }
     }
 }
-

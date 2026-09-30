@@ -152,7 +152,7 @@ public class mq {
             case "listStr" -> "ListString";
             case "listMap" -> "ListMap";
             case "list" -> "List";
-            case "view" -> "View";
+            case "view", "View" -> "View";
             case "textview" -> "TextView";
             case "edittext" -> "EditText";
             case "imageview" -> "ImageView";
@@ -203,6 +203,7 @@ public class mq {
             case "phoneauth" -> "FirebasePhoneAuth";
             case "codeview" -> "CodeView";
             case "recyclerview" -> "RecyclerView";
+            case "menuitem", "MenuItem" -> "MenuItem";
             case "resource" -> "Image";
             case "googlelogin" -> "FirebaseGoogleSignIn";
             case "youtubeview" -> "YoutubePlayer";

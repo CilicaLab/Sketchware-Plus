@@ -88,6 +88,7 @@ public class Gx {
                 break;
 
             case "View":
+                classInfos = "View";
                 break;
 
             case "TextView":
@@ -280,6 +281,10 @@ public class Gx {
 
             case "RecyclerView":
                 classInfos = "View.ViewGroup.RecyclerView";
+                break;
+
+            case "MenuItem":
+                classInfos = "MenuItem";
                 break;
 
             case "TextToSpeech":

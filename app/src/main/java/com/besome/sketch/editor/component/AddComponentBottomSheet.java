@@ -1,6 +1,8 @@
 package com.besome.sketch.editor.component;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +18,7 @@ import com.google.android.flexbox.FlexDirection;
 import com.google.android.flexbox.FlexWrap;
 import com.google.android.flexbox.FlexboxLayoutManager;
 import com.google.android.flexbox.JustifyContent;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
 import java.util.ArrayList;
@@ -32,6 +35,7 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
     private ProjectFileBean projectFileBean;
 
     private ArrayList<ComponentBean> componentList;
+    private ArrayList<ComponentBean> allComponentList;
     private LogicAddComponentBinding binding;
     private OnComponentCreateListener onComponentCreateListener;
 
@@ -94,6 +98,7 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
         componentList.add(new ComponentBean(ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_GOOGLE_LOGIN));
 
         ComponentsHandler.add(componentList);
+        allComponentList = new ArrayList<>(componentList);
     }
 
     @Nullable
@@ -101,6 +106,19 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = LogicAddComponentBinding.inflate(getLayoutInflater());
         return binding.getRoot();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        View view = getView();
+        if (view != null && view.getParent() instanceof View parent) {
+            BottomSheetBehavior<?> behavior = BottomSheetBehavior.from(parent);
+            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            behavior.setSkipCollapsed(true);
+            parent.getLayoutParams().height = getResources().getDisplayMetrics().heightPixels * 9 / 10;
+            parent.requestLayout();
+        }
     }
 
     @Override
@@ -115,6 +133,19 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
         binding.componentList.setHasFixedSize(true);
         binding.componentList.setLayoutManager(flexboxLayoutManager);
         binding.componentList.setAdapter(new ComponentsAdapter());
+
+        binding.searchEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterComponents(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
 
         binding.componentList.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -132,6 +163,34 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
                 });
             }
         });
+    }
+
+    private void filterComponents(String query) {
+        componentList.clear();
+        String q = query.toLowerCase().trim();
+        if (q.isEmpty()) {
+            componentList.addAll(allComponentList);
+        } else {
+            for (ComponentBean bean : allComponentList) {
+                String name = ComponentBean.getComponentName(getContext(), bean.type);
+                if (name.toLowerCase().contains(q)) {
+                    componentList.add(bean);
+                }
+            }
+        }
+        if (binding != null) {
+            if (binding.componentList.getAdapter() != null) {
+                binding.componentList.getAdapter().notifyDataSetChanged();
+            }
+            if (componentList.isEmpty()) {
+                binding.emptyView.setVisibility(View.VISIBLE);
+                binding.emptyView.setText("No component matches \"" + query + "\"");
+                binding.componentList.setVisibility(View.GONE);
+            } else {
+                binding.emptyView.setVisibility(View.GONE);
+                binding.componentList.setVisibility(View.VISIBLE);
+            }
+        }
     }
 
     @Override
