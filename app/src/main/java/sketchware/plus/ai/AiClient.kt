@@ -169,10 +169,7 @@ object AiClient {
                     val choice = responseObject.getJSONArray("choices").getJSONObject(0)
                     val message = choice.getJSONObject("message")
                     
-                    val usage = responseObject.optJSONObject("usage")
-                    val promptTokens = usage?.optInt("prompt_tokens", 0) ?: 0
-                    val completionTokens = usage?.optInt("completion_tokens", 0) ?: 0
-                    val totalTokens = usage?.optInt("total_tokens", 0) ?: 0
+                    val (promptTokens, completionTokens, totalTokens) = extractTokenUsage(responseObject)
 
                     if (message.has("tool_calls")) {
                         val content = message.optString("content", null)
@@ -217,6 +214,40 @@ object AiClient {
         } finally {
             currentCall = null
         }
+    }
+
+    private fun extractTokenUsage(responseObject: JSONObject): Triple<Int, Int, Int> {
+        val usage = responseObject.optJSONObject("usage")
+            ?: responseObject.optJSONObject("usageMetadata")
+            ?: responseObject.optJSONObject("usage_metadata")
+
+        if (usage == null) return Triple(0, 0, 0)
+
+        val promptTokens = usage.optInt("prompt_tokens", -1).let {
+            if (it != -1) it else usage.optInt("promptTokenCount", -1).let { p2 ->
+                if (p2 != -1) p2 else usage.optInt("input_tokens", 0)
+            }
+        }
+
+        val completionTokens = usage.optInt("completion_tokens", -1).let {
+            if (it != -1) it else usage.optInt("candidatesTokenCount", -1).let { c2 ->
+                if (c2 != -1) c2 else usage.optInt("completionTokenCount", -1).let { c3 ->
+                    if (c3 != -1) c3 else usage.optInt("output_tokens", 0)
+                }
+            }
+        }
+
+        var totalTokens = usage.optInt("total_tokens", -1).let {
+            if (it != -1) it else usage.optInt("totalTokenCount", -1).let { t2 ->
+                if (t2 != -1) t2 else (promptTokens + completionTokens)
+            }
+        }
+
+        if (totalTokens <= 0) {
+            totalTokens = promptTokens + completionTokens
+        }
+
+        return Triple(promptTokens, completionTokens, totalTokens)
     }
 
     @Volatile

@@ -326,6 +326,21 @@ public class SkAssistantFragment extends Fragment {
         }
     }
 
+    public void scrollToBottom() {
+        if (recyclerView == null || messages == null || messages.isEmpty()) return;
+        recyclerView.post(() -> {
+            if (adapter != null && messages.size() > 0) {
+                int targetPos = messages.size() - 1;
+                recyclerView.scrollToPosition(targetPos);
+                recyclerView.postDelayed(() -> {
+                    if (adapter != null && messages.size() > 0) {
+                        recyclerView.scrollToPosition(messages.size() - 1);
+                    }
+                }, 100);
+            }
+        });
+    }
+
     private void sendMessage(String prompt) {
         log("User Prompt: " + prompt);
         isRequestCanceled = false;
@@ -338,7 +353,7 @@ public class SkAssistantFragment extends Fragment {
 
         messages.add(new Message("user", prompt));
         adapter.notifyItemInserted(messages.size() - 1);
-        recyclerView.scrollToPosition(messages.size() - 1);
+        scrollToBottom();
 
         setStatus(model +" is reasoning...");
         jC.projectOperationsExecutor.execute(() -> {
@@ -374,7 +389,7 @@ public class SkAssistantFragment extends Fragment {
                     Message statusMsg = new Message("status", status);
                     messages.add(statusMsg);
                     adapter.notifyItemInserted(messages.size() - 1);
-                    recyclerView.scrollToPosition(messages.size() - 1);
+                    scrollToBottom();
                 }
                 
                 // Toggle File/Activity selector clickable state based on AI status
@@ -423,7 +438,7 @@ public class SkAssistantFragment extends Fragment {
         
         messages.add(new Message("system", "AI response has been stopped."));
         adapter.notifyItemInserted(messages.size() - 1);
-        recyclerView.scrollToPosition(messages.size() - 1);
+        scrollToBottom();
     }
 
     public void cancelSKRequests() {
@@ -440,14 +455,14 @@ public class SkAssistantFragment extends Fragment {
     public void updateTokenUsage(int prompt, int completion, int total) {
         this.lastPromptTokens = prompt;
         this.lastCompletionTokens = completion;
-        this.lastTotalTokens = total;
+        this.lastTotalTokens = total > 0 ? total : (prompt + completion);
 
         Activity activity = getActivity();
         if (activity == null) return;
         activity.runOnUiThread(() -> {
             Context context = getContext();
             if (context == null) return;
-            
+
             SharedPreferences aiPref = context.getSharedPreferences("P12", Context.MODE_PRIVATE);
             int limit = aiPref.getInt("P12I10", 32768);
 
@@ -455,7 +470,7 @@ public class SkAssistantFragment extends Fragment {
                 tokenUsageContainer.setVisibility(View.VISIBLE);
             }
             if (tvTokenUsage != null) {
-                tvTokenUsage.setText(formatTokenLabel(total, limit));
+                tvTokenUsage.setText(formatTokenLabel(lastTotalTokens, limit));
             }
         });
     }
@@ -465,8 +480,14 @@ public class SkAssistantFragment extends Fragment {
     }
 
     private String formatValue(int value) {
-        if (value >= 1000000) return (value / 1000000) + "M";
-        if (value >= 1000) return (value / 1000) + "k";
+        if (value >= 1000000) {
+            float m = value / 1000000.0f;
+            return (m % 1 == 0) ? String.format(Locale.US, "%.0fM", m) : String.format(Locale.US, "%.1fM", m);
+        }
+        if (value >= 1000) {
+            float k = value / 1000.0f;
+            return (k % 1 == 0) ? String.format(Locale.US, "%.0fk", k) : String.format(Locale.US, "%.1fk", k);
+        }
         return String.valueOf(value);
     }
 
@@ -480,15 +501,15 @@ public class SkAssistantFragment extends Fragment {
         ProgressBar pbUsage = dialogView.findViewById(R.id.pb_token_usage);
         TextView tvDetails = dialogView.findViewById(R.id.tv_token_details);
 
-        int percent = (int) ((lastTotalTokens / (float) limit) * 100);
+        int percent = limit > 0 ? (int) ((lastTotalTokens / (float) limit) * 100) : 0;
         tvSummary.setText(String.format(Locale.US, "Context Usage: %d%%", percent));
         pbUsage.setProgress(Math.min(percent, 100));
 
         String details = String.format(Locale.US,
-                "Total Tokens: %d\n" +
-                        "Prompt (In): %d\n" +
-                        "Completion (Out): %d\n" +
-                        "Context Limit: %d",
+                "Total Tokens: %,d\n" +
+                        "Prompt Tokens (In): %,d\n" +
+                        "Completion Tokens (Out): %,d\n" +
+                        "Context Limit: %,d",
                 lastTotalTokens, lastPromptTokens, lastCompletionTokens, limit);
         tvDetails.setText(details);
 
@@ -943,7 +964,7 @@ public class SkAssistantFragment extends Fragment {
                         if (!"Canceled".equals(error)) {
                             messages.add(new Message("system", "Error: " + error));
                             adapter.notifyItemInserted(messages.size() - 1);
-                            recyclerView.scrollToPosition(messages.size() - 1);
+                            scrollToBottom();
                         }
                     });
                 }
@@ -959,14 +980,14 @@ public class SkAssistantFragment extends Fragment {
     public void addSystemMessage(String content) {
         messages.add(new Message("system", content));
         adapter.notifyItemInserted(messages.size() - 1);
-        recyclerView.scrollToPosition(messages.size() - 1);
+        scrollToBottom();
     }
 
     public void addAssistantMessage(String content) {
         if (content == null || content.trim().isEmpty()) return;
         messages.add(new Message("assistant", content));
         adapter.notifyItemInserted(messages.size() - 1);
-        recyclerView.scrollToPosition(messages.size() - 1);
+        scrollToBottom();
         saveHistory();
     }
 
@@ -981,6 +1002,7 @@ public class SkAssistantFragment extends Fragment {
             retryCount++;
             messages.add(new Message("system", "XML Parse Error. Auto retrying fix (" + retryCount + "/" + MAX_RETRIES + ")..."));
             adapter.notifyItemInserted(messages.size() - 1);
+            scrollToBottom();
             autoFixXml(editedXml, errorMessage, targetXmlName);
         } else {
             retryCount = 0;
@@ -1017,7 +1039,7 @@ public class SkAssistantFragment extends Fragment {
                 messages.add(msg);
 
                 adapter.notifyItemInserted(messages.size() - 1);
-                recyclerView.scrollToPosition(messages.size() - 1);
+                scrollToBottom();
                 saveHistory();
                 cancelSKRequests();
 
@@ -1049,6 +1071,7 @@ public class SkAssistantFragment extends Fragment {
             } catch (Exception e) {
                 messages.add(new Message("system", e.getMessage()));
                 adapter.notifyItemInserted(messages.size() - 1);
+                scrollToBottom();
                 if (retryCount < MAX_RETRIES) {
                     retryCount++;
                     setStatus("Fixing JSON schema...");
@@ -1061,7 +1084,7 @@ public class SkAssistantFragment extends Fragment {
                     // any embedded tags are likely unreliable "jibberish".
                     messages.add(new Message("assistant", response, null, true));
                     adapter.notifyItemInserted(messages.size() - 1);
-                    recyclerView.scrollToPosition(messages.size() - 1);
+                    scrollToBottom();
                 }
             }
         });
@@ -1362,7 +1385,7 @@ public class SkAssistantFragment extends Fragment {
                     getActivity().runOnUiThread(() -> {
                         messages.add(new Message("assistant", response, targetXmlName));
                         adapter.notifyItemInserted(messages.size() - 1);
-                        recyclerView.scrollToPosition(messages.size() - 1);
+                        scrollToBottom();
                         saveHistory();
                     });
                 }
@@ -1376,6 +1399,7 @@ public class SkAssistantFragment extends Fragment {
                             log("Auto-fix ERROR: " + error);
                             messages.add(new Message("system", "Auto-fix failed: " + error));
                             adapter.notifyItemInserted(messages.size() - 1);
+                            scrollToBottom();
                         }
                     });
                 }
@@ -1406,7 +1430,7 @@ public class SkAssistantFragment extends Fragment {
 
             messages.add(new Message("system", "Changes reverted."));
             adapter.notifyItemInserted(messages.size() - 1);
-            recyclerView.scrollToPosition(messages.size() - 1);
+            scrollToBottom();
 
             refreshDesigner();
         }
