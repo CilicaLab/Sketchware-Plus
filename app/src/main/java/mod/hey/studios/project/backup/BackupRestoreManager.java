@@ -198,6 +198,9 @@ public class BackupRestoreManager {
         protected void onPreExecute() {
             loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
             loadingDialogBinding.tvProgress.setText("Initializing backup...");
+            if (loadingDialogBinding.tvPercent != null) {
+                loadingDialogBinding.tvPercent.setText("0%");
+            }
             if (loadingDialogBinding.linearProgressBar != null) {
                 loadingDialogBinding.linearProgressBar.setIndeterminate(false);
                 loadingDialogBinding.linearProgressBar.setMax(100);
@@ -234,6 +237,9 @@ public class BackupRestoreManager {
             if (values != null && values.length > 0 && loadingDialogBinding != null) {
                 BackupProgress progress = values[0];
                 loadingDialogBinding.tvProgress.setText(progress.message);
+                if (loadingDialogBinding.tvPercent != null) {
+                    loadingDialogBinding.tvPercent.setText(progress.percent + "%");
+                }
                 if (loadingDialogBinding.linearProgressBar != null) {
                     loadingDialogBinding.linearProgressBar.setIndeterminate(false);
                     loadingDialogBinding.linearProgressBar.setProgress(progress.percent);
@@ -281,6 +287,9 @@ public class BackupRestoreManager {
         protected void onPreExecute() {
             loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
             loadingDialogBinding.tvProgress.setText("Initializing restore...");
+            if (loadingDialogBinding.tvPercent != null) {
+                loadingDialogBinding.tvPercent.setText("0%");
+            }
             if (loadingDialogBinding.linearProgressBar != null) {
                 loadingDialogBinding.linearProgressBar.setIndeterminate(false);
                 loadingDialogBinding.linearProgressBar.setMax(100);
@@ -321,6 +330,9 @@ public class BackupRestoreManager {
             if (values != null && values.length > 0 && loadingDialogBinding != null) {
                 BackupProgress progress = values[0];
                 loadingDialogBinding.tvProgress.setText(progress.message);
+                if (loadingDialogBinding.tvPercent != null) {
+                    loadingDialogBinding.tvPercent.setText(progress.percent + "%");
+                }
                 if (loadingDialogBinding.linearProgressBar != null) {
                     loadingDialogBinding.linearProgressBar.setIndeterminate(false);
                     loadingDialogBinding.linearProgressBar.setProgress(progress.percent);

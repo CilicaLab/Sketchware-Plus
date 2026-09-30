@@ -13,16 +13,32 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <com.google.android.material.progressindicator.CircularProgressIndicator
-            android:id="@+id/progressBar"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="16dp"
-            android:indeterminate="true"
-            app:trackCornerRadius="10dp"
-            app:trackThickness="5dp"
-            tools:indeterminate="false"
-            tools:progress="60" />
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="16dp">
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/progressBar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                app:trackCornerRadius="10dp"
+                app:trackThickness="4dp"
+                tools:indeterminate="false"
+                tools:progress="60" />
+
+            <TextView
+                android:id="@+id/tv_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                tools:text="60%" />
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
