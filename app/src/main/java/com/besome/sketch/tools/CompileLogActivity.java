@@ -3,40 +3,27 @@ package com.besome.sketch.tools;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.PopupMenu;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.tabs.TabLayoutMediator;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import mod.hey.studios.util.CompileLogHelper;
 import mod.hey.studios.util.Helper;
 import mod.jbk.diagnostic.CompileErrorSaver;
 import mod.jbk.util.AddMarginOnApplyWindowInsetsListener;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import sketchware.plus.databinding.CompileLogBinding;
-import sketchware.plus.utility.HapticManager;
-import sketchware.plus.utility.SketchwareUtil;
 import sketchware.plus.ai.AiClient;
+import sketchware.plus.databinding.CompileLogBinding;
+import sketchware.plus.utility.SketchwareUtil;
 
 public class CompileLogActivity extends BaseAppCompatActivity {
 
@@ -45,6 +32,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
     private static final String PREFERENCE_FONT_SIZE = "font_size";
     private CompileErrorSaver compileErrorSaver;
     private SharedPreferences logViewerPreferences;
+    private CompileLogViewModel viewModel;
 
     private CompileLogBinding binding;
 
@@ -55,6 +43,8 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = CompileLogBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        viewModel = new ViewModelProvider(this).get(CompileLogViewModel.class);
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.optionsLayout,
                 new AddMarginOnApplyWindowInsetsListener(WindowInsetsCompat.Type.navigationBars(), WindowInsetsCompat.CONSUMED));
@@ -82,6 +72,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
                 if (compileErrorSaver.logFileExists()) {
                     compileErrorSaver.deleteSavedLogs();
                     getIntent().removeExtra("error");
+                    viewModel.setRawLogs(null);
                     SketchwareUtil.toast("Compile logs have been cleared.");
                 } else {
                     SketchwareUtil.toast("No compile logs found.");
@@ -89,22 +80,6 @@ public class CompileLogActivity extends BaseAppCompatActivity {
 
                 setErrorText();
             });
-        }
-
-        if (AiClient.isAiEnabled(this)) {
-            binding.skExplainButton.setVisibility(View.VISIBLE);
-            binding.skExplainButton.setOnClickListener(v -> {
-                HapticManager.vibrateRun(v);
-                String error = getIntent().getStringExtra("error");
-                if (error == null) error = compileErrorSaver.getLogsFromFile();
-                if (error != null && !error.isEmpty()) {
-                    explainErrorsWithSk(error);
-                } else {
-                    SketchwareUtil.toast("No errors to explain");
-                }
-            });
-        } else {
-            binding.skExplainButton.setVisibility(View.GONE);
         }
 
         final String wrapTextLabel = "Wrap text";
@@ -137,6 +112,12 @@ public class CompileLogActivity extends BaseAppCompatActivity {
 
         binding.formatButton.setOnClickListener(v -> options.show());
 
+        CompileLogPagerAdapter adapter = new CompileLogPagerAdapter(this);
+        binding.errViewPager.setAdapter(adapter);
+
+        String[] tabTitles = new String[]{"All", "Java / Kotlin", "XML / Layout", "Dex / R8"};
+        new TabLayoutMediator(binding.tabLayout, binding.errViewPager, (tab, position) -> tab.setText(tabTitles[position])).attach();
+
         applyLogViewerPreferences();
 
         setErrorText();
@@ -145,23 +126,26 @@ public class CompileLogActivity extends BaseAppCompatActivity {
     private void setErrorText() {
         String error = getIntent().getStringExtra("error");
         if (error == null) error = compileErrorSaver.getLogsFromFile();
+        viewModel.setRawLogs(error);
+
         if (error == null) {
             binding.noContentLayout.setVisibility(View.VISIBLE);
             binding.optionsLayout.setVisibility(View.GONE);
+            binding.tabLayout.setVisibility(View.GONE);
+            binding.errViewPager.setVisibility(View.GONE);
             return;
         }
 
         binding.optionsLayout.setVisibility(View.VISIBLE);
         binding.noContentLayout.setVisibility(View.GONE);
-
-        binding.tvCompileLog.setText(CompileLogHelper.getColoredLogs(this, error));
-        binding.tvCompileLog.setTextIsSelectable(true);
+        binding.tabLayout.setVisibility(View.VISIBLE);
+        binding.errViewPager.setVisibility(View.VISIBLE);
     }
 
     private void applyLogViewerPreferences() {
         toggleWrapText(getWrappedTextPreference());
         toggleMonospacedText(getMonospacedFontPreference());
-        binding.tvCompileLog.setTextSize(getFontSizePreference());
+        viewModel.setFontSize(getFontSizePreference());
     }
 
     private boolean getWrappedTextPreference() {
@@ -178,37 +162,17 @@ public class CompileLogActivity extends BaseAppCompatActivity {
 
     private void toggleWrapText(boolean isChecked) {
         logViewerPreferences.edit().putBoolean(PREFERENCE_WRAPPED_TEXT, isChecked).apply();
-
-        if (isChecked) {
-            binding.errVScroll.removeAllViews();
-            if (binding.tvCompileLog.getParent() != null) {
-                ((ViewGroup) binding.tvCompileLog.getParent()).removeView(binding.tvCompileLog);
-            }
-            binding.errVScroll.addView(binding.tvCompileLog);
-        } else {
-            binding.errVScroll.removeAllViews();
-            if (binding.tvCompileLog.getParent() != null) {
-                ((ViewGroup) binding.tvCompileLog.getParent()).removeView(binding.tvCompileLog);
-            }
-            binding.errHScroll.removeAllViews();
-            binding.errHScroll.addView(binding.tvCompileLog);
-            binding.errVScroll.addView(binding.errHScroll);
-        }
+        viewModel.setWrapText(isChecked);
     }
 
     private void toggleMonospacedText(boolean isChecked) {
         logViewerPreferences.edit().putBoolean(PREFERENCE_USE_MONOSPACED_FONT, isChecked).apply();
-
-        if (isChecked) {
-            binding.tvCompileLog.setTypeface(Typeface.MONOSPACE);
-        } else {
-            binding.tvCompileLog.setTypeface(Typeface.DEFAULT);
-        }
+        viewModel.setMonospacedFont(isChecked);
     }
 
     private void changeFontSizeDialog() {
         NumberPicker picker = new NumberPicker(this);
-        picker.setMinValue(10); //Must not be less than setValue(), which is currently 11 in compile_log.xml
+        picker.setMinValue(10);
         picker.setMaxValue(70);
         picker.setWrapSelectorWheel(false);
         picker.setValue(getFontSizePreference());
@@ -223,15 +187,15 @@ public class CompileLogActivity extends BaseAppCompatActivity {
                 .setTitle("Select font size")
                 .setView(layout)
                 .setPositiveButton("Save", (dialog, which) -> {
-                    logViewerPreferences.edit().putInt(PREFERENCE_FONT_SIZE, picker.getValue()).apply();
-
-                    binding.tvCompileLog.setTextSize((float) picker.getValue());
+                    int size = picker.getValue();
+                    logViewerPreferences.edit().putInt(PREFERENCE_FONT_SIZE, size).apply();
+                    viewModel.setFontSize(size);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
-    private void explainErrorsWithSk(String errorLogs) {
+    public void explainErrorsWithSk(String errorLogs) {
         k();
         SketchwareUtil.toast("Asking SK to explain errors...");
         String systemPrompt = "You are an expert Android developer specializing in Sketchware Plus. The user is using Sketchware Plus, a mobile IDE, which does not use a traditional Gradle/Groovy build system for its project configuration. Explain the following compilation errors clearly and provide specific instructions on how to fix them within the context of Sketchware (e.g., checking blocks, custom code, or local libraries). Avoid suggestions related to editing build.gradle or standard Android Studio IDE settings.";
@@ -263,6 +227,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         });
     }
 
+    @SuppressLint("RestrictedApi")
     private void showSkExplanationDialog(String explanation) {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("SK Error Explanation")

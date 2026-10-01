@@ -27,34 +27,20 @@
                 app:navigationIcon="?attr/homeAsUpIndicator"
                 app:title="Last Compile Log" />
         </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            app:tabMode="auto" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/err_vScroll"
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/errViewPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:fillViewport="true"
-        android:paddingBottom="50dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <HorizontalScrollView
-            android:id="@+id/err_hScroll"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <TextView
-                android:id="@+id/tv_compile_log"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingLeft="16dp"
-                android:paddingRight="16dp"
-                android:paddingBottom="48dp"
-                android:textSize="11sp"
-                android:typeface="monospace"
-                tools:text="Errors will show up here" />
-        </HorizontalScrollView>
-    </androidx.core.widget.NestedScrollView>
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <LinearLayout
         android:id="@+id/noContentLayout"
@@ -98,15 +84,6 @@
         android:orientation="horizontal">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/skExplainButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="5dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="20dp"
-            android:src="@drawable/ic_mtrl_regular_expression" />
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/formatButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -126,4 +103,3 @@
 
     </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
-

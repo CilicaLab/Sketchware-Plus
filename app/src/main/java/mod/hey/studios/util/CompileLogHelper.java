@@ -21,6 +21,9 @@ public class CompileLogHelper {
     private static final Pattern XML_PATTERN = Pattern.compile("error:", Pattern.MULTILINE);
 
     public static SpannableString getColoredLogs(Context context, String logs) {
+        if (logs == null) {
+            logs = "";
+        }
         int errorColor = MaterialColors.getColor(context, R.attr.colorError, TAG);
         int warningColor = MaterialColors.getColor(context, R.attr.colorAmber, TAG);
 
@@ -50,5 +53,67 @@ public class CompileLogHelper {
             spannable.setSpan(new StyleSpan(Typeface.BOLD), matcher.start(), matcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             spannable.setSpan(new ForegroundColorSpan(color), matcher.start(), matcher.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+    }
+
+    public static String filterLogs(String logs, int category) {
+        if (logs == null || logs.isEmpty()) return "";
+        if (category == 0) return logs; // All
+
+        String[] blocks = logs.split("----------");
+        StringBuilder filtered = new StringBuilder();
+
+        for (String block : blocks) {
+            if (block.trim().isEmpty()) continue;
+            String lower = block.toLowerCase();
+            boolean match = false;
+
+            boolean isXml = lower.contains(".xml") || lower.contains("aapt") || lower.contains("layout") || lower.contains("manifest") || lower.contains("resource") || lower.contains("res/");
+            boolean isJava = lower.contains(".java") || lower.contains(".kt") || lower.contains("ecj") || lower.contains("javac") || lower.contains("kotlinc");
+            boolean isDex = lower.contains("dex") || lower.contains("r8") || lower.contains("dx") || lower.contains("proguard") || lower.contains("multidex") || lower.contains("translation");
+
+            if (category == 1) { // Java / Kotlin
+                match = isJava && !isXml;
+            } else if (category == 2) { // XML / Layout
+                match = isXml;
+            } else if (category == 3) { // Dex / R8
+                match = isDex && !isJava && !isXml;
+            }
+
+            if (match) {
+                filtered.append("----------").append(block);
+            }
+        }
+
+        if (filtered.length() == 0) {
+            return filterLogsByLine(logs, category);
+        }
+        return filtered.toString();
+    }
+
+    private static String filterLogsByLine(String logs, int category) {
+        StringBuilder filtered = new StringBuilder();
+        String[] lines = logs.split("\n");
+        for (String line : lines) {
+            String lower = line.toLowerCase();
+            boolean match = false;
+            boolean isXml = lower.contains(".xml") || lower.contains("aapt") || lower.contains("layout") || lower.contains("manifest") || lower.contains("res/");
+            boolean isJava = lower.contains(".java") || lower.contains(".kt") || lower.contains("javac");
+            boolean isDex = lower.contains("dex") || lower.contains("r8") || lower.contains("dx") || lower.contains("proguard");
+
+            if (category == 1) {
+                match = isJava && !isXml;
+            } else if (category == 2) {
+                match = isXml;
+            } else if (category == 3) {
+                match = isDex && !isJava && !isXml;
+            }
+            if (match) {
+                filtered.append(line).append("\n");
+            }
+        }
+        if (filtered.length() == 0) {
+            return "No entries found for this category.";
+        }
+        return filtered.toString();
     }
 }
