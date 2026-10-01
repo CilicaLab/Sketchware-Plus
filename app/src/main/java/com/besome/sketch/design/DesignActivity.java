@@ -340,15 +340,19 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
     private void refreshEventTabAdapter() {
         if (eventTabAdapter != null && projectFile != null) {
-            eventTabAdapter.setCurrentActivity(projectFile);
-            eventTabAdapter.refreshEvents();
+            if (eventTabAdapter.getCurrentActivity() == null || !eventTabAdapter.getCurrentActivity().equals(projectFile)) {
+                eventTabAdapter.setCurrentActivity(projectFile);
+                eventTabAdapter.refreshEvents();
+            }
         }
     }
 
     private void refreshComponentTabAdapter() {
         if (componentTabAdapter != null && projectFile != null) {
-            componentTabAdapter.setProjectFile(projectFile);
-            componentTabAdapter.refreshData();
+            if (componentTabAdapter.getProjectFile() == null || !componentTabAdapter.getProjectFile().equals(projectFile)) {
+                componentTabAdapter.setProjectFile(projectFile);
+                componentTabAdapter.refreshData();
+            }
         }
     }
 
@@ -662,9 +666,6 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     if (viewTabAdapter != null) {
                         xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
                         viewTabAdapter.showHidePropertyView(false);
-                        if (eventTabAdapter != null) {
-                            eventTabAdapter.refreshEvents();
-                        }
                     }
                 } else if (position == 2) {
                     findViewById(R.id.bottom_bar).setVisibility(View.VISIBLE);
@@ -672,9 +673,6 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     if (viewTabAdapter != null) {
                         xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
                         viewTabAdapter.showHidePropertyView(false);
-                        if (componentTabAdapter != null) {
-                            componentTabAdapter.refreshData();
-                        }
                     }
                 } else {
                     findViewById(R.id.bottom_bar).setVisibility(View.GONE);

@@ -214,6 +214,10 @@ public class br extends qA implements View.OnClickListener {
         projectFile = projectFileBean;
     }
 
+    public ProjectFileBean getProjectFile() {
+        return projectFile;
+    }
+
     private void openEvent(String targetId, String eventName, String eventText) {
         Intent intent = new Intent(requireActivity().getApplicationContext(), LogicEditorActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
