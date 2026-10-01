@@ -27,6 +27,10 @@ import a.a.a.jC;
 import a.a.a.yq;
 import a.a.a.wq;
 import java.io.File;
+import sketchware.plus.ai.AssistantImportInjector;
+import sketchware.plus.ai.LogicIrBridge;
+import sketchware.plus.ai.ProjectSnapshot;
+import sketchware.plus.ai.SkAssistantFragment;
 
 import sketchware.plus.ai.LogicIrBridge;
 import sketchware.plus.ai.ProjectSnapshot;
@@ -539,15 +543,16 @@ public class CodeSpecialist extends BaseSpecialist {
     }
 
     public void applyImport(String importPath) {
-        if (importPath == null || importPath.isEmpty()) return;
-        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-        eC dataManager = jC.a(getScId());
-        dataManager.a(getProjectFile().getJavaName(), EventBean.EVENT_TYPE_ACTIVITY, 0, "", "Import");
-        ArrayList<BlockBean> blocks = dataManager.a(getProjectFile().getJavaName(), "Import");
-        BlockBean importBlock = new BlockBean("0", "none", " ", "createImport");
-        importBlock.parameters.add(importPath);
-        blocks.add(importBlock);
-        dataManager.k();
-        fragment.addSystemMessage("Import added: " + importPath);
+        if (importPath == null || importPath.trim().isEmpty()) return;
+        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main");
+
+        String javaName = getProjectFile() != null ? getProjectFile().getJavaName() : "main";
+        boolean success = AssistantImportInjector.injectImports(getScId(), javaName, new String[]{importPath}, fragment.getActivity());
+        if (success) {
+            fragment.addSystemMessage("Import added: " + importPath);
+            fragment.refreshDesigner();
+        } else {
+            fragment.addSystemMessage("Import already exists or failed to add: " + importPath);
+        }
     }
 }

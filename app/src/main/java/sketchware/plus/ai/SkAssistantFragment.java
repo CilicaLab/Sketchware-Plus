@@ -1355,7 +1355,8 @@ public class SkAssistantFragment extends Fragment {
                         if (!importBlocks.isEmpty()) {
                             sb.append("\nCurrent Imports:\n");
                             for (BlockBean b : importBlocks) {
-                                if ("createImport".equals(b.opCode) && !b.parameters.isEmpty()) {
+                                if (("customImport".equals(b.opCode) || "customImport2".equals(b.opCode) || "createImport".equals(b.opCode))
+                                        && b.parameters != null && !b.parameters.isEmpty()) {
                                     sb.append("import ").append(b.parameters.get(0)).append(";\n");
                                 }
                             }

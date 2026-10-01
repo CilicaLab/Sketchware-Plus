@@ -1,12 +1,16 @@
 package a.a.a;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.os.Bundle;
+import android.text.InputType;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
@@ -17,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.ComponentBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
@@ -25,6 +30,7 @@ import com.besome.sketch.editor.component.AddComponentBottomSheet;
 import com.besome.sketch.editor.component.ComponentEventButton;
 import com.besome.sketch.lib.base.CollapsibleViewHolder;
 import com.besome.sketch.lib.ui.CollapsibleButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,6 +100,114 @@ public class br extends qA implements View.OnClickListener {
         adapter = new Adapter();
         binding.componentList.setAdapter(adapter);
         binding.fab.setOnClickListener(this);
+        binding.fab.setOnLongClickListener(v -> {
+            /***if (!mB.a()) {
+                showCustomImportsDialog();
+                return true;
+            }***/
+            return false;
+
+        });
+    }
+
+    private void showCustomImportsDialog() {
+        if (projectFile == null || sc_id == null) return;
+
+        String javaName = projectFile.getJavaName();
+        eC screenConfigHandler = jC.a(sc_id);
+        if (screenConfigHandler == null) return;
+
+        synchronized (screenConfigHandler) {
+            EventBean importEvent = null;
+            for (EventBean event : screenConfigHandler.g(javaName)) {
+                if (event.eventType == EventBean.EVENT_TYPE_ACTIVITY && "Import".equals(event.eventName)) {
+                    importEvent = event;
+                    break;
+                }
+            }
+            if (importEvent == null) {
+                EventBean eventBean = new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, "Import", "Import");
+                screenConfigHandler.a(javaName, eventBean);
+                importEvent = eventBean;
+            }
+
+            String eventKey = importEvent.getEventKey();
+            ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, eventKey);
+            if (blocks == null) {
+                blocks = new ArrayList<>();
+            }
+
+            StringBuilder existingImports = new StringBuilder();
+            for (BlockBean b : blocks) {
+                if (("customImport".equals(b.opCode) || "customImport2".equals(b.opCode) || "createImport".equals(b.opCode))
+                        && b.parameters != null && !b.parameters.isEmpty()) {
+                    existingImports.append(b.parameters.get(0)).append("\n");
+                }
+            }
+
+            LinearLayout layout = new LinearLayout(requireContext());
+            layout.setOrientation(LinearLayout.VERTICAL);
+            int padding = (int) wB.a(requireContext(), 16.0f);
+            layout.setPadding(padding, padding, padding, padding);
+
+            EditText editText = new EditText(requireContext());
+            editText.setHint("Enter imports (one per line, e.g., java.util.List)");
+            editText.setText(existingImports.toString());
+            editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            editText.setMinLines(5);
+            editText.setMaxLines(10);
+            editText.setGravity(Gravity.TOP | Gravity.START);
+            layout.addView(editText, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            ));
+
+            final ArrayList<BlockBean> currentBlocks = blocks;
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Custom Activity Imports")
+                    .setView(layout)
+                    .setPositiveButton("Save", (dialog, which) -> {
+                        currentBlocks.removeIf(b -> "customImport".equals(b.opCode) || "customImport2".equals(b.opCode) || "createImport".equals(b.opCode));
+
+                        String text = editText.getText().toString();
+                        String[] lines = text.split("\n");
+                        int idCounter = 1;
+                        BlockBean previousBlock = null;
+                        for (String line : lines) {
+                            String cleaned = line.trim();
+                            if (cleaned.startsWith("import ")) {
+                                cleaned = cleaned.substring(7);
+                            }
+                            if (cleaned.endsWith(";")) {
+                                cleaned = cleaned.substring(0, cleaned.length() - 1);
+                            }
+                            cleaned = cleaned.trim();
+                            if (!cleaned.isEmpty()) {
+                                int currentId = idCounter++;
+                                BlockBean importBlock = new BlockBean(String.valueOf(currentId), "import %s.import", " ", "", "customImport");
+                                importBlock.parameters.add(cleaned);
+                                importBlock.nextBlock = -1;
+                                importBlock.subStack1 = -1;
+                                importBlock.subStack2 = -1;
+
+                                if (previousBlock != null) {
+                                    previousBlock.nextBlock = currentId;
+                                }
+                                currentBlocks.add(importBlock);
+                                previousBlock = importBlock;
+                            }
+                        }
+
+                        synchronized (screenConfigHandler) {
+                            screenConfigHandler.a(javaName, eventKey, currentBlocks);
+                            screenConfigHandler.k();
+                        }
+                        bB.a(requireContext(), "Custom imports saved successfully!", 0).show();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        }
     }
 
     public void setProjectFile(ProjectFileBean projectFileBean) {

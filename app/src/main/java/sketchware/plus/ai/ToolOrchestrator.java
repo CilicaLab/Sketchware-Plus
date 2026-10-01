@@ -296,9 +296,10 @@ public class ToolOrchestrator {
 
             case "inject_imports":
                 JSONArray pkgs = args.getJSONArray("packages");
+                String targetJavaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
                 String[] pArray = new String[pkgs.length()];
                 for(int i=0; i<pkgs.length(); i++) pArray[i] = pkgs.getString(i);
-                boolean injected = AssistantImportInjector.injectImportsToCurrentActivity(fragment.getActivity(), pArray);
+                boolean injected = AssistantImportInjector.injectImports(fragment.scId, targetJavaName, pArray, fragment.getActivity());
                 return injected ? "Imports injected successfully." : "Imports already exist or injection failed.";
 
             case "list_methods":

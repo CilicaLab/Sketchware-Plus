@@ -39,7 +39,9 @@ public class AssistantToolRegistry {
                         .setRequired("xml", "summary").build()));
 
         t.put(createTool("inject_imports", "Add imports to current activity",
-                new ParameterBuilder().addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
+                new ParameterBuilder()
+                        .addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
+                        .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
         t.put(createTool("read_method", "Read a method's source",

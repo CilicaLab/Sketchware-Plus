@@ -1,115 +1,172 @@
 package sketchware.plus.ai;
 
 import android.app.Activity;
+import android.content.Intent;
 
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.editor.LogicEditorActivity;
+
 import java.util.ArrayList;
+
 import a.a.a.eC;
 import a.a.a.jC;
 import sketchware.plus.utility.SketchwareUtil;
 
 /**
  * A utility designed to assist the AI assistant in seamlessly injecting
- * imports directly into the user's active editor screen/activity data.
+ * imports directly into the user's active screen/activity data.
  */
 public class AssistantImportInjector {
 
     /**
-     * Injects one or more specific package imports into the currently active activity screen.
-     * Keeps any existing imports safe and automatically cleans up duplicate entries.
+     * Injects one or more package imports into the specified project screen data.
+     * Uses the same block structure, cleaning, and linking logic as the Component Manager (br.java).
      *
-     * @param activeActivity The currently open Context/Activity (should be an instance of LogicEditorActivity).
-     * @param importsToInject An array of fully qualified import declarations or package strings
-     *                        (e.g., "java.util.HashMap" or "import android.util.Log;").
-     * @return true if injection was fully successful and updated; false otherwise.
+     * @param scId Project ID (sc_id). If null, attempts to resolve from hostActivity.
+     * @param javaName Target activity Java name (e.g. "main" or "MainActivity.java"). If null, attempts to resolve from hostActivity.
+     * @param importsToInject An array of import declarations or package strings (e.g., "java.util.List" or "import android.util.Log;").
+     * @param hostActivity Optional host activity for showing UI feedback toast.
+     * @return true if one or more imports were newly added; false if already existing or on failure.
      */
-    public static boolean injectImportsToCurrentActivity(Activity activeActivity, String[] importsToInject) {
-        if (!(activeActivity instanceof LogicEditorActivity)) {
+    public static boolean injectImports(String scId, String javaName, String[] importsToInject, Activity hostActivity) {
+        if (importsToInject == null || importsToInject.length == 0) {
             return false;
         }
 
-        try {
-            LogicEditorActivity editor = (LogicEditorActivity) activeActivity;
+        // Fallback scId and javaName resolution if not explicitly passed
+        if (scId == null || scId.isEmpty() || javaName == null || javaName.isEmpty()) {
+            if (hostActivity instanceof LogicEditorActivity) {
+                LogicEditorActivity editor = (LogicEditorActivity) hostActivity;
+                if (scId == null || scId.isEmpty()) {
+                    scId = editor.getIntent().getStringExtra("sc_id");
+                }
+                if (javaName == null || javaName.isEmpty()) {
+                    ProjectFileBean fileBean = editor.M;
+                    if (fileBean != null) {
+                        javaName = fileBean.getJavaName();
+                    }
+                }
+            } else if (hostActivity != null) {
+                Intent intent = hostActivity.getIntent();
+                if (intent != null && (scId == null || scId.isEmpty())) {
+                    scId = intent.getStringExtra("sc_id");
+                }
+            }
+        }
 
-            // Extract the Project ID (sc_id) and current screen metadata file bean
-            String scId = editor.getIntent().getStringExtra("sc_id");
-            ProjectFileBean currentFileBean = editor.M;
+        if (scId == null || scId.isEmpty() || javaName == null || javaName.isEmpty()) {
+            return false;
+        }
 
-            if (scId == null || scId.isEmpty() || currentFileBean == null) {
-                return false;
+        eC screenConfigHandler = jC.a(scId);
+        if (screenConfigHandler == null) {
+            return false;
+        }
+
+        synchronized (screenConfigHandler) {
+            EventBean importEvent = null;
+            for (EventBean event : screenConfigHandler.g(javaName)) {
+                if (event.eventType == EventBean.EVENT_TYPE_ACTIVITY && "Import".equals(event.eventName)) {
+                    importEvent = event;
+                    break;
+                }
+            }
+            if (importEvent == null) {
+                EventBean eventBean = new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, "Import", "Import");
+                screenConfigHandler.a(javaName, eventBean);
+                importEvent = eventBean;
             }
 
-            String javaName = currentFileBean.getJavaName();
-
-            // Obtain the core Sketchware Project Screen Configuration Handler (eC) via jC
-            eC screenConfigHandler = jC.a(scId);
-
-            if (screenConfigHandler == null) {
-                return false;
+            String eventKey = importEvent.getEventKey();
+            ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, eventKey);
+            if (blocks == null) {
+                blocks = new ArrayList<>();
             }
 
-            synchronized (screenConfigHandler) {
-                // Fetch the existing list of manually declared imports for this activity screen
-                // Sketchware internally tracks screen imports inside eC using the screen's javaName
-                // Sketchware tracks blocks for specific events using dataManager.a(javaName, eventKey)
-                // Let's inject a customImport block into the screen context under an Import activity block sequence
-                screenConfigHandler.a(javaName, EventBean.EVENT_TYPE_ACTIVITY, 0, "", "Import");
-                ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, "Import");
-                if (blocks == null) {
-                    blocks = new ArrayList<>();
+            boolean updated = false;
+
+            for (String singleImport : importsToInject) {
+                if (singleImport == null || singleImport.trim().isEmpty()) {
+                    continue;
                 }
 
-                boolean updated = false;
+                // Clean the import line matching br.java / custom import logic
+                String cleanedImport = singleImport.trim();
+                if (cleanedImport.startsWith("import ")) {
+                    cleanedImport = cleanedImport.substring(7);
+                }
+                if (cleanedImport.endsWith(";")) {
+                    cleanedImport = cleanedImport.substring(0, cleanedImport.length() - 1);
+                }
+                cleanedImport = cleanedImport.trim();
 
-                for (String singleImport : importsToInject) {
-                    if (singleImport == null || singleImport.trim().isEmpty()) {
-                        continue;
-                    }
+                if (cleanedImport.isEmpty()) {
+                    continue;
+                }
 
-                    String cleanedImport = singleImport.trim();
-                    if (cleanedImport.startsWith("import ")) {
-                        cleanedImport = cleanedImport.substring(7);
+                // Check for existing custom or create import blocks
+                boolean exists = false;
+                for (BlockBean b : blocks) {
+                    if (("customImport".equals(b.opCode) || "customImport2".equals(b.opCode) || "createImport".equals(b.opCode))
+                            && b.parameters != null && b.parameters.contains(cleanedImport)) {
+                        exists = true;
+                        break;
                     }
-                    if (cleanedImport.endsWith(";")) {
-                        cleanedImport = cleanedImport.substring(0, cleanedImport.length() - 1);
-                    }
-                    cleanedImport = cleanedImport.trim();
+                }
 
-                    // Prevent duplicate blocks
-                    boolean exists = false;
+                if (!exists) {
+                    // Calculate next available ID to guarantee uniqueness
+                    int maxId = 0;
                     for (BlockBean b : blocks) {
-                        if (("customImport".equals(b.opCode) || "customImport2".equals(b.opCode)) 
-                                && b.parameters != null && b.parameters.contains(cleanedImport)) {
-                            exists = true;
-                            break;
-                        }
+                        try {
+                            int bId = Integer.parseInt(b.id);
+                            if (bId > maxId) {
+                                maxId = bId;
+                            }
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    int idCounter = maxId + 1;
+
+                    BlockBean importBlock = new BlockBean(String.valueOf(idCounter), "import %s.import", " ", "", "customImport");
+                    importBlock.parameters.add(cleanedImport);
+                    importBlock.nextBlock = -1;
+                    importBlock.subStack1 = -1;
+                    importBlock.subStack2 = -1;
+
+                    if (!blocks.isEmpty()) {
+                        BlockBean lastBlock = blocks.get(blocks.size() - 1);
+                        lastBlock.nextBlock = idCounter;
                     }
 
-                    if (!exists) {
-                        BlockBean importBlock = new BlockBean("0", "none", " ", "customImport");
-                        importBlock.parameters.add(cleanedImport);
-                        blocks.add(importBlock);
-                        updated = true;
-                    }
+                    blocks.add(importBlock);
+                    updated = true;
                 }
+            }
 
-                if (updated) {
-                    screenConfigHandler.k();
+            if (updated) {
+                screenConfigHandler.a(javaName, eventKey, blocks);
+                screenConfigHandler.k();
 
-                    activeActivity.runOnUiThread(() -> {
+                if (hostActivity != null) {
+                    hostActivity.runOnUiThread(() -> {
                         try {
                             SketchwareUtil.toast("Assistant successfully added required imports!");
                         } catch (Exception ignored) {}
                     });
-                    return true;
                 }
+                return true;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return false;
+    }
+
+    public static boolean injectImportsToCurrentActivity(Activity activeActivity, String[] importsToInject) {
+        return injectImports(null, null, importsToInject, activeActivity);
+    }
+
+    public static boolean injectImports(String scId, String javaName, String[] importsToInject) {
+        return injectImports(scId, javaName, importsToInject, null);
     }
 }
