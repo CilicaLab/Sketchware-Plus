@@ -3,26 +3,29 @@ package com.besome.sketch.tools;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.PopupMenu;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.lifecycle.ViewModelProvider;
 
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.tabs.TabLayoutMediator;
+import com.google.android.material.tabs.TabLayout;
 
+import mod.hey.studios.util.CompileLogHelper;
 import mod.hey.studios.util.Helper;
 import mod.jbk.diagnostic.CompileErrorSaver;
 import mod.jbk.util.AddMarginOnApplyWindowInsetsListener;
 import sketchware.plus.ai.AiClient;
 import sketchware.plus.databinding.CompileLogBinding;
+import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.SketchwareUtil;
 
 public class CompileLogActivity extends BaseAppCompatActivity {
@@ -32,7 +35,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
     private static final String PREFERENCE_FONT_SIZE = "font_size";
     private CompileErrorSaver compileErrorSaver;
     private SharedPreferences logViewerPreferences;
-    private CompileLogViewModel viewModel;
+    private String fullErrorLogs;
 
     private CompileLogBinding binding;
 
@@ -43,8 +46,6 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = CompileLogBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        viewModel = new ViewModelProvider(this).get(CompileLogViewModel.class);
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.optionsLayout,
                 new AddMarginOnApplyWindowInsetsListener(WindowInsetsCompat.Type.navigationBars(), WindowInsetsCompat.CONSUMED));
@@ -69,10 +70,11 @@ public class CompileLogActivity extends BaseAppCompatActivity {
 
         if (compileErrorSaver.logFileExists()) {
             binding.clearButton.setOnClickListener(v -> {
+                HapticManager.vibrateRun(v);
                 if (compileErrorSaver.logFileExists()) {
                     compileErrorSaver.deleteSavedLogs();
                     getIntent().removeExtra("error");
-                    viewModel.setRawLogs(null);
+                    fullErrorLogs = null;
                     SketchwareUtil.toast("Compile logs have been cleared.");
                 } else {
                     SketchwareUtil.toast("No compile logs found.");
@@ -80,6 +82,16 @@ public class CompileLogActivity extends BaseAppCompatActivity {
 
                 setErrorText();
             });
+        }
+
+        if (AiClient.isAiEnabled(this)) {
+            binding.skExplainButton.setVisibility(View.VISIBLE);
+            binding.skExplainButton.setOnClickListener(v -> {
+                HapticManager.vibrateRun(v);
+                explainCurrentTab();
+            });
+        } else {
+            binding.skExplainButton.setVisibility(View.GONE);
         }
 
         final String wrapTextLabel = "Wrap text";
@@ -110,13 +122,28 @@ public class CompileLogActivity extends BaseAppCompatActivity {
             return true;
         });
 
-        binding.formatButton.setOnClickListener(v -> options.show());
+        binding.formatButton.setOnClickListener(v -> {
+            HapticManager.vibrateRun(v);
+            options.show();
+        });
 
-        CompileLogPagerAdapter adapter = new CompileLogPagerAdapter(this);
-        binding.errViewPager.setAdapter(adapter);
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("All"));
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Java / Kotlin"));
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("XML / Layout"));
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Dex / R8"));
 
-        String[] tabTitles = new String[]{"All", "Java / Kotlin", "XML / Layout", "Dex / R8"};
-        new TabLayoutMediator(binding.tabLayout, binding.errViewPager, (tab, position) -> tab.setText(tabTitles[position])).attach();
+        binding.tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                updateFilteredLogText();
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {}
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {}
+        });
 
         applyLogViewerPreferences();
 
@@ -126,26 +153,50 @@ public class CompileLogActivity extends BaseAppCompatActivity {
     private void setErrorText() {
         String error = getIntent().getStringExtra("error");
         if (error == null) error = compileErrorSaver.getLogsFromFile();
-        viewModel.setRawLogs(error);
+        fullErrorLogs = error;
 
-        if (error == null) {
+        if (error == null || error.isEmpty()) {
             binding.noContentLayout.setVisibility(View.VISIBLE);
             binding.optionsLayout.setVisibility(View.GONE);
             binding.tabLayout.setVisibility(View.GONE);
-            binding.errViewPager.setVisibility(View.GONE);
+            binding.errVScroll.setVisibility(View.GONE);
             return;
         }
 
         binding.optionsLayout.setVisibility(View.VISIBLE);
         binding.noContentLayout.setVisibility(View.GONE);
         binding.tabLayout.setVisibility(View.VISIBLE);
-        binding.errViewPager.setVisibility(View.VISIBLE);
+        binding.errVScroll.setVisibility(View.VISIBLE);
+
+        updateFilteredLogText();
+    }
+
+    private void updateFilteredLogText() {
+        if (fullErrorLogs == null) return;
+        int currentTab = binding.tabLayout.getSelectedTabPosition();
+        String filtered = CompileLogHelper.filterLogs(fullErrorLogs, Math.max(0, currentTab));
+        binding.tvCompileLog.setText(CompileLogHelper.getColoredLogs(this, filtered));
+        binding.tvCompileLog.setTextIsSelectable(true);
+    }
+
+    private void explainCurrentTab() {
+        if (fullErrorLogs == null || fullErrorLogs.isEmpty()) {
+            SketchwareUtil.toast("No errors to explain");
+            return;
+        }
+        int currentTab = binding.tabLayout.getSelectedTabPosition();
+        String currentTabText = CompileLogHelper.filterLogs(fullErrorLogs, Math.max(0, currentTab));
+        if (currentTabText == null || currentTabText.isEmpty() || currentTabText.startsWith("No entries found")) {
+            SketchwareUtil.toast("No errors found in this tab");
+            return;
+        }
+        explainErrorsWithSk(currentTabText);
     }
 
     private void applyLogViewerPreferences() {
         toggleWrapText(getWrappedTextPreference());
         toggleMonospacedText(getMonospacedFontPreference());
-        viewModel.setFontSize(getFontSizePreference());
+        binding.tvCompileLog.setTextSize(getFontSizePreference());
     }
 
     private boolean getWrappedTextPreference() {
@@ -162,12 +213,32 @@ public class CompileLogActivity extends BaseAppCompatActivity {
 
     private void toggleWrapText(boolean isChecked) {
         logViewerPreferences.edit().putBoolean(PREFERENCE_WRAPPED_TEXT, isChecked).apply();
-        viewModel.setWrapText(isChecked);
+
+        if (isChecked) {
+            binding.errVScroll.removeAllViews();
+            if (binding.tvCompileLog.getParent() != null) {
+                ((ViewGroup) binding.tvCompileLog.getParent()).removeView(binding.tvCompileLog);
+            }
+            binding.errVScroll.addView(binding.tvCompileLog);
+        } else {
+            binding.errVScroll.removeAllViews();
+            if (binding.tvCompileLog.getParent() != null) {
+                ((ViewGroup) binding.tvCompileLog.getParent()).removeView(binding.tvCompileLog);
+            }
+            binding.errHScroll.removeAllViews();
+            binding.errHScroll.addView(binding.tvCompileLog);
+            binding.errVScroll.addView(binding.errHScroll);
+        }
     }
 
     private void toggleMonospacedText(boolean isChecked) {
         logViewerPreferences.edit().putBoolean(PREFERENCE_USE_MONOSPACED_FONT, isChecked).apply();
-        viewModel.setMonospacedFont(isChecked);
+
+        if (isChecked) {
+            binding.tvCompileLog.setTypeface(Typeface.MONOSPACE);
+        } else {
+            binding.tvCompileLog.setTypeface(Typeface.DEFAULT);
+        }
     }
 
     private void changeFontSizeDialog() {
@@ -187,9 +258,9 @@ public class CompileLogActivity extends BaseAppCompatActivity {
                 .setTitle("Select font size")
                 .setView(layout)
                 .setPositiveButton("Save", (dialog, which) -> {
-                    int size = picker.getValue();
-                    logViewerPreferences.edit().putInt(PREFERENCE_FONT_SIZE, size).apply();
-                    viewModel.setFontSize(size);
+                    logViewerPreferences.edit().putInt(PREFERENCE_FONT_SIZE, picker.getValue()).apply();
+
+                    binding.tvCompileLog.setTextSize((float) picker.getValue());
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -214,7 +285,16 @@ public class CompileLogActivity extends BaseAppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     h();
-                    SketchwareUtil.toastError(error);
+                    String lower = error != null ? error.toLowerCase() : "";
+                    if (lower.contains("too large") || lower.contains("token") || lower.contains("413") || lower.contains("exceed") || lower.contains("payload")) {
+                        new MaterialAlertDialogBuilder(CompileLogActivity.this)
+                                .setTitle("Log Too Large")
+                                .setMessage("The compile log is too large for the AI model to process at once. Please switch to a specific category tab (such as Java / Kotlin or XML / Layout) to narrow down the errors, and try again.")
+                                .setPositiveButton("Got it", null)
+                                .show();
+                    } else {
+                        SketchwareUtil.toastError(error);
+                    }
                 });
             }
 
@@ -230,7 +310,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
     @SuppressLint("RestrictedApi")
     private void showSkExplanationDialog(String explanation) {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("SK Error Explanation")
+                .setTitle("SKError Explanation")
                 .setMessage(explanation)
                 .setPositiveButton("Dismiss", null)
                 .show();

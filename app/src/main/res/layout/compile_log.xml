@@ -36,11 +36,32 @@
             app:tabMode="auto" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/errViewPager"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/err_vScroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:paddingBottom="50dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <HorizontalScrollView
+            android:id="@+id/err_hScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tv_compile_log"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingBottom="48dp"
+                android:textSize="11sp"
+                android:typeface="monospace"
+                tools:text="Errors will show up here" />
+        </HorizontalScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
         android:id="@+id/noContentLayout"
@@ -82,6 +103,15 @@
         android:animateLayoutChanges="true"
         android:gravity="center"
         android:orientation="horizontal">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/skExplainButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="5dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="20dp"
+            android:src="@drawable/ic_mtrl_regular_expression" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/formatButton"
