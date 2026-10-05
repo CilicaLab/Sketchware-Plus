@@ -51,6 +51,10 @@ import sketchware.plus.activities.main.fragments.projects.ProjectsFragment;
 import sketchware.plus.activities.main.fragments.explore.ExploreFragment;
 import sketchware.plus.databinding.MainBinding;
 import sketchware.plus.lib.base.BottomSheetDialogView;
+import sketchware.plus.store.activities.LoginActivity;
+import sketchware.plus.store.activities.UploadActivity;
+import sketchware.plus.store.auth.SessionManager;
+import sketchware.plus.store.repository.RepositoryProvider;
 import sketchware.plus.utility.DataResetter;
 import sketchware.plus.utility.FirebaseUtil;
 import sketchware.plus.utility.FileUtil;
@@ -321,7 +325,11 @@ public class MainActivity extends BasePermissionAppCompatActivity {
         FragmentManager fm = getSupportFragmentManager();
         FragmentTransaction transaction = fm.beginTransaction();
 
+        binding.createNewProject.setText("New project");
+        binding.createNewProject.setIconResource(R.drawable.ic_mtrl_add);
         binding.createNewProject.show();
+        binding.createNewProject.extend();
+
         if (activeFragment != null) transaction.hide(activeFragment);
         if (fm.findFragmentByTag(PROJECTS_FRAGMENT_TAG) == null) {
             shouldShow = false;
@@ -343,7 +351,19 @@ public class MainActivity extends BasePermissionAppCompatActivity {
         FragmentManager fm = getSupportFragmentManager();
         FragmentTransaction transaction = fm.beginTransaction();
 
-        binding.createNewProject.hide();
+        binding.createNewProject.setText("Upload Pack");
+        binding.createNewProject.setIconResource(R.drawable.ic_add_white_24dp);
+        binding.createNewProject.setOnClickListener(v -> {
+            if (isUserLoggedIn()) {
+                UploadActivity.start(this);
+            } else {
+                Toast.makeText(this, "Please log in or sign up to upload packs", Toast.LENGTH_SHORT).show();
+                LoginActivity.start(this);
+            }
+        });
+        binding.createNewProject.show();
+        binding.createNewProject.extend();
+
         if (activeFragment != null) transaction.hide(activeFragment);
         if (fm.findFragmentByTag(EXPLORE_FRAGMENT_TAG) == null) {
             shouldShow = false;
@@ -358,6 +378,13 @@ public class MainActivity extends BasePermissionAppCompatActivity {
 
         activeFragment = exploreFragment;
         currentNavItemId = R.id.item_explore;
+    }
+
+    private boolean isUserLoggedIn() {
+        if (SessionManager.getInstance(this).isLoggedIn()) {
+            return true;
+        }
+        return !RepositoryProvider.isUseSupabase();
     }
 
     @NonNull

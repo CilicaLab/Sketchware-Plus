@@ -1,19 +1,18 @@
-package sketchware.plus.activities.main.fragments.explore;
+package sketchware.plus.store.activities;
 
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Toast;
-import androidx.appcompat.widget.SearchView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
-import androidx.fragment.app.Fragment;
+import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -28,10 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import sketchware.plus.R;
-import sketchware.plus.store.activities.ItemDetailActivity;
-import sketchware.plus.store.activities.LoginActivity;
-import sketchware.plus.store.activities.ProfileActivity;
-import sketchware.plus.store.activities.UploadActivity;
 import sketchware.plus.store.adapters.StoreItemAdapter;
 import sketchware.plus.store.auth.SessionManager;
 import sketchware.plus.store.models.StoreItem;
@@ -41,7 +36,12 @@ import sketchware.plus.store.repository.RepositoryProvider;
 import sketchware.plus.store.repository.StoreRepository;
 import sketchware.plus.store.widget.StateView;
 
-public class ExploreFragment extends Fragment {
+public class StoreActivity extends AppCompatActivity {
+
+    public static void start(Context context) {
+        Intent intent = new Intent(context, StoreActivity.class);
+        context.startActivity(intent);
+    }
 
     private StoreRepository repository;
     private StoreItemAdapter adapter;
@@ -55,17 +55,17 @@ public class ExploreFragment extends Fragment {
 
     private String currentType = "ALL";
     private String currentQuery = "";
-    private String currentSortBy = "newest";
+    private String currentSortBy = "newest"; // "newest" or "most_downloaded"
     private StoreUser currentUser;
 
-    @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.activity_store, container, false);
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_store);
 
-        repository = RepositoryProvider.getRepository(requireContext());
+        repository = RepositoryProvider.getRepository(this);
 
-        initViews(view);
+        initViews();
         setupToolbar();
         setupTabs();
         setupRecyclerView();
@@ -73,40 +73,16 @@ public class ExploreFragment extends Fragment {
 
         loadCurrentUser();
         loadItems(true);
-
-        return view;
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        setupMainFab();
-    }
-
-    private void setupMainFab() {
-        if (getActivity() != null) {
-            ExtendedFloatingActionButton fab = getActivity().findViewById(R.id.create_new_project);
-            if (fab != null) {
-                fab.setText("Upload Pack");
-                fab.setIconResource(R.drawable.ic_add_white_24dp);
-                fab.setOnClickListener(v -> handleUploadPackClick());
-                fab.show();
-                fab.extend();
-            }
-        }
-        if (fabUpload != null) {
-            fabUpload.setVisibility(View.GONE); // Hide inner container FAB since main activity FAB is active
-        }
-    }
-
-    private void initViews(View view) {
-        toolbar = view.findViewById(R.id.toolbar);
-        tabLayout = view.findViewById(R.id.tab_layout);
-        btnSort = view.findViewById(R.id.btn_sort);
-        swipeRefresh = view.findViewById(R.id.swipe_refresh);
-        recyclerView = view.findViewById(R.id.recycler_view);
-        stateView = view.findViewById(R.id.state_view);
-        fabUpload = view.findViewById(R.id.fab_upload);
+    private void initViews() {
+        toolbar = findViewById(R.id.toolbar);
+        tabLayout = findViewById(R.id.tab_layout);
+        btnSort = findViewById(R.id.btn_sort);
+        swipeRefresh = findViewById(R.id.swipe_refresh);
+        recyclerView = findViewById(R.id.recycler_view);
+        stateView = findViewById(R.id.state_view);
+        fabUpload = findViewById(R.id.fab_upload);
         if (fabUpload != null) {
             fabUpload.bringToFront();
             fabUpload.show();
@@ -114,57 +90,12 @@ public class ExploreFragment extends Fragment {
     }
 
     private void setupToolbar() {
-        toolbar.setNavigationIcon(null); // No back button since it's embedded in bottom nav tab
-        toolbar.inflateMenu(R.menu.menu_store);
-
-        MenuItem searchItem = toolbar.getMenu().findItem(R.id.action_search);
-        if (searchItem != null) {
-            SearchView searchView = (SearchView) searchItem.getActionView();
-            if (searchView != null) {
-                searchView.setQueryHint("Search store packs...");
-                searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-                    @Override
-                    public boolean onQueryTextSubmit(String query) {
-                        currentQuery = query;
-                        loadItems(true);
-                        return true;
-                    }
-
-                    @Override
-                    public boolean onQueryTextChange(String newText) {
-                        currentQuery = newText;
-                        loadItems(false);
-                        return true;
-                    }
-                });
-            }
-
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
         }
-
-        toolbar.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.action_profile) {
-                ProfileActivity.start(requireContext());
-                return true;
-            } else if (id == R.id.action_login) {
-                LoginActivity.start(requireContext());
-                return true;
-            }
-            return false;
-        });
-        updateMenuVisibility();
-    }
-
-    private void updateMenuVisibility() {
-        if (toolbar == null) return;
-        Menu menu = toolbar.getMenu();
-        if (menu == null) return;
-        boolean loggedIn = SessionManager.getInstance(requireContext()).isLoggedIn() || (currentUser != null);
-        MenuItem loginItem = menu.findItem(R.id.action_login);
-        MenuItem profileItem = menu.findItem(R.id.action_profile);
-
-        if (loginItem != null) loginItem.setVisible(!loggedIn);
-        if (profileItem != null) profileItem.setVisible(loggedIn);
+        toolbar.setNavigationOnClickListener(v -> finish());
     }
 
     private void setupTabs() {
@@ -194,33 +125,27 @@ public class ExploreFragment extends Fragment {
     }
 
     private void setupRecyclerView() {
-        adapter = new StoreItemAdapter(requireContext());
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        adapter = new StoreItemAdapter(this);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                if (getActivity() != null) {
-                    ExtendedFloatingActionButton fab = getActivity().findViewById(R.id.create_new_project);
-                    if (fab != null) {
-                        fab.show();
-                        if (dy > 0) {
-                            fab.shrink();
-                        } else if (dy < 0) {
-                            fab.extend();
-                        }
-                    }
+                if (fabUpload != null) {
+                    fabUpload.setVisibility(View.VISIBLE);
+                    fabUpload.show();
                 }
             }
         });
 
         adapter.setOnItemClickListener(item -> {
-            ItemDetailActivity.start(requireContext(), item);
+            ItemDetailActivity.start(this, item);
         });
 
         adapter.setOnInstallClickListener((item, position) -> {
+            // Simulate installation
             item.setDownloads(item.getDownloads() + 1);
             adapter.notifyItemChanged(position);
             Snackbar.make(recyclerView, "Installed " + item.getName() + " successfully!", Snackbar.LENGTH_LONG).show();
@@ -238,22 +163,28 @@ public class ExploreFragment extends Fragment {
 
     private void handleUploadPackClick() {
         if (isLoggedIn()) {
-            UploadActivity.start(requireContext());
+            UploadActivity.start(this);
         } else {
-            Toast.makeText(requireContext(), "Please log in or sign up to upload packs", Toast.LENGTH_SHORT).show();
-            LoginActivity.start(requireContext());
+            Toast.makeText(this, "Please log in or sign up to upload packs", Toast.LENGTH_SHORT).show();
+            LoginActivity.start(this);
         }
     }
 
     private boolean isLoggedIn() {
-        if (SessionManager.getInstance(requireContext()).isLoggedIn()) {
+        if (SessionManager.getInstance(this).isLoggedIn()) {
             return true;
         }
         return !RepositoryProvider.isUseSupabase() && currentUser != null;
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadCurrentUser();
+    }
+
     private void showSortMenu(View anchor) {
-        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
+        PopupMenu popupMenu = new PopupMenu(this, anchor);
         popupMenu.getMenu().add(0, 1, 0, "Newest First");
         popupMenu.getMenu().add(0, 2, 1, "Most Downloaded");
 
@@ -272,35 +203,25 @@ public class ExploreFragment extends Fragment {
     }
 
     private void loadCurrentUser() {
-        if (repository == null) {
-            repository = RepositoryProvider.getRepository(requireContext());
-        }
-        if (repository == null) return;
-
         repository.getCurrentUser(new RepositoryCallback<StoreUser>() {
             @Override
             public void onSuccess(StoreUser user) {
                 currentUser = user;
-                updateMenuVisibility();
+                invalidateOptionsMenu();
             }
 
             @Override
             public void onError(String error) {
                 currentUser = null;
-                updateMenuVisibility();
+                invalidateOptionsMenu();
             }
         });
     }
 
     private void loadItems(boolean showStateLoading) {
-        if (repository == null) {
-            repository = RepositoryProvider.getRepository(requireContext());
-        }
-        if (repository == null || stateView == null) return;
-
         if (showStateLoading) {
             stateView.showLoading("Fetching store items...");
-        } else if (swipeRefresh != null) {
+        } else {
             swipeRefresh.setRefreshing(true);
         }
 
@@ -313,9 +234,9 @@ public class ExploreFragment extends Fragment {
         repository.getItems(currentType, currentQuery, currentSortBy, new RepositoryCallback<List<StoreItem>>() {
             @Override
             public void onSuccess(List<StoreItem> items) {
-                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
+                swipeRefresh.setRefreshing(false);
                 List<StoreItem> safeItems = items != null ? items : new ArrayList<>();
-                if (adapter != null) adapter.setItems(safeItems);
+                adapter.setItems(safeItems);
                 if (safeItems.isEmpty()) {
                     String label = "ALL".equalsIgnoreCase(currentType) || currentType == null ? "item" : currentType.toLowerCase();
                     stateView.showEmpty(
@@ -336,7 +257,7 @@ public class ExploreFragment extends Fragment {
 
             @Override
             public void onError(String error) {
-                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
+                swipeRefresh.setRefreshing(false);
                 stateView.showError(error, v -> loadItems(true));
                 if (fabUpload != null) {
                     fabUpload.setVisibility(View.VISIBLE);
@@ -347,18 +268,58 @@ public class ExploreFragment extends Fragment {
         });
     }
 
-    public void refresh() {
-        setupMainFab();
-        if (getView() != null && stateView != null) {
-            loadCurrentUser();
-            loadItems(true);
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_store, menu);
+
+        MenuItem searchItem = menu.findItem(R.id.action_search);
+        if (searchItem != null) {
+            SearchView searchView = (SearchView) searchItem.getActionView();
+            if (searchView != null) {
+                searchView.setQueryHint("Search packs...");
+                searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                    @Override
+                    public boolean onQueryTextSubmit(String query) {
+                        currentQuery = query;
+                        loadItems(true);
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onQueryTextChange(String newText) {
+                        currentQuery = newText;
+                        loadItems(false);
+                        return true;
+                    }
+                });
+            }
         }
+
+        updateMenuVisibility(menu);
+        return true;
+    }
+
+    private void updateMenuVisibility(Menu menu) {
+        if (menu == null) return;
+        boolean loggedIn = SessionManager.getInstance(this).isLoggedIn() || (currentUser != null);
+        MenuItem loginItem = menu.findItem(R.id.action_login);
+        MenuItem profileItem = menu.findItem(R.id.action_profile);
+
+        if (loginItem != null) loginItem.setVisible(!loggedIn);
+        if (profileItem != null) profileItem.setVisible(loggedIn);
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        setupMainFab();
-        loadCurrentUser();
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_profile) {
+            ProfileActivity.start(this);
+            return true;
+        }
+        if (id == R.id.action_login) {
+            LoginActivity.start(this);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

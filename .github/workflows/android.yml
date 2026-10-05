@@ -69,7 +69,8 @@ jobs:
 
       - name: Build Release APK
         env:
-          SKETCHUB_API_KEY: ${{ secrets.SKETCHUB_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: gradle assembleRelease
 
       - name: Set short SHA

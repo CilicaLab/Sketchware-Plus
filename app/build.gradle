@@ -1,6 +1,15 @@
 def secrets = System.getenv("GOOGLE_SERVICES_JSON")
 def analyticsEnabled = secrets != null
 
+Properties localProperties = new Properties()
+File localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
+def supabaseUrl = System.getenv("SUPABASE_URL") ?: localProperties.getProperty("SUPABASE_URL", "") ?: ""
+def supabaseAnonKey = System.getenv("SUPABASE_ANON_KEY") ?: localProperties.getProperty("SUPABASE_ANON_KEY", "") ?: ""
+
 apply plugin: "com.android.application"
 apply plugin: "kotlin-android"
 apply plugin: "org.jetbrains.kotlin.plugin.compose"
@@ -33,6 +42,8 @@ android {
         buildConfigField("String", "GIT_HASH", "\"${gitCommitHash}\"")
 
         buildConfigField("String", "SKETCHUB_API_KEY", "\"${System.getenv("SKETCHUB_API_KEY") ?: ""}\"")
+        buildConfigField("String", "SUPABASE_URL", "\"${supabaseUrl}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${supabaseAnonKey}\"")
 
         externalNativeBuild {
             cmake {
@@ -157,6 +168,7 @@ dependencies {
 
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
     implementation "com.squareup.okio:okio:3.16.0"
+    implementation "androidx.security:security-crypto:1.1.0"
 
     implementation "org.eclipse.jdt:ecj:3.26.0"
     implementation 'javax.xml.stream:stax-api:1.0-2'
