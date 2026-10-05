@@ -139,7 +139,7 @@ dependencies {
     implementation "androidx.preference:preference:1.2.1"
 
     def editorGroupId = "io.github.Rosemoe.sora-editor"
-    implementation platform("$editorGroupId:bom:0.23.5")
+    implementation platform("$editorGroupId:bom:0.23.6")
     implementation "$editorGroupId:editor"
     implementation "$editorGroupId:language-java"
     implementation "$editorGroupId:language-textmate"

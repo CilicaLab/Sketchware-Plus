@@ -5,6 +5,7 @@ import static sketchware.plus.utility.ThemeUtils.isDarkThemeEnabled;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.os.Build;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 
@@ -56,6 +57,26 @@ public class EditorUtils {
 
     public static void loadXmlConfig(CodeEditor editor) {
         loadConfigByLanguage(editor, CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML), true);
+    }
+
+    public static void beginSearchModeWithFocus(CodeEditor editor) {
+        editor.getSearcher().stopSearch();
+        editor.beginSearchMode();
+        editor.postDelayed(() -> {
+            var decor = editor.getRootView();
+            View searchSrcText = null;
+            int resId = editor.getResources().getIdentifier("search_src_text", "id", "android");
+            if (resId != 0) {
+                searchSrcText = decor.findViewById(resId);
+            }
+            if (searchSrcText == null) {
+                int appcompatResId = androidx.appcompat.R.id.search_src_text;
+                searchSrcText = decor.findViewById(appcompatResId);
+            }
+            if (searchSrcText != null) {
+                searchSrcText.requestFocus();
+            }
+        }, 100);
     }
 
     // todo: use dynamic color scheme for textmate language too

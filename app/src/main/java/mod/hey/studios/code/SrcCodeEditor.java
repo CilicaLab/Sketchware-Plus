@@ -8,21 +8,18 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.EditText;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -48,15 +45,7 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import a.a.a.Lx;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import io.github.rosemoe.sora.langs.java.JavaLanguage;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.widget.CodeEditor;
@@ -72,14 +61,12 @@ import mod.jbk.code.CodeEditorColorSchemes;
 import mod.jbk.code.CodeEditorLanguages;
 import sketchware.plus.R;
 import sketchware.plus.activities.preview.LayoutPreviewActivity;
-import sketchware.plus.ai.AiClient;
 import sketchware.plus.databinding.CodeEditorHsBinding;
 import sketchware.plus.utility.EditorUtils;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.SketchwareUtil;
 import sketchware.plus.utility.ThemeUtils;
 import sketchware.plus.utility.UI;
-import sketchware.plus.ai.AiClient;
 
 public class SrcCodeEditor extends BaseAppCompatActivity {
     public static final String FLAG_FROM_ANDROID_MANIFEST = "from_android_manifest";
@@ -316,8 +303,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             }
         }
 
-        loadCESettings(this, binding.editor, "act", true);
-        
         if (!fromAndroidManifest)
             beforeContent = FileUtil.readFile(getIntent().getStringExtra("content"));
         binding.editor.setText(beforeContent);
@@ -339,17 +324,11 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             languageId = 2;
         }
 
+        loadCESettings(this, binding.editor, "act", true);
         loadToolbar();
 
         UI.addSystemWindowInsetToPadding(binding.appBarLayout, true, true, true, false);
-        UI.addSystemWindowInsetToPadding(binding.editor, true, false, true, true);
-        
-        // Stabilize editor scroll behavior
-        binding.editor.getProps().overScrollEnabled = false;
-        binding.editor.getProps().adjustToSelectionOnResize = false; // Prevent jumping when keyboard/insets change
-        binding.editor.setScrollBarEnabled(true);
-        binding.editor.setVerticalScrollBarEnabled(true);
-        binding.editor.setHorizontalScrollBarEnabled(true);
+        UI.addSystemWindowInsetToMargin(binding.editor, true, false, true, true);
     }
 
     public void save() {
@@ -425,17 +404,10 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Select theme");
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete").setCheckable(true).setChecked(local_pref.getBoolean("act_ac", true));
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete symbol pair").setCheckable(true).setChecked(local_pref.getBoolean("act_acsp", true));
-            if (AiClient.isAiEnabled(this)) {
-                toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "SK Prompt").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_regular_expression)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-            }
 
             binding.toolbar.setOnMenuItemClickListener(item -> {
                 String title1 = item.getTitle().toString();
                 switch (title1) {
-                    case "SK Prompt":
-                        showSkPromptDialog();
-                        break;
-
                     case "Undo":
                         binding.editor.undo();
                         break;
@@ -495,6 +467,26 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                     case "Find & Replace":
                         binding.editor.getSearcher().stopSearch();
                         binding.editor.beginSearchMode();
+                        binding.editor.postDelayed(() -> {
+                            View decor = getWindow().getDecorView();
+                            View searchSrcText = null;
+                            int resId = getResources().getIdentifier("search_src_text", "id", "android");
+                            if (resId != 0) {
+                                searchSrcText = decor.findViewById(resId);
+                            }
+                            if (searchSrcText == null) {
+                                int appcompatResId = androidx.appcompat.R.id.search_src_text;
+                                searchSrcText = decor.findViewById(appcompatResId);
+                            }
+                            if (searchSrcText != null) {
+                                searchSrcText.setFocusableInTouchMode(true);
+                                searchSrcText.requestFocus();
+                                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                                if (imm != null) {
+                                    imm.showSoftInput(searchSrcText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                                }
+                            }
+                        }, 250);
                         break;
 
                     case "Select theme":
@@ -563,91 +555,5 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         intent.putExtras(getIntent());
         intent.putExtra("xml", binding.editor.getText().toString());
         startActivity(intent);
-    }
-
-    private void showSkPromptDialog() {
-        EditText input = new EditText(this);
-        input.setHint("What do you want to generate?");
-        input.setPadding(40, 40, 40, 40);
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("SK Prompt")
-                .setView(input)
-                .setPositiveButton("Send", (dialog, which) -> {
-                    String prompt = input.getText().toString();
-                    if (!prompt.isEmpty()) {
-                        callSkApi(prompt);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void callSkApi(String userPrompt) {
-        k();
-        SketchwareUtil.toast("Processing with SK...");
-        AiClient.askAi(this,
-                "You are a coding assistant specializing in Sketchware Plus. Return only the raw code without markdown backticks or explanations. The code will be used directly in a Sketchware Plus project.",
-                "Context code:\n" + binding.editor.getText().toString() + "\n\nUser request: " + userPrompt,
-                AiClient.AiTemperatureType.CODE_GENERATION,
-                new AiClient.AiCallback() {
-                    @Override
-                    public void onSuccess(String content) {
-                        runOnUiThread(() -> {
-                            h();
-                            showSkResultDialog(content);
-                        });
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        runOnUiThread(() -> {
-                            h();
-                            SketchwareUtil.toastError(error);
-                        });
-                    }
-
-                    @Override
-                    public void onRetry(int retryCount, long delayMillis) {
-                        runOnUiThread(() -> {
-                            SketchwareUtil.toast("Rate limit hit. Retrying in " + (delayMillis / 1000) + "s...");
-                        });
-                    }
-                });
-    }
-
-    private void showSkResultDialog(String skCode) {
-        String cleanedCode = cleanSkResponse(skCode);
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("SK Result")
-                .setMessage(cleanedCode)
-                .setPositiveButton("Insert", (dialog, which) -> {
-                    binding.editor.insertText(cleanedCode, cleanedCode.length());
-                    SketchwareUtil.toast("Inserted");
-                })
-                .setNeutralButton("Replace All", (dialog, which) -> {
-                    binding.editor.setText(cleanedCode);
-                    SketchwareUtil.toast("Replaced All");
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private String cleanSkResponse(String code) {
-        String result = code.trim();
-        // Remove markdown code blocks if present
-        // Some models include the language name like ```java or ```xml
-        if (result.startsWith("```")) {
-            int firstNewline = result.indexOf('\n');
-            if (firstNewline != -1 && firstNewline < 10) { // arbitrary limit for language name
-                result = result.substring(firstNewline + 1);
-            } else {
-                result = result.replaceFirst("^```[a-zA-Z]*\\s*", "");
-            }
-        }
-        if (result.endsWith("```")) {
-            result = result.substring(0, result.length() - 3);
-        }
-        return result.trim();
     }
 }

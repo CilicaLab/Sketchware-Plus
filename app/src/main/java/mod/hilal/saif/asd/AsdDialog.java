@@ -105,8 +105,7 @@ public class AsdDialog extends Dialog implements DialogInterface.OnDismissListen
             } else if (id == R.id.action_paste) {
                 binding.editor.pasteText();
             } else if (id == R.id.action_find_replace) {
-                binding.editor.getSearcher().stopSearch();
-                binding.editor.beginSearchMode();
+                EditorUtils.beginSearchModeWithFocus(binding.editor);
             }
             return true;
         });
