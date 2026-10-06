@@ -3,7 +3,10 @@ package com.besome.sketch.editor.property;
 import android.content.Context;
 import android.graphics.Color;
 import android.net.Uri;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -15,6 +18,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.besome.sketch.beans.ProjectResourceBean;
 import com.besome.sketch.design.DesignActivity;
@@ -23,6 +27,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import a.a.a.Kw;
 import a.a.a.jC;
@@ -32,6 +37,8 @@ import a.a.a.wB;
 import mod.bobur.XmlToSvgConverter;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
+import sketchware.plus.adapters.ImagePickerAdapter;
+import sketchware.plus.databinding.SearchWithRecyclerViewBinding;
 import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.SvgUtils;
 
@@ -166,112 +173,56 @@ public class PropertyResourceItem extends RelativeLayout implements View.OnClick
     }
 
     public final void a() {
-        MaterialAlertDialogBuilder aBVar = new MaterialAlertDialogBuilder(getContext());
-        aBVar.setTitle(Helper.getText(e));
-        aBVar.setIcon(m);
-        View a3 = wB.a(getContext(), R.layout.property_popup_selector_color);
-        ScrollView scrollView = a3.findViewById(R.id.scroll_view);
-        i = a3.findViewById(R.id.rg);
-        j = a3.findViewById(R.id.content);
-        ArrayList<String> m = jC.d(a).m();
+        MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(getContext());
+        dialogBuilder.setTitle(Helper.getText(e));
+        dialogBuilder.setIcon(m);
+
+        SearchWithRecyclerViewBinding binding = SearchWithRecyclerViewBinding.inflate(
+                LayoutInflater.from(getContext()));
+
+        ArrayList<String> images = jC.d(a).m();
         ArrayList<String> vectors = new XmlToSvgConverter().getVectorDrawables(DesignActivity.sc_id);
-        m.addAll(vectors);
-        m.add(0, d ? "default_image" : "NONE");
-        RadioButton radioButton = null;
-        for (String next : m) {
-            RadioButton a4 = a(next);
-            i.addView(a4);
-            if (next.equals(c)) {
-                a4.setChecked(true);
-                radioButton = a4;
+        images.addAll(vectors);
+        images.add(0, d ? "default_image" : "NONE");
+
+        AtomicReference<String> selectedImage = new AtomicReference<>(c != null ? c : (d ? "default_image" : "NONE"));
+
+        ImagePickerAdapter adapter = new ImagePickerAdapter(
+                getContext(), a, images, selectedImage.get(), selectedImage::set);
+
+        binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        binding.recyclerView.setAdapter(adapter);
+
+        binding.searchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                adapter.filter(s.toString());
             }
-            LinearLayout a2 = a(next, next.equals("default_image"));
-            a2.setOnClickListener(v -> ((RadioButton) i.getChildAt(j.indexOfChild(v))).setChecked(true));
-            j.addView(a2);
-        }
-        if (radioButton == null) {
-            radioButton = (RadioButton) i.getChildAt(0);
-            radioButton.setChecked(true);
-        }
-        aBVar.setView(a3);
-        aBVar.setPositiveButton(R.string.common_word_select, (v, which) -> {
-            for (int i = 0; i < this.i.getChildCount(); i++) {
-                RadioButton child = (RadioButton) this.i.getChildAt(i);
-                if (child.isChecked()) {
-                    setValue(child.getTag().toString());
-                    if (n != null) {
-                        n.a(b, c);
-                    }
-                    break;
-                }
-            }
-            v.dismiss();
         });
-        aBVar.setNegativeButton(R.string.common_word_cancel, null);
-        RadioButton finalRadioButton = radioButton;
 
-        var dialog = aBVar.create();
-        dialog.setOnShowListener(dialogInterface -> scrollView.smoothScrollTo(0, (int) finalRadioButton.getY()));
-        dialog.show();
-    }
+        int initialPos = images.indexOf(selectedImage.get());
+        if (initialPos >= 0) {
+            binding.recyclerView.scrollToPosition(initialPos);
+        }
 
-    public final RadioButton a(String str) {
-        RadioButton radioButton = new RadioButton(getContext());
-        radioButton.setText("");
-        radioButton.setTag(str);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (int) (wB.a(getContext(), 1.0f) * 60.0f));
-        radioButton.setGravity(Gravity.CENTER | Gravity.LEFT);
-        radioButton.setLayoutParams(layoutParams);
-        return radioButton;
-    }
-
-    public final LinearLayout a(String str, boolean z) {
-        Uri fromFile;
-        float a2 = wB.a(getContext(), 1.0f);
-        LinearLayout linearLayout = new LinearLayout(getContext());
-        linearLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (60.0f * a2)));
-        linearLayout.setGravity(Gravity.CENTER | Gravity.LEFT);
-        linearLayout.setOrientation(LinearLayout.HORIZONTAL);
-        TextView textView = new TextView(getContext());
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT);
-        layoutParams.weight = 1.0f;
-        layoutParams.rightMargin = (int) (8.0f * a2);
-        textView.setLayoutParams(layoutParams);
-        textView.setText(str);
-        linearLayout.addView(textView);
-        ImageView imageView = new ImageView(getContext());
-        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        int i = (int) (a2 * 48.0f);
-        imageView.setLayoutParams(new LinearLayout.LayoutParams(i, i));
-        if (!str.equalsIgnoreCase("NONE")) {
-            if (z) {
-                imageView.setImageResource(getContext().getResources().getIdentifier(str, "drawable", getContext().getPackageName()));
-            } else {
-                File file = new File(jC.d(a).f(str));
-                if (file.exists()) {
-                    Context context = getContext();
-                    fromFile = FileProvider.getUriForFile(context, getContext().getPackageName() + ".provider", file);
-
-                    if (file.getAbsolutePath().endsWith(".xml")) {
-                        svgUtils.loadImage(imageView, fpu.getSvgFullPath(a, str));
-
-                    } else {
-                        Glide.with(getContext()).load(fromFile).signature(kC.n()).error(R.drawable.ic_remove_grey600_24dp).into(imageView);
-                    }
-                } else {
-                    try {
-                        XmlToSvgConverter xmlToSvgConverter = new XmlToSvgConverter();
-                        xmlToSvgConverter.setImageVectorFromFile(imageView, xmlToSvgConverter.getVectorFullPath(DesignActivity.sc_id, str));
-                    } catch (Exception e) {
-                        imageView.setImageResource(R.drawable.ic_remove_grey600_24dp);
-                    }
+        dialogBuilder.setView(binding.getRoot());
+        dialogBuilder.setPositiveButton(R.string.common_word_select, (dialog, which) -> {
+            String newSelection = selectedImage.get();
+            if (newSelection != null) {
+                setValue(newSelection);
+                if (n != null) {
+                    n.a(b, c);
                 }
             }
-            imageView.setBackgroundResource(R.drawable.bg_outline);
-        } else {
-            imageView.setBackgroundResource(R.drawable.bg_outline);
-        }
-        linearLayout.addView(imageView);
-        return linearLayout;
+            dialog.dismiss();
+        });
+        dialogBuilder.setNegativeButton(R.string.common_word_cancel, null);
+        dialogBuilder.show();
     }
 }
