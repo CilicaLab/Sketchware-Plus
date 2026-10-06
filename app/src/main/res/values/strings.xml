@@ -7,8 +7,6 @@
     <string name="system_settings_description_ai_code_generation_temp">Control the focus of SK code generation</string>
     <string name="system_settings_title_ai_assistant_mode_temp">SK Assistant Mode Temperature</string>
     <string name="system_settings_description_ai_assistant_mode_temp">Control the focus of SK Assistant Mode</string>
-    <string name="system_settings_title_show_system_profiler">Show System Profiler</string>
-    <string name="system_settings_description_show_system_profiler">Show the real-time system performance profiler in the Explore tab</string>
     <string-array name="ai_focus_entries">
         <item>Max Focus</item>
         <item>Medium Focus</item>
@@ -2141,6 +2139,8 @@ Please try again later"</string>
     <string name="system_settings_description_ai_model_name">The model to use (e.g. gpt-4o or gemini-2.0-flash)</string>
     <string name="system_settings_title_ai_provider">AI Provider</string>
     <string name="system_settings_description_ai_provider">Select AI provider (Custom OpenAI-compatible or Google Gemini)</string>
+    <string name="system_settings_title_ai_markdown">Render Assistant Markdown</string>
+    <string name="system_settings_description_ai_markdown">Enable rich Markdown formatting and code block styling in AI Assistant responses</string>
     <string name="system_settings_title_ai_fetch_models">Fetch Available Models</string>
     <string name="system_settings_description_ai_fetch_models">Automatically fetch available models from your AI provider</string>
     <string-array name="ai_provider_entries">

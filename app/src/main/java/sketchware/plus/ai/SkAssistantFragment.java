@@ -33,6 +33,15 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.MaterialColors;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import io.noties.markwon.AbstractMarkwonPlugin;
+import io.noties.markwon.Markwon;
+import io.noties.markwon.core.CorePlugin;
+import io.noties.markwon.core.MarkwonTheme;
+import io.noties.markwon.ext.tables.TablePlugin;
+import io.noties.markwon.ext.tasklist.TaskListPlugin;
+import io.noties.markwon.html.HtmlPlugin;
+import io.noties.markwon.image.ImagesPlugin;
+import io.noties.markwon.linkify.LinkifyPlugin;
 
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.EventBean;
@@ -1756,6 +1765,7 @@ public class SkAssistantFragment extends Fragment {
         
         private final List<Message> messages;
         private final SkAssistantFragment fragment;
+        private Markwon markwon;
 
         MessageAdapter(List<Message> messages, SkAssistantFragment fragment) {
             this.messages = messages;
@@ -1865,7 +1875,37 @@ public class SkAssistantFragment extends Fragment {
             } else {
                 msgHolder.cardAssistant.setVisibility(View.VISIBLE);
                 msgHolder.tvRoleLeft.setText(msg.role.toUpperCase());
-                msgHolder.tvContentLeft.setText(contentText);
+
+                Context ctx = msgHolder.tvContentLeft.getContext();
+                SharedPreferences aiPref = ctx.getSharedPreferences("P12", Context.MODE_PRIVATE);
+                boolean isMarkdownEnabled = aiPref.getBoolean("P12_MARKDOWN_ENABLED", true);
+
+                if (isMarkdownEnabled) {
+                    if (markwon == null) {
+                        markwon = Markwon.builder(ctx)
+                                .usePlugin(CorePlugin.create())
+                                .usePlugin(TablePlugin.create(ctx))
+                                .usePlugin(TaskListPlugin.create(ctx))
+                                .usePlugin(LinkifyPlugin.create())
+                                .usePlugin(HtmlPlugin.create())
+                                .usePlugin(ImagesPlugin.create())
+                                .usePlugin(new AbstractMarkwonPlugin() {
+                                    @Override
+                                    public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
+                                        int codeBg = MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorSurfaceVariant, 0xFF333333);
+                                        int codeText = MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFFE0E0E0);
+                                        builder.codeBlockBackgroundColor(codeBg)
+                                               .codeTextColor(codeText)
+                                               .codeBlockTypeface(Typeface.MONOSPACE)
+                                               .codeTypeface(Typeface.MONOSPACE);
+                                    }
+                                })
+                                .build();
+                    }
+                    markwon.setMarkdown(msgHolder.tvContentLeft, contentText);
+                } else {
+                    msgHolder.tvContentLeft.setText(contentText);
+                }
 
                 // Set up actions
                 boolean hasActions = false;

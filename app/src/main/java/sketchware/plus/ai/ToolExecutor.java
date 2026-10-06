@@ -32,13 +32,13 @@ public class ToolExecutor {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ToolOrchestrator orchestrator;
     
-    private static final int BASE_DELAY_MS = 200;
-    private static final int API_DELAY_MS = 1000;
+    private static final int BASE_DELAY_MS = 300;
+    private static final int API_DELAY_MS = 1400;
     private static final int TIMEOUT_SECONDS = 30;
     
     // Cache for read-only tool results
     private final Map<String, CachedResult> resultCache = new HashMap<>();
-    private static final long CACHE_TTL_MS = 30000;  // 30 seconds
+    private static final long CACHE_TTL_MS = 35000;  // 35 seconds
     
     private int totalCacheHits = 0;
     private int totalToolCalls = 0;
