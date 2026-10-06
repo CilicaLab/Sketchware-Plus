@@ -13,13 +13,20 @@ public class HapticManager {
 
     /**
      * Unique haptic feedback for "Save" action.
-     * Feels firm and permanent.
+     * Light and click-click type.
      */
     public static void vibrateSave(View v) {
         if (v != null) {
-            v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            v.postDelayed(() -> v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP), 60);
         } else {
-            vibrateLegacy(80);
+            Context context = SketchApplication.getContext();
+            if (context != null) {
+                Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0, 15, 60, 15}, new int[]{0, 50, 0, 50}, -1));
+                }
+            }
         }
     }
 
