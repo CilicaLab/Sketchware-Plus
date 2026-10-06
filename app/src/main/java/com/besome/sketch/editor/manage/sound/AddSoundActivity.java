@@ -26,6 +26,7 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -157,11 +158,15 @@ public class AddSoundActivity extends BaseDialogActivity implements View.OnClick
         nowPlayingProgressBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser && nowPlayingPlayer != null) {
+                    int positionInS = progress / 1000;
+                    nowPlayingProgress.setText(String.format(Locale.US, "%d:%02d", positionInS / 60, positionInS % 60));
+                }
             }
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
-                if (nowPlayingPlayer != null && nowPlayingPlayer.isPlaying() && timer != null) {
+                if (timer != null) {
                     timer.cancel();
                 }
             }
@@ -169,9 +174,13 @@ public class AddSoundActivity extends BaseDialogActivity implements View.OnClick
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 if (nowPlayingPlayer != null) {
-                    nowPlayingPlayer.seekTo(seekBar.getProgress() * 100);
+                    nowPlayingPlayer.seekTo(seekBar.getProgress());
                     if (nowPlayingPlayer.isPlaying()) {
                         startNowPlayingProgressUpdater();
+                    } else {
+                        int currentPosition = seekBar.getProgress();
+                        int positionInS = currentPosition / 1000;
+                        nowPlayingProgress.setText(String.format(Locale.US, "%d:%02d", positionInS / 60, positionInS % 60));
                     }
                 } else {
                     seekBar.setProgress(0);
@@ -265,6 +274,9 @@ public class AddSoundActivity extends BaseDialogActivity implements View.OnClick
     }
 
     private void startNowPlayingProgressUpdater() {
+        if (timer != null) {
+            timer.cancel();
+        }
         timer = new Timer();
         nowPlayingProgressUpdater = new TimerTask() {
             @Override
@@ -273,9 +285,14 @@ public class AddSoundActivity extends BaseDialogActivity implements View.OnClick
                     if (nowPlayingPlayer == null) {
                         timer.cancel();
                     } else {
-                        int currentPosition = nowPlayingPlayer.getCurrentPosition() / 1000;
-                        nowPlayingProgress.setText(String.format("%d:%02d", currentPosition / 60, currentPosition % 60));
-                        nowPlayingProgressBar.setProgress(nowPlayingPlayer.getCurrentPosition() / 100);
+                        try {
+                            if (nowPlayingPlayer.isPlaying()) {
+                                int currentPosition = nowPlayingPlayer.getCurrentPosition();
+                                int positionInS = currentPosition / 1000;
+                                nowPlayingProgress.setText(String.format(Locale.US, "%d:%02d", positionInS / 60, positionInS % 60));
+                                nowPlayingProgressBar.setProgress(currentPosition);
+                            }
+                        } catch (Exception ignored) {}
                     }
                 });
             }
@@ -308,7 +325,7 @@ public class AddSoundActivity extends BaseDialogActivity implements View.OnClick
             nowPlayingPlayer.setOnPreparedListener(mp -> {
                 playPause.setImageResource(R.drawable.ic_mtrl_circle_pause);
                 playPause.setEnabled(true);
-                nowPlayingProgressBar.setMax(mp.getDuration() / 100);
+                nowPlayingProgressBar.setMax(mp.getDuration());
                 nowPlayingProgressBar.setProgress(0);
 
                 int duration = mp.getDuration() / 1000;

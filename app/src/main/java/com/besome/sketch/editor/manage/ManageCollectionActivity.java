@@ -675,17 +675,18 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
 
         private void onBindViewHolder(SoundCollectionViewHolder holder, int position) {
             ProjectResourceBean bean = (ProjectResourceBean) currentCollectionTypeItems.get(position);
+            var audioMetadata = holder.audioMetadata;
+            var audio = getAudio(position);
+            if (audioMetadata == null || !audioMetadata.getSource().equals(audio)) {
+                audioMetadata = holder.audioMetadata = AudioMetadata.fromPath(audio);
+                bean.totalSoundDuration = audioMetadata.getDurationInMs();
+                audioMetadata.setEmbeddedPictureAsAlbumCover(ManageCollectionActivity.this, holder.album);
+            }
+
             if (selectingToBeDeletedItems) {
                 holder.album.setVisibility(View.GONE);
                 holder.deleteContainer.setVisibility(View.VISIBLE);
             } else {
-                var audioMetadata = holder.audioMetadata;
-                var audio = getAudio(position);
-                if (audioMetadata == null || !audioMetadata.getSource().equals(audio)) {
-                    audioMetadata = holder.audioMetadata = AudioMetadata.fromPath(audio);
-                    bean.totalSoundDuration = audioMetadata.getDurationInMs();
-                    audioMetadata.setEmbeddedPictureAsAlbumCover(ManageCollectionActivity.this, holder.album);
-                }
                 holder.album.setVisibility(View.VISIBLE);
                 holder.deleteContainer.setVisibility(View.GONE);
             }
@@ -704,9 +705,10 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
             holder.checkBox.setChecked(bean.isSelected);
             holder.name.setText(bean.resName);
             boolean playing = position == soundPlayer.getNowPlayingPosition() && soundPlayer.isPlaying();
-            holder.play.setImageResource(playing ? R.drawable.ic_pause_blue_circle_48dp : R.drawable.circled_play_96_blue);
-            holder.playbackProgress.setMax(bean.totalSoundDuration / 100);
-            holder.playbackProgress.setProgress(bean.curSoundPosition / 100);
+            holder.play.setImageResource(playing ? R.drawable.ic_mtrl_circle_pause : R.drawable.ic_mtrl_circle_play);
+            holder.playbackProgress.setMax(bean.totalSoundDuration);
+            holder.playbackProgress.setProgress(bean.curSoundPosition);
+            setupSeekBar(holder, position);
         }
 
         private void onBindViewHolder(FontCollectionViewHolder holder, int position) {
@@ -1047,7 +1049,7 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
                 deleteContainer = itemView.findViewById(R.id.delete_img_container);
                 checkBox.setVisibility(View.GONE);
                 play.setOnClickListener(v -> {
-                    if (selectingToBeDeletedItems) {
+                    if (!mB.a()) {
                         soundPlayer.onPlayPressed(getLayoutPosition());
                     }
                 });

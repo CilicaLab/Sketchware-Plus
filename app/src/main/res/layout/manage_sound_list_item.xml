@@ -93,16 +93,16 @@
                         android:textSize="12sp"
                         tools:text="00:00" />
 
-                    <ProgressBar
+                    <SeekBar
                         android:id="@+id/prog_playtime"
-                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        style="@android:style/Widget.SeekBar"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:indeterminateOnly="false"
-                        android:maxHeight="5dp"
-                        android:minHeight="3dp"
-                        android:progressDrawable="?attr/colorPrimary" />
+                        android:maxHeight="6dp"
+                        android:minHeight="6dp"
+                        android:progressDrawable="@drawable/sound_progress_bar_horizontal"
+                        android:thumb="@drawable/sound_seekbar_thumb" />
 
                     <TextView
                         android:id="@+id/tv_endtime"

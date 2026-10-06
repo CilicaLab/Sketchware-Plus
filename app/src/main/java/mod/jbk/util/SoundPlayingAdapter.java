@@ -3,6 +3,7 @@ package mod.jbk.util;
 import android.media.MediaPlayer;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -15,6 +16,7 @@ import com.besome.sketch.beans.ProjectResourceBean;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -40,6 +42,43 @@ public abstract class SoundPlayingAdapter<VH extends SoundPlayingAdapter.ViewHol
 
     public void stopPlayback() {
         soundPlayer.stopPlayback();
+    }
+
+    public void setupSeekBar(VH holder, int position) {
+        ProgressBar prog = holder.getPlaybackProgress();
+        if (prog instanceof SeekBar) {
+            SeekBar seekBar = (SeekBar) prog;
+            seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser && soundPlayer.mediaPlayer != null && soundPlayer.nowPlayingPosition == position) {
+                        int positionInS = progress / 1000;
+                        TextView tv = holder.getCurrentPosition();
+                        if (tv != null) {
+                            tv.setText(String.format(Locale.US, "%d:%02d", positionInS / 60, positionInS % 60));
+                        }
+                    }
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+                    if (soundPlayer.mediaPlayer != null && soundPlayer.mediaPlayer.isPlaying() && soundPlayer.nowPlayingPosition == position) {
+                        soundPlayer.timer.cancel();
+                    }
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+                    if (soundPlayer.mediaPlayer != null && soundPlayer.nowPlayingPosition == position) {
+                        soundPlayer.mediaPlayer.seekTo(seekBar.getProgress());
+                        getData(position).curSoundPosition = seekBar.getProgress();
+                        if (soundPlayer.mediaPlayer.isPlaying()) {
+                            soundPlayer.reschedule(position);
+                        }
+                    }
+                }
+            });
+        }
     }
 
     @Override
@@ -91,9 +130,9 @@ public abstract class SoundPlayingAdapter<VH extends SoundPlayingAdapter.ViewHol
     public static class SoundPlayer {
         private final FragmentActivity context;
         private final SoundPlayingAdapter<?> adapter;
-        private MediaPlayer mediaPlayer;
-        private Timer timer = new Timer();
-        private int nowPlayingPosition = -1;
+        MediaPlayer mediaPlayer;
+        Timer timer = new Timer();
+        int nowPlayingPosition = -1;
         private boolean isNowPlayingItemOffscreen;
 
         public SoundPlayer(FragmentActivity context, SoundPlayingAdapter<?> adapter) {
@@ -179,7 +218,7 @@ public abstract class SoundPlayingAdapter<VH extends SoundPlayingAdapter.ViewHol
             return mediaPlayer != null && mediaPlayer.isPlaying();
         }
 
-        private void reschedule(int position) {
+        void reschedule(int position) {
             timer = new Timer();
             timer.schedule(new TimerTask() {
                 @Override
@@ -187,9 +226,11 @@ public abstract class SoundPlayingAdapter<VH extends SoundPlayingAdapter.ViewHol
                     context.runOnUiThread(() -> {
                         var holder = adapter.getViewHolder(position);
                         if (holder != null) {
-                            int positionInS = mediaPlayer.getCurrentPosition() / 1000;
-                            holder.getCurrentPosition().setText(String.format("%d:%02d", positionInS / 60, positionInS % 60));
-                            holder.getPlaybackProgress().setProgress(mediaPlayer.getCurrentPosition() / 100);
+                            int currentPos = mediaPlayer.getCurrentPosition();
+                            int positionInS = currentPos / 1000;
+                            holder.getCurrentPosition().setText(String.format(Locale.US, "%d:%02d", positionInS / 60, positionInS % 60));
+                            holder.getPlaybackProgress().setMax(mediaPlayer.getDuration());
+                            holder.getPlaybackProgress().setProgress(currentPos);
                         } else {
                             timer.cancel();
                             isNowPlayingItemOffscreen = true;

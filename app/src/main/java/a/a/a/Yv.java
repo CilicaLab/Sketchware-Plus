@@ -194,8 +194,9 @@ public class Yv extends qA {
             holder.binding.tvSoundName.setText(bean.resName);
             boolean playing = position == soundPlayer.getNowPlayingPosition() && soundPlayer.isPlaying();
             holder.binding.imgPlay.setImageResource(playing ? R.drawable.ic_mtrl_circle_pause : R.drawable.ic_mtrl_circle_play);
-            holder.binding.progPlaytime.setMax(bean.totalSoundDuration / 100);
-            holder.binding.progPlaytime.setProgress(bean.curSoundPosition / 100);
+            holder.binding.progPlaytime.setMax(bean.totalSoundDuration);
+            holder.binding.progPlaytime.setProgress(bean.curSoundPosition);
+            setupSeekBar(holder, position);
         }
 
         @Override
