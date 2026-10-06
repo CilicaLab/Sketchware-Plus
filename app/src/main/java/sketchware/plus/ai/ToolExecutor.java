@@ -142,9 +142,13 @@ public class ToolExecutor {
                     }
                 }
             } catch (Exception e) {
+                String errorDetails = "Execution error in tool '" + toolCalls.get(i).toolName + "': " + (e.getMessage() != null ? e.getMessage() : e.toString());
+                if (e.getCause() != null && e.getCause().getMessage() != null) {
+                    errorDetails += " | Cause: " + e.getCause().getMessage();
+                }
                 ToolResult errorResult = new ToolResult(
                     toolCalls.get(i).toolName,
-                    "Execution error: " + e.getMessage(),
+                    errorDetails,
                     toolCalls.get(i).id,
                     0,
                     false,
@@ -186,10 +190,13 @@ public class ToolExecutor {
         long executionTime = System.currentTimeMillis() - startTime;
         totalToolCalls++;
         
-        // Cache read-only results
+        // Cache read-only results, or clear cache on write tool execution
         if (isReadOnlyTool(info.toolName)) {
             String cacheKey = generateCacheKey(info.toolName, info.args);
             resultCache.put(cacheKey, new CachedResult(result, System.currentTimeMillis()));
+        } else {
+            // Write tool executed: invalidate all cached read results to guarantee fresh state
+            resultCache.clear();
         }
         
         return new ToolResult(

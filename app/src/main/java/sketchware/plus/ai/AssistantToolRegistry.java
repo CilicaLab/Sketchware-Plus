@@ -53,8 +53,8 @@ public class AssistantToolRegistry {
         t.put(createTool("list_methods", "List method names in a file",
                 new ParameterBuilder().addProperty("javaName", "string", "file name").setRequired("javaName").build()));
 
-        t.put(createTool("get_full_code", "Read whole file",
-                new ParameterBuilder().addProperty("javaName", "string", "file name").setRequired("javaName").build()));
+        t.put(createTool("get_class_outline", "Get class structure outline (package, fields, method signatures with line numbers) without dumping full source",
+                new ParameterBuilder().addProperty("javaName", "string", "file name, e.g. MainActivity.java").setRequired("javaName").build()));
 
         t.put(createTool("search_in_code", "Search keyword in a file, returns lines w/ context",
                 new ParameterBuilder()

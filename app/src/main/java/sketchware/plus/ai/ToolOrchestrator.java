@@ -153,11 +153,11 @@ public class ToolOrchestrator {
         return "You are the SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
-                "1. Gather info first (get_layout_xml, list_methods, list_project_files, search_project_files, search_in_code, list_available_components).\n" +
+                "1. Gather info first (get_layout_xml, get_class_outline, list_methods, list_project_files, search_project_files, search_in_code, list_available_components).\n" +
                 "2. Only call tools from the provided list. Never invent tools.\n" +
                 "3. Don't web search component IDs. Use list_available_components.\n" +
                 "4. Once you know what to do, call the tool right away.\n" +
-                "5. To patch code: read_method for the anchor, then add_java_patch.\n" +
+                "5. To patch code: inspect structure with get_class_outline/list_methods, use read_method for the exact anchor, then add_java_patch.\n" +
                 "6. manage_local_library works on LOCAL libs only, using the EXACT folder name (with version) from AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) can't be changed.\n" +
                 "7. No redundant tool calls. Reuse info you already have.\n" +
                 "8. Tool args must be valid JSON.\n" +
@@ -304,6 +304,7 @@ public class ToolOrchestrator {
 
             case "list_methods":
             case "get_full_code":
+            case "get_class_outline":
             case "read_method":
             case "search_in_code":
                 String javaName = args.optString("javaName", fragment.projectFile.getJavaName());
@@ -315,7 +316,12 @@ public class ToolOrchestrator {
                 );
                 if ("list_methods".equals(name)) {
                     return SourceCodeAide.listMethods(source).toString();
-                } else if ("get_full_code".equals(name)) {
+                } else if ("get_class_outline".equals(name) || "get_full_code".equals(name)) {
+                    if (source == null) return "Source not found.";
+                    String[] lines = source.split("\n");
+                    if (lines.length > 100 || "get_class_outline".equals(name)) {
+                        return SourceCodeAide.getClassOutline(source).toString();
+                    }
                     return source;
                 } else if ("search_in_code".equals(name)) {
                     return SourceCodeAide.findSnippet(source, args.getString("query"), args.optInt("contextLines", 2)).toString();

@@ -146,6 +146,94 @@ public class SourceCodeAide {
         } catch (Exception ignored) {}
         return result;
     }
+
+    /**
+     * Generates a lightweight class outline (class declaration, fields, method signatures with line numbers)
+     * to prevent context window bloat when analyzing large source files.
+     */
+    public static JSONObject getClassOutline(String source) {
+        JSONObject result = new JSONObject();
+        if (source == null) return result;
+        String[] lines = source.split("\n");
+        JSONArray fieldsArray = new JSONArray();
+        JSONArray methodsArray = new JSONArray();
+        
+        String pkg = "";
+        String classDecl = "";
+        int importCount = 0;
+
+        Pattern pkgPattern = Pattern.compile("^\\s*package\\s+([\\w.]+);");
+        Pattern importPattern = Pattern.compile("^\\s*import\\s+");
+        Pattern classPattern = Pattern.compile("^\\s*(public|protected|private)?\\s*(abstract|final)?\\s*class\\s+([\\w$]+)");
+        Pattern methodPattern = Pattern.compile("^\\s*(public|protected|private|static|final|synchronized|\\s)*\\s+([\\w<>\\[\\]]+)\\s+([\\w$]+)\\s*\\(([^)]*)\\)\\s*(throws\\s+[\\w.,\\s]+)?\\s*\\{?");
+        Pattern fieldPattern = Pattern.compile("^\\s*(public|protected|private|static|final|transient|volatile|\\s)*\\s+([\\w<>\\[\\]]+)\\s+([\\w$]+)\\s*(=|;)");
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            
+            if (pkg.isEmpty()) {
+                Matcher m = pkgPattern.matcher(line);
+                if (m.find()) {
+                    pkg = m.group(1);
+                    continue;
+                }
+            }
+            if (importPattern.matcher(line).find()) {
+                importCount++;
+                continue;
+            }
+            if (classDecl.isEmpty()) {
+                Matcher m = classPattern.matcher(line);
+                if (m.find()) {
+                    classDecl = line.trim();
+                    continue;
+                }
+            }
+            
+            Matcher mm = methodPattern.matcher(line);
+            if (mm.find()) {
+                String methodName = mm.group(3);
+                String returnType = mm.group(2);
+                if (!"if".equals(methodName) && !"for".equals(methodName) && !"while".equals(methodName) && !"switch".equals(methodName) && !"catch".equals(methodName)) {
+                    try {
+                        JSONObject mObj = new JSONObject();
+                        mObj.put("name", methodName);
+                        mObj.put("returnType", returnType);
+                        mObj.put("line", i);
+                        mObj.put("signature", line.trim());
+                        methodsArray.put(mObj);
+                    } catch (Exception ignored) {}
+                    continue;
+                }
+            }
+
+            Matcher fm = fieldPattern.matcher(line);
+            if (fm.find()) {
+                String fieldName = fm.group(3);
+                if (!"return".equals(fieldName) && !"new".equals(fieldName)) {
+                    try {
+                        JSONObject fObj = new JSONObject();
+                        fObj.put("name", fieldName);
+                        fObj.put("line", i);
+                        fObj.put("declaration", line.trim());
+                        fieldsArray.put(fObj);
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        try {
+            result.put("status", "success");
+            result.put("package", pkg);
+            result.put("classDeclaration", classDecl);
+            result.put("importCount", importCount);
+            result.put("totalLines", lines.length);
+            result.put("fields", fieldsArray);
+            result.put("methods", methodsArray);
+        } catch (Exception ignored) {}
+
+        return result;
+    }
     public static JSONObject getLineRange(String source, int startLine, int endLine) {
         JSONObject result = new JSONObject();
         String[] lines = source.split("\n");
