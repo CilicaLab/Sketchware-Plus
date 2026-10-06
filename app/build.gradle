@@ -138,6 +138,7 @@ dependencies {
     implementation 'androidx.exifinterface:exifinterface:1.4.1'
     implementation "androidx.preference:preference:1.2.1"
 
+
     def editorGroupId = "io.github.Rosemoe.sora-editor"
     implementation platform("$editorGroupId:bom:0.23.6")
     implementation "$editorGroupId:editor"

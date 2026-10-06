@@ -1366,6 +1366,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         }
 
         public void onServiceConnected(BuildService service) {
+            if (service == null) return;
             isServiceAttached = true;
             service.setReceiver(this);
             service.setResultListener(this);

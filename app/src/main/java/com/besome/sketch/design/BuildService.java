@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.graphics.BitmapFactory;
 import android.os.Binder;
 import android.os.Build;
@@ -16,6 +17,7 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,7 +51,7 @@ public class BuildService extends Service implements BuildProgressReceiver {
     private static final String CHANNEL_ID = "build_service_channel";
     private static final int NOTIFICATION_ID = 500;
 
-    private final IBinder binder = new LocalBinder();
+    private final IBinder binder = new LocalBinder(this);
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private Future<?> currentTask;
     private NotificationManager notificationManager;
@@ -67,9 +69,15 @@ public class BuildService extends Service implements BuildProgressReceiver {
         void onMissingFile(MissingFileException e);
     }
 
-    public class LocalBinder extends Binder {
-        BuildService getService() {
-            return BuildService.this;
+    public static class LocalBinder extends Binder {
+        private final WeakReference<BuildService> serviceRef;
+
+        public LocalBinder(BuildService service) {
+            this.serviceRef = new WeakReference<>(service);
+        }
+
+        public BuildService getService() {
+            return serviceRef.get();
         }
     }
 
@@ -91,6 +99,23 @@ public class BuildService extends Service implements BuildProgressReceiver {
     @Override
     public IBinder onBind(Intent intent) {
         return binder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        activityReceiver = null;
+        resultListener = null;
+        return super.onUnbind(intent);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        activityReceiver = null;
+        resultListener = null;
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
     }
 
     public void setReceiver(BuildProgressReceiver receiver) {
@@ -117,7 +142,7 @@ public class BuildService extends Service implements BuildProgressReceiver {
         isStopping = false;
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, createNotification("Starting build...", 0, 20), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            startForeground(NOTIFICATION_ID, createNotification("Starting build...", 0, 20), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
             startForeground(NOTIFICATION_ID, createNotification("Starting build...", 0, 20));
         }
