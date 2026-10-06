@@ -125,6 +125,7 @@ import mod.hey.studios.moreblock.ReturnMoreblockManager;
 import mod.hey.studios.moreblock.importer.MoreblockImporterDialog;
 import mod.hey.studios.project.ProjectSettings;
 import mod.hey.studios.util.Helper;
+import mod.hilal.saif.asd.AsdCodeEditorActivity;
 import mod.hilal.saif.asd.AsdDialog;
 import mod.jbk.editor.manage.MoreblockImporter;
 import mod.jbk.util.BlockUtil;
@@ -168,6 +169,27 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
             paletteSelector.performClickPalette(-1);
         }
     });
+
+    private Ss currentEditingSs;
+    private final ActivityResultLauncher<Intent> openAsdCodeEditor = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String newContent = result.getData().getStringExtra("content");
+                    if (currentEditingSs != null && newContent != null) {
+                        a(currentEditingSs, newContent);
+                    }
+                }
+            }
+    );
+
+    public void startAsdCodeEditor(Ss ss, String initialContent) {
+        currentEditingSs = ss;
+        Intent intent = new Intent(this, AsdCodeEditorActivity.class);
+        intent.putExtra("content", initialContent);
+        intent.putExtra("title", "Add Source Directly");
+        openAsdCodeEditor.launch(intent);
+    }
     private Rs w;
     private float posInitY, posInitX, s, t;
     private int minDist, S, x, y;
@@ -1622,11 +1644,7 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
 
         dialog.setView(customView);
         dialog.setNeutralButton("Code Editor", (v, which) -> {
-            AsdDialog editor = new AsdDialog(this);
-            editor.setContent(ss.getArgValue().toString());
-            editor.show();
-            editor.setOnSaveClickListener(this, false, ss, editor);
-            editor.setOnCancelClickListener(editor);
+            startAsdCodeEditor(ss, ss.getArgValue().toString());
             v.dismiss();
         });
         dialog.setPositiveButton(R.string.common_word_select, (v, which) -> {

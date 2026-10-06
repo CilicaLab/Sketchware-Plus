@@ -39,7 +39,6 @@ import dev.pranav.filepicker.FilePickerOptions;
 import dev.pranav.filepicker.SelectionMode;
 import mod.hey.studios.util.Helper;
 import mod.hilal.saif.activities.tools.ConfigActivity;
-import mod.hilal.saif.asd.AsdDialog;
 import sketchware.plus.R;
 import sketchware.plus.activities.resourceseditor.components.utils.StringsEditorManager;
 import sketchware.plus.lib.base.BaseTextWatcher;
@@ -114,11 +113,7 @@ public class ExtraMenuBean {
     }
 
     private void codeMenu(Ss menu) {
-        AsdDialog asdDialog = new AsdDialog(logicEditor);
-        asdDialog.setContent(menu.getArgValue().toString());
-        asdDialog.show();
-        asdDialog.setOnSaveClickListener(logicEditor, false, menu, asdDialog);
-        asdDialog.setOnCancelClickListener(asdDialog);
+        logicEditor.startAsdCodeEditor(menu, menu.getArgValue().toString());
     }
 
     public void defineMenuSelector(Ss ss) {
@@ -711,11 +706,7 @@ public class ExtraMenuBean {
         });
         dialog.setNegativeButton(Helper.getResString(R.string.common_word_cancel), null);
         dialog.setNeutralButton("Code Editor", (v, which) -> {
-            AsdDialog editor = new AsdDialog(logicEditor);
-            editor.setContent(menu.getArgValue().toString());
-            editor.show();
-            editor.setOnSaveClickListener(logicEditor, false, menu, editor);
-            editor.setOnCancelClickListener(editor);
+            logicEditor.startAsdCodeEditor(menu, menu.getArgValue().toString());
             v.dismiss();
         });
         dialog.show();
@@ -759,11 +750,7 @@ public class ExtraMenuBean {
         });
         dialog.setNegativeButton(Helper.getResString(R.string.common_word_cancel), null);
         dialog.setNeutralButton("Code Editor", (v, which) -> {
-            AsdDialog asdDialog = new AsdDialog(logicEditor);
-            asdDialog.setContent(Helper.getText(edittext));
-            asdDialog.show();
-            asdDialog.setOnSaveClickListener(logicEditor, false, ss, asdDialog);
-            asdDialog.setOnCancelClickListener(asdDialog);
+            logicEditor.startAsdCodeEditor(ss, Helper.getText(edittext));
             v.dismiss();
         });
         dialog.show();
