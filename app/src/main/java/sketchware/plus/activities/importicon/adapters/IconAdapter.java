@@ -46,6 +46,14 @@ public class IconAdapter extends RecyclerView.Adapter<IconAdapter.ViewHolder> {
         notifyDataSetChanged();
     }
 
+    public void addItems(List<Pair<String, String>> newItems) {
+        if (newItems != null && !newItems.isEmpty()) {
+            int startPosition = items.size();
+            items.addAll(newItems);
+            notifyItemRangeInserted(startPosition, newItems.size());
+        }
+    }
+
     public Pair<String, String> getItem(int position) {
         if (position >= 0 && position < items.size()) {
             return items.get(position);

@@ -149,6 +149,8 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         alreadyAddedImageNames = getIntent().getStringArrayListExtra("imageNames");
 
         binding.imageList.setLayoutManager(new GridLayoutManager(getBaseContext(), getGridLayoutColumnCount()));
+        binding.imageList.setHasFixedSize(true);
+        binding.imageList.setItemViewCacheSize(20);
         adapter = new IconAdapter(this, selected_icon_type, selected_color, this);
         binding.imageList.setAdapter(adapter);
         k();
@@ -259,7 +261,11 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         if (start < end) {
             List<Pair<String, String>> newItems = allIconPaths.subList(start, end);
             icons.addAll(newItems);
-            adapter.setItems(new ArrayList<>(icons));
+            if (start == 0) {
+                adapter.setItems(new ArrayList<>(icons));
+            } else {
+                adapter.addItems(newItems);
+            }
             currentPage++;
         } else {
             // No more items to load

@@ -21,18 +21,26 @@ import java.nio.file.Paths
 const val SIZE_MULTIPLIER = 2
 
 class SvgUtils(private val context: Context) {
-    private var imageLoader: ImageLoader? = null
+    companion object {
+        @Volatile
+        private var instance: ImageLoader? = null
 
-    init {
-        initImageLoader()
+        fun getImageLoader(context: Context): ImageLoader {
+            return instance ?: synchronized(this) {
+                instance ?: ImageLoader.Builder(context.applicationContext)
+                    .components {
+                        add(SvgDecoder.Factory())
+                    }
+                    .build()
+                    .also { instance = it }
+            }
+        }
     }
 
+    private val imageLoader: ImageLoader = getImageLoader(context)
+
     fun initImageLoader() {
-        imageLoader = ImageLoader.Builder(context)
-            .components {
-                add(SvgDecoder.Factory())
-            }
-            .build()
+        // Shared ImageLoader is initialized lazily via companion object
     }
 
 
@@ -44,7 +52,7 @@ class SvgUtils(private val context: Context) {
                 .target(imageView)
                 .build()
 
-            imageLoader!!.enqueue(request)
+            imageLoader.enqueue(request)
         }
     }
 
@@ -57,7 +65,7 @@ class SvgUtils(private val context: Context) {
                 .target(imageView)
                 .build()
 
-            imageLoader!!.enqueue(request)
+            imageLoader.enqueue(request)
         }
     }
 
@@ -70,7 +78,7 @@ class SvgUtils(private val context: Context) {
                     view.background = drawable
                 }
                 .build()
-            imageLoader!!.enqueue(request)
+            imageLoader.enqueue(request)
         }
     }
 
@@ -84,7 +92,7 @@ class SvgUtils(private val context: Context) {
             .target(imageView)
             .build()
 
-        imageLoader!!.enqueue(request)
+        imageLoader.enqueue(request)
     }
 
     fun loadWithoutQueue(imageView: ImageView, filePath: String) {
