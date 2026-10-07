@@ -2,8 +2,13 @@ package sketchware.plus.ai;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -11,6 +16,7 @@ import java.util.regex.Pattern;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * A utility class enabling the SK Assistant to search the web and browse URLs.
@@ -18,6 +24,8 @@ import okhttp3.Response;
  * to prevent feeding unnecessary or bloated information into the AI context.
  */
 public class WebSearchAide {
+
+    private static final int MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2 MB size cap to prevent OOM
 
     private static final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -47,7 +55,7 @@ public class WebSearchAide {
                     return result;
                 }
 
-                String html = response.body().string();
+                String html = readBoundedResponseBody(response, MAX_RESPONSE_BYTES);
                 
                 // Regex patterns to parse DuckDuckGo HTML results safely without heavy external parser libraries
                 Pattern resultPattern = Pattern.compile("<div class=\"result__body\">([\r\n\\s\\S]*?)</div\\s*>\\s*</div\\s*>");
@@ -114,7 +122,7 @@ public class WebSearchAide {
                     return result;
                 }
 
-                String rawHtml = response.body().string();
+                String rawHtml = readBoundedResponseBody(response, MAX_RESPONSE_BYTES);
                 
                 // Extract Title
                 String title = "";
@@ -190,5 +198,37 @@ public class WebSearchAide {
                          .replaceAll("&nbsp;", " ");
         // Strip tags
         return txt.replaceAll("<[^>]*>", "");
+    }
+
+    /**
+     * Reads a ResponseBody up to maxBytes to avoid OutOfMemoryError on large web pages.
+     */
+    private static String readBoundedResponseBody(Response response, int maxBytes) throws IOException {
+        ResponseBody body = response.body();
+        if (body == null) return "";
+
+        long contentLength = body.contentLength();
+        if (contentLength > 10 * 1024 * 1024) { // Reject early if Content-Length header is > 10MB
+            throw new IOException("Response body size exceeds maximum limit (" + contentLength + " bytes)");
+        }
+
+        try (InputStream in = body.byteStream();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            int totalRead = 0;
+            while ((bytesRead = in.read(buffer, 0, Math.min(buffer.length, maxBytes - totalRead))) != -1) {
+                out.write(buffer, 0, bytesRead);
+                totalRead += bytesRead;
+                if (totalRead >= maxBytes) {
+                    break;
+                }
+            }
+            Charset charset = StandardCharsets.UTF_8;
+            if (body.contentType() != null && body.contentType().charset() != null) {
+                charset = body.contentType().charset();
+            }
+            return out.toString(charset.name());
+        }
     }
 }

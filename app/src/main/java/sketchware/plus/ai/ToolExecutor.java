@@ -1,21 +1,19 @@
 package sketchware.plus.ai;
 
-import android.os.Handler;
-import android.os.Looper;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Optimized tool execution with parallel read operations, result caching, and adaptive rate limiting.
@@ -29,19 +27,18 @@ import java.util.concurrent.TimeUnit;
 public class ToolExecutor {
     
     private final ExecutorService parallelExecutor = Executors.newFixedThreadPool(4);
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ToolOrchestrator orchestrator;
     
     private static final int BASE_DELAY_MS = 300;
     private static final int API_DELAY_MS = 1400;
     private static final int TIMEOUT_SECONDS = 30;
     
-    // Cache for read-only tool results
-    private final Map<String, CachedResult> resultCache = new HashMap<>();
+    // Cache for read-only tool results (ConcurrentHashMap for thread safety)
+    private final Map<String, CachedResult> resultCache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MS = 35000;  // 35 seconds
     
-    private int totalCacheHits = 0;
-    private int totalToolCalls = 0;
+    private final AtomicInteger totalCacheHits = new AtomicInteger(0);
+    private final AtomicInteger totalToolCalls = new AtomicInteger(0);
     
     public ToolExecutor(ToolOrchestrator orchestrator) {
         this.orchestrator = orchestrator;
@@ -172,7 +169,7 @@ public class ToolExecutor {
             
             if (cached != null && !cached.isExpired()) {
                 long executionTime = System.currentTimeMillis() - startTime;
-                totalCacheHits++;
+                totalCacheHits.incrementAndGet();
                 return new ToolResult(
                     info.toolName,
                     cached.content,
@@ -188,7 +185,7 @@ public class ToolExecutor {
         String result = orchestrator.dispatchTool(info.toolName, info.args);
         
         long executionTime = System.currentTimeMillis() - startTime;
-        totalToolCalls++;
+        totalToolCalls.incrementAndGet();
         
         // Cache read-only results, or clear cache on write tool execution
         if (isReadOnlyTool(info.toolName)) {
@@ -287,15 +284,15 @@ public class ToolExecutor {
      */
     public void clearCache() {
         resultCache.clear();
-        totalCacheHits = 0;
-        totalToolCalls = 0;
+        totalCacheHits.set(0);
+        totalToolCalls.set(0);
     }
     
     /**
      * Get cache statistics.
      */
     public CacheStats getCacheStats() {
-        return new CacheStats(totalToolCalls, totalCacheHits, resultCache.size());
+        return new CacheStats(totalToolCalls.get(), totalCacheHits.get(), resultCache.size());
     }
     
     /**

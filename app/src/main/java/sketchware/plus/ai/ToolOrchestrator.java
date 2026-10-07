@@ -82,8 +82,51 @@ public class ToolOrchestrator {
         if (isCanceled) return;
         
         if (iterationCount >= MAX_ITERATIONS) {
-            fragment.addSystemMessage("maxed out reasoning limit. Adjust your request or reply to proceed.");
-            fragment.setStatus(null);
+            fragment.setStatus("Reasoning limit reached (10 iterations). Summarizing progress...");
+
+            // Prepare history for summary generation by appending a summary request prompt
+            JSONArray summaryHistory = new JSONArray();
+            for (int i = 0; i < chatHistory.length(); i++) {
+                try {
+                    summaryHistory.put(chatHistory.getJSONObject(i));
+                } catch (JSONException ignored) {}
+            }
+
+            try {
+                JSONObject summaryPrompt = new JSONObject();
+                summaryPrompt.put("role", "user");
+                summaryPrompt.put("content", "Reasoning limit reached (10/10 iterations). Summarize concisely everything that has been accomplished so far, including files, layouts, or settings modified, and what remains to be done. Do NOT attempt to call any tools.");
+                summaryHistory.put(summaryPrompt);
+            } catch (JSONException ignored) {}
+
+            String summarySystemPrompt = baseSystemPrompt != null ? baseSystemPrompt : buildBaseSystemPrompt();
+            summarySystemPrompt += "\n\nIMPORTANT: You have reached the maximum reasoning iteration limit. Summarize all accomplishments and changes made so far. Do NOT call any tools.";
+
+            // Execute a final summary call with tools = null so the LLM responds with a text summary
+            AiClient.askAi(context, summarySystemPrompt, summaryHistory, AiClient.AiTemperatureType.ASSISTANT_MODE, null, new AiClient.AiCallback() {
+                @Override
+                public void onSuccess(String response, int promptTokens, int completionTokens, int totalTokens) {
+                    executionMetrics.recordApiCall(promptTokens, completionTokens, totalTokens);
+                    mainHandler.post(() -> {
+                        fragment.updateTokenUsage(promptTokens, completionTokens, totalTokens);
+                        fragment.addSystemMessage(" Reasoning limit reached (10/10 iterations).\n\nSummary of accomplishments:\n" + response);
+                        fragment.setStatus(null);
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    mainHandler.post(() -> {
+                        fragment.setStatus(null);
+                        fragment.addSystemMessage(" Reasoning limit reached (10/10 iterations).\n" + executionMetrics.summary());
+                    });
+                }
+
+                @Override
+                public void onSuccess(String response) {
+                    onSuccess(response, 0, 0, 0);
+                }
+            });
             return;
         }
 
