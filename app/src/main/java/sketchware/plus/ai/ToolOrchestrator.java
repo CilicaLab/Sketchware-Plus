@@ -289,12 +289,16 @@ public class ToolOrchestrator {
                 return SketchwareXmlBridge.getRawXml(context, fragment.scId, fragment.projectFile);
 
             case "apply_layout_xml":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
                 String xml = args.getString("xml");
                 String summary = args.optString("summary", "Modified layout");
                 boolean success = SketchwareXmlBridge.applyAiXmlToSketchware(context, fragment.scId, fragment.projectFile.getXmlName(), xml);
                 return success ? "Success: " + summary : "Error: Failed to apply XML. Check syntax.";
 
             case "inject_imports":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
                 JSONArray pkgs = args.getJSONArray("packages");
                 String targetJavaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
                 String[] pArray = new String[pkgs.length()];
@@ -330,6 +334,8 @@ public class ToolOrchestrator {
                 }
 
             case "add_java_patch":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
                 JSONObject patch = SourceCodeAide.addJavaCommandToManager(
                     context, fragment.scId, args.getString("javaName"),
                     args.getString("reference"), args.optInt("distance", 0),
@@ -339,6 +345,8 @@ public class ToolOrchestrator {
                 return patch.toString();
 
             case "manage_local_library":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
                 String libName = args.getString("libraryName");
                 boolean libEnabled = args.getBoolean("enabled");
                 mainHandler.post(() -> {
@@ -348,11 +356,15 @@ public class ToolOrchestrator {
                 return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' sent.";
 
             case "add_permission":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
                 String perm = args.getString("permission");
                 mainHandler.post(() -> fragment.manifestSpecialist.applyPermission(perm));
                 return "Permission " + perm + " added successfully.";
 
             case "add_component":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
                 int typeId = args.getInt("type");
                 String compId = args.getString("id");
                 mainHandler.post(() -> fragment.componentSpecialist.applyAddComponent(typeId, compId));

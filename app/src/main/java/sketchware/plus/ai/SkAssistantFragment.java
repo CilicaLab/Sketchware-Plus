@@ -157,6 +157,8 @@ public class SkAssistantFragment extends Fragment {
     public ManifestSpecialist manifestSpecialist;
     public ChatSpecialist chatSpecialist;
     private ToolOrchestrator toolOrchestrator;
+    private ModelFetchManager modelFetchManager;
+    private XmlParsingHelper xmlParsingHelper;
 
     public static SkAssistantFragment newInstance(String scId, ProjectFileBean projectFile) {
         SkAssistantFragment fragment = new SkAssistantFragment();
@@ -193,6 +195,8 @@ public class SkAssistantFragment extends Fragment {
         manifestSpecialist = new ManifestSpecialist(this);
         chatSpecialist = new ChatSpecialist(this);
         toolOrchestrator = new ToolOrchestrator(this);
+        modelFetchManager = new ModelFetchManager(this);
+        xmlParsingHelper = new XmlParsingHelper(this, layoutSpecialist);
     }
 
     private void initializeSession() {
@@ -289,7 +293,7 @@ public class SkAssistantFragment extends Fragment {
 
                 if (isFetchable) {
                     HapticManager.vibrateRun(v);
-                    showQuickModelSelectorDialog();
+                    modelFetchManager.showQuickModelSelectorDialog();
                 }
             });
         }
@@ -576,360 +580,6 @@ public class SkAssistantFragment extends Fragment {
         }
     }
 
-    private void showQuickModelSelectorDialog() {
-        if (getContext() == null) return;
-        SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
-        String apiKey = aiPref.getString("P12I3", "");
-        String provider = aiPref.getString("P12_PROVIDER", "custom");
-
-        if (apiKey.isEmpty()) {
-            Toast.makeText(getContext(), "Please set your AI API Key in System Settings first", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        boolean isGoogle = "google".equalsIgnoreCase(provider) || apiKey.startsWith("AIzaSy");
-        String title = isGoogle ? "Google AI Model" : "AI Model Selection";
-
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(title)
-                .setItems(new String[]{"Fetch Available Models", "Type Custom Model Name"}, (dialog, which) -> {
-                    if (which == 0) {
-                        if (isGoogle) {
-                            fetchAndPickGoogleModels(apiKey);
-                        } else {
-                            String endpoint = aiPref.getString("P12I4", "");
-                            fetchAndPickCustomModels(apiKey, endpoint);
-                        }
-                    } else {
-                        showCustomModelInputDialog();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void showCustomModelInputDialog() {
-        if (getContext() == null) return;
-        SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
-        String currentModel = aiPref.getString("P12I5", "");
-
-        var binding = DialogCreateNewFileLayoutBinding.inflate(getLayoutInflater());
-        binding.chipGroupTypes.setVisibility(View.GONE);
-        binding.textInputLayout.setHint("AI Model Name");
-        binding.inputText.setText(currentModel);
-
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Enter AI Model Name")
-                .setView(binding.getRoot())
-                .setPositiveButton("Save", (dialog, which) -> {
-                    if (binding.inputText.getText() != null) {
-                        String newModel = binding.inputText.getText().toString().trim();
-                        aiPref.edit().putString("P12I5", newModel).apply();
-                        updateCurrentModelBadge();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void fetchAndPickGoogleModels(String apiKey) {
-        if (getContext() == null) return;
-        ProgressDialog progressDialog = new ProgressDialog(requireContext());
-        progressDialog.setMessage("Fetching available Gemini models...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
-
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
-
-        Request request = new Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/openai/models")
-                .addHeader("Authorization", "Bearer " + apiKey)
-                .get()
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
-            }
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) {
-                if (!response.isSuccessful() || response.body() == null) {
-                    fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
-                    return;
-                }
-
-                try {
-                    String responseBody = response.body().string();
-                    JSONObject json = new JSONObject(responseBody);
-                    JSONArray data = json.optJSONArray("data");
-
-                    List<String> models = new ArrayList<>();
-                    if (data != null) {
-                        for (int i = 0; i < data.length(); i++) {
-                            JSONObject modelObj = data.getJSONObject(i);
-                            String id = modelObj.optString("id");
-                            if (id.contains("gemini")) {
-                                models.add(id);
-                            }
-                        }
-                    }
-
-                    if (models.isEmpty()) {
-                        fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
-                        return;
-                    }
-
-                    Collections.sort(models);
-                    if (isAdded()) {
-                        requireActivity().runOnUiThread(() -> {
-                            progressDialog.dismiss();
-                            showModelPickerDialog(models);
-                        });
-                    }
-                } catch (Exception e) {
-                    fetchAndPickGoogleModelsFallback(apiKey, progressDialog);
-                }
-            }
-        });
-    }
-
-    private void fetchAndPickGoogleModelsFallback(String apiKey, ProgressDialog progressDialog) {
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
-
-        Request request = new Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey)
-                .get()
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                if (isAdded()) {
-                    requireActivity().runOnUiThread(() -> {
-                        progressDialog.dismiss();
-                        Toast.makeText(requireContext(), "Failed to fetch models: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    });
-                }
-            }
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) {
-                try {
-                    if (response.body() == null) {
-                        if (isAdded()) {
-                            requireActivity().runOnUiThread(() -> {
-                                progressDialog.dismiss();
-                                Toast.makeText(requireContext(), "Empty response from server", Toast.LENGTH_SHORT).show();
-                            });
-                        }
-                        return;
-                    }
-
-                    String responseBody = response.body().string();
-                    if (!response.isSuccessful()) {
-                        String errorMsg = "API request failed (" + response.code() + ")";
-                        try {
-                            JSONObject errorJson = new JSONObject(responseBody);
-                            if (errorJson.has("error")) {
-                                errorMsg = errorJson.getJSONObject("error").optString("message", errorMsg);
-                            }
-                        } catch (Exception ignored) {}
-                        String finalErrorMsg = errorMsg;
-                        if (isAdded()) {
-                            requireActivity().runOnUiThread(() -> {
-                                progressDialog.dismiss();
-                                Toast.makeText(requireContext(), finalErrorMsg, Toast.LENGTH_LONG).show();
-                            });
-                        }
-                        return;
-                    }
-
-                    JSONObject json = new JSONObject(responseBody);
-                    JSONArray modelsArray = json.optJSONArray("models");
-                    List<String> models = new ArrayList<>();
-
-                    if (modelsArray != null) {
-                        for (int i = 0; i < modelsArray.length(); i++) {
-                            JSONObject m = modelsArray.getJSONObject(i);
-                            String name = m.optString("name");
-                            JSONArray methods = m.optJSONArray("supportedGenerationMethods");
-
-                            boolean supportsGenerate = false;
-                            if (methods != null) {
-                                for (int j = 0; j < methods.length(); j++) {
-                                    if ("generateContent".equals(methods.getString(j))) {
-                                        supportsGenerate = true;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (supportsGenerate) {
-                                if (name.startsWith("models/")) {
-                                    name = name.substring(7);
-                                }
-                                models.add(name);
-                            }
-                        }
-                    }
-
-                    Collections.sort(models);
-                    if (isAdded()) {
-                        requireActivity().runOnUiThread(() -> {
-                            progressDialog.dismiss();
-                            if (models.isEmpty()) {
-                                Toast.makeText(requireContext(), "No compatible Gemini models found", Toast.LENGTH_SHORT).show();
-                            } else {
-                                showModelPickerDialog(models);
-                            }
-                        });
-                    }
-                } catch (Exception e) {
-                    if (isAdded()) {
-                        requireActivity().runOnUiThread(() -> {
-                            progressDialog.dismiss();
-                            Toast.makeText(requireContext(), "Error parsing models: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                }
-            }
-        });
-    }
-
-    private void fetchAndPickCustomModels(String apiKey, String endpoint) {
-        if (endpoint.isEmpty()) {
-            Toast.makeText(requireContext(), "Please set your AI Endpoint URL in System Settings first", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        ProgressDialog progressDialog = new ProgressDialog(requireContext());
-        progressDialog.setMessage("Fetching available models...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
-
-        String url = endpoint;
-        if (!url.endsWith("/")) {
-            url += "/";
-        }
-        url += "models";
-
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
-
-        Request.Builder builder = new Request.Builder().url(url).get();
-        if (!apiKey.isEmpty()) {
-            builder.addHeader("Authorization", "Bearer " + apiKey);
-        }
-
-        client.newCall(builder.build()).enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                if (isAdded()) {
-                    requireActivity().runOnUiThread(() -> {
-                        progressDialog.dismiss();
-                        Toast.makeText(requireContext(), "Failed to fetch models: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    });
-                }
-            }
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) {
-                try {
-                    if (response.body() == null) {
-                        if (isAdded()) {
-                            requireActivity().runOnUiThread(() -> {
-                                progressDialog.dismiss();
-                                Toast.makeText(requireContext(), "Empty response from server", Toast.LENGTH_SHORT).show();
-                            });
-                        }
-                        return;
-                    }
-
-                    String body = response.body().string();
-                    if (!response.isSuccessful()) {
-                        if (isAdded()) {
-                            requireActivity().runOnUiThread(() -> {
-                                progressDialog.dismiss();
-                                Toast.makeText(requireContext(), "Failed to fetch models: HTTP " + response.code(), Toast.LENGTH_SHORT).show();
-                            });
-                        }
-                        return;
-                    }
-
-                    JSONObject json = new JSONObject(body);
-                    JSONArray data = json.optJSONArray("data");
-
-                    List<String> models = new ArrayList<>();
-                    if (data != null) {
-                        for (int i = 0; i < data.length(); i++) {
-                            JSONObject m = data.getJSONObject(i);
-                            String id = m.optString("id");
-                            if (!id.isEmpty()) {
-                                models.add(id);
-                            }
-                        }
-                    }
-
-                    Collections.sort(models);
-                    if (isAdded()) {
-                        requireActivity().runOnUiThread(() -> {
-                            progressDialog.dismiss();
-                            if (models.isEmpty()) {
-                                Toast.makeText(requireContext(), "No models returned by server", Toast.LENGTH_SHORT).show();
-                            } else {
-                                showModelPickerDialog(models);
-                            }
-                        });
-                    }
-                } catch (Exception e) {
-                    if (isAdded()) {
-                        requireActivity().runOnUiThread(() -> {
-                            progressDialog.dismiss();
-                            Toast.makeText(requireContext(), "Error parsing response: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                }
-            }
-        });
-    }
-
-    private void showModelPickerDialog(List<String> models) {
-        if (models == null || models.isEmpty() || !isAdded()) return;
-
-        String[] items = models.toArray(new String[0]);
-        SharedPreferences aiPref = requireContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
-        String currentModel = aiPref.getString("P12I5", "");
-
-        int checkedItem = -1;
-        for (int i = 0; i < items.length; i++) {
-            if (items[i].equalsIgnoreCase(currentModel)) {
-                checkedItem = i;
-                break;
-            }
-        }
-
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Select AI Model")
-                .setSingleChoiceItems(items, checkedItem, (dialog, which) -> {
-                    String selectedModel = items[which];
-                    aiPref.edit().putString("P12I5", selectedModel).apply();
-                    updateCurrentModelBadge();
-                    dialog.dismiss();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
     public JSONArray getChatHistory() {
         JSONArray chatHistory = new JSONArray();
         int startIndex = Math.max(0, messages.size() - 4);
@@ -1004,7 +654,7 @@ public class SkAssistantFragment extends Fragment {
         appendAssistantMessage(new Message("assistant", content));
     }
 
-    private void appendAssistantMessage(Message msg) {
+    void appendAssistantMessage(Message msg) {
         messages.add(msg);
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
@@ -1019,21 +669,7 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void handleXmlError(String editedXml, String errorMessage, String targetXmlName) {
-        if (retryCount < MAX_RETRIES) {
-            retryCount++;
-            messages.add(new Message("system", "XML Parse Error. Auto retrying fix (" + retryCount + "/" + MAX_RETRIES + ")..."));
-            adapter.notifyItemInserted(messages.size() - 1);
-            scrollToBottom();
-            autoFixXml(editedXml, errorMessage, targetXmlName);
-        } else {
-            retryCount = 0;
-            new MaterialAlertDialogBuilder(getContext())
-                    .setTitle("Parse Error")
-                    .setMessage(errorMessage)
-                    .setPositiveButton("Fix", (d, w) -> layoutSpecialist.applyXml(editedXml, targetXmlName))
-                    .setNegativeButton("Close", null)
-                    .show();
-        }
+        xmlParsingHelper.handleXmlError(editedXml, errorMessage, targetXmlName);
     }
 
     public void handleAiResponse(String response, String categoryFallback) {
@@ -1386,50 +1022,23 @@ public class SkAssistantFragment extends Fragment {
     }
 
 
-    private void autoFixXml(String failedXml, String errorMessage, String targetXmlName) {
-        String systemPrompt = "The user provided XML that failed to parse. FIX the XML so it parses correctly. " + getXmlRules();
-        String userPrompt = "Failed XML:\n" + failedXml + "\n\nError Message: " + errorMessage + "\n\nPlease provide the corrected XML.";
 
-        Context context = getContext();
-        if (context == null) return;
-        
-        AiClient.askAi(context, systemPrompt, userPrompt, AiClient.AiTemperatureType.CODE_GENERATION, new AiClient.AiCallback() {
-            @Override
-            public void onSuccess(String response) {
-                if (isRequestCanceled) return;
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        appendAssistantMessage(new Message("assistant", response, targetXmlName));
-                    });
-                }
-            }
 
-            @Override
-            public void onError(String error) {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        if (!"Canceled".equals(error)) {
-                            log("Auto-fix ERROR: " + error);
-                            messages.add(new Message("system", "Auto-fix failed: " + error));
-                            adapter.notifyItemInserted(messages.size() - 1);
-                            scrollToBottom();
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onRetry(int retryCount, long delayMillis) {
-                setStatus("Auto-fixing layout... rate limit hit, retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s...");
-            }
-        });
-    }
-
-    private String getXmlRules() {
+    String getXmlRules() {
         return "Rules for Sketchware plus XML:\n" +
                 "- Match the structure of Sketchware's generated XML exactly. Match the property style exactly.\n" +
                 "- you can use standard Android Studio XML conventions .\n" +
                 "- Provide the FULL XML layout code when suggesting changes.";
+    }
+
+    boolean isRequestCanceled() {
+        return isRequestCanceled;
+    }
+
+    void appendSystemMessage(String text) {
+        messages.add(new Message("system", text));
+        adapter.notifyItemInserted(messages.size() - 1);
+        scrollToBottom();
     }
 
 

@@ -159,7 +159,6 @@ public class ViewBeanParser {
         ArrayList<ViewBean> beans = new ArrayList<>();
         Map<String, Map<String, String>> beansAttributes = new HashMap<>();
         Stack<ViewBean> viewStack = new Stack<>();
-        int index = 0;
         boolean isRootSkipped = !skipRoot;
 
         while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
@@ -220,7 +219,6 @@ public class ViewBeanParser {
                             bean.parent.equals("root")
                                     ? parentType
                                     : parent.type;
-                    bean.index = index;
                     Map<String, String> attributes = new LinkedHashMap<>();
                     for (int i = 0; i < parser.getAttributeCount(); i++) {
                         if (!parser.getAttributeName(i).startsWith("xmlns")) {
@@ -231,7 +229,6 @@ public class ViewBeanParser {
                     beans.add(bean);
                     ids.add(id);
                     viewStack.push(bean);
-                    index++;
                     break;
                 }
 
@@ -244,6 +241,16 @@ public class ViewBeanParser {
             }
             parser.next();
         }
+
+        Map<String, Integer> parentIndexCounters = new HashMap<>();
+        for (ViewBean bean : beans) {
+            String parentKey = bean.parent != null ? bean.parent : "root";
+            Integer currentIdxObj = parentIndexCounters.get(parentKey);
+            int currentIdx = currentIdxObj != null ? currentIdxObj : 0;
+            bean.index = currentIdx;
+            parentIndexCounters.put(parentKey, currentIdx + 1);
+        }
+
         for (ViewBean bean : beans) {
             var attr = beansAttributes.getOrDefault(bean.id, null);
             if (attr != null) {
