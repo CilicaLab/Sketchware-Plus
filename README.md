@@ -39,9 +39,14 @@ Sketchware Plus integrates an advanced AI assistant to streamline the developmen
 | `a.a.a.Jx` | Java source code generator for Activities |
 | `a.a.a.Lx` | Component and event listener logic generator |
 | `a.a.a.Ox` | Layout XML generator and manager |
-| `sketchware.plus.ai.AiClient` | JNI interface for AI backend communication |
-| `sketchware.plus.ai.SkAssistantFragment` | Primary UI and logic for the SK Assistant |
-| `sketchware.plus.ai.SketchwareXmlBridge` | Synchronizes AI-driven changes with the layout engine |
+| `sketchware.plus.ai.AiClient` | Network client and JNI interface for AI backend communication |
+| `sketchware.plus.ai.SkAssistantFragment` | Primary UI and chat interface for SK Assistant |
+| `sketchware.plus.ai.ToolOrchestrator` | Autonomous agent engine managing the thought-action execution loop |
+| `sketchware.plus.ai.ToolExecutor` | Executes tool calls with parallel read caching and sequential write execution |
+| `sketchware.plus.ai.LogicIrBridge` | Bidirectional IR translator between Sketchware blocks and Java code |
+| `sketchware.plus.ai.SketchwareXmlBridge` | Synchronizes AI-driven changes with the layout XML engine |
+| `sketchware.plus.ai.SketchwareManifestBridge` | Generates and manages AI manifest injections |
+| `sketchware.plus.ai.specialists.*` | Domain-specific handlers for code, layouts, manifests, and libraries |
 
 > [!TIP]
 > For a full breakdown of parameter specifiers, component inventories, and code generation mappings, see the [Blocks Analysis Guide](app/src/main/assets/Blocks_Analysis.md).
