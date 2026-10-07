@@ -2146,10 +2146,12 @@ Please try again later"</string>
     <string-array name="ai_provider_entries">
         <item>Custom (OpenAI Compatible)</item>
         <item>Google AI (Gemini)</item>
+        <item>Groq</item>
     </string-array>
     <string-array name="ai_provider_values">
         <item>custom</item>
         <item>google</item>
+        <item>groq</item>
     </string-array>
     <string name="system_settings_title_automatically_save">Automatically save</string>
     <string name="system_settings_title_setting_vibration">Setting vibration</string>

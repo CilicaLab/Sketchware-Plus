@@ -32,13 +32,9 @@
             app:summary="@string/system_settings_description_ai_markdown"
             app:title="@string/system_settings_title_ai_markdown" />
 
-        <ListPreference
-            app:defaultValue="custom"
-            app:entries="@array/ai_provider_entries"
-            app:entryValues="@array/ai_provider_values"
+        <Preference
             app:iconSpaceReserved="false"
             app:key="P12_PROVIDER"
-            app:useSimpleSummaryProvider="true"
             app:title="@string/system_settings_title_ai_provider" />
 
         <Preference

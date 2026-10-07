@@ -272,7 +272,13 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         String systemPrompt = "You are an expert Android developer specializing in Sketchware Plus. The user is using Sketchware Plus, a mobile IDE, which does not use a traditional Gradle/Groovy build system for its project configuration. Explain the following compilation errors clearly and provide specific instructions on how to fix them within the context of Sketchware (e.g., checking blocks, custom code, or local libraries). Avoid suggestions related to editing build.gradle or standard Android Studio IDE settings.";
         String userPrompt = "Compilation logs:\n" + errorLogs;
 
-        AiClient.askAi(this, systemPrompt, userPrompt, AiClient.AiTemperatureType.ERROR_EXPLANATION, new AiClient.AiCallback() {
+        SharedPreferences prefs = getSharedPreferences("P12", MODE_PRIVATE);
+        String provider = prefs.getString("P12_PROVIDER", "custom");
+        String endpoint = prefs.getString("P12I4", "");
+        boolean isGroq = "groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider) || endpoint.contains("groq.com");
+        String modelOverride = isGroq ? "allam-2-7b" : null;
+
+        AiClient.askAi(this, systemPrompt, userPrompt, AiClient.AiTemperatureType.ERROR_EXPLANATION, null, modelOverride, new AiClient.AiCallback() {
             @Override
             public void onSuccess(String response) {
                 runOnUiThread(() -> {

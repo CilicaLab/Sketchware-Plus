@@ -72,23 +72,24 @@ object AiClient {
         }
         fun onError(error: String)
         fun onRetry(retryCount: Int, delayMillis: Long) {}
+        fun onModelSwitched(newModel: String) {}
     }
 
     @JvmStatic
     @JvmOverloads
-    fun askAi(context: Context, systemPrompt: String, userPrompt: String, temperature: Float, tools: JSONArray? = null, callback: AiCallback) {
-        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), temperature, tools, callback)
+    fun askAi(context: Context, systemPrompt: String, userPrompt: String, temperature: Float, tools: JSONArray? = null, modelOverride: String? = null, callback: AiCallback) {
+        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), temperature, tools, modelOverride, callback)
     }
 
     @JvmStatic
     @JvmOverloads
-    fun askAi(context: Context, systemPrompt: String, userPrompt: String, type: AiTemperatureType, tools: JSONArray? = null, callback: AiCallback) {
-        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), type, tools, callback)
+    fun askAi(context: Context, systemPrompt: String, userPrompt: String, type: AiTemperatureType, tools: JSONArray? = null, modelOverride: String? = null, callback: AiCallback) {
+        askAi(context, systemPrompt, wrapUserPrompt(userPrompt), type, tools, modelOverride, callback)
     }
 
     @JvmStatic
     @JvmOverloads
-    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, type: AiTemperatureType, tools: JSONArray? = null, callback: AiCallback) {
+    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, type: AiTemperatureType, tools: JSONArray? = null, modelOverride: String? = null, callback: AiCallback) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val tempValue = aiPref.all[type.key]
         val temperature = when (tempValue) {
@@ -96,16 +97,16 @@ object AiClient {
             is String -> (tempValue.toIntOrNull() ?: 20) / 100f
             else -> 0.2f
         }
-        askAi(context, systemPrompt, chatHistory, temperature, tools, callback)
+        askAi(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback)
     }
 
     @JvmStatic
     @JvmOverloads
-    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray? = null, callback: AiCallback) {
+    fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray? = null, modelOverride: String? = null, callback: AiCallback) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
-        val model = aiPref.getString(getModelPrefKey(), "") ?: ""
+        val model = if (!modelOverride.isNullOrEmpty()) modelOverride else (aiPref.getString(getModelPrefKey(), "") ?: "")
 
         if (apiKey.isEmpty() || endpoint.isEmpty() || model.isEmpty()) {
             callback.onError("Please set your API Key, Endpoint, and Model Name in System Settings")
@@ -113,10 +114,10 @@ object AiClient {
         }
 
         isCanceledByUser = false
-        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, 0) }
+        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, 0) }
     }
 
-    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, callback: AiCallback, retryCount: Int) {
+    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, modelOverride: String?, callback: AiCallback, retryCount: Int) {
         if (isCanceledByUser) {
             callback.onError("Canceled")
             return
@@ -125,7 +126,7 @@ object AiClient {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
         val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
-        val model = aiPref.getString(getModelPrefKey(), "") ?: ""
+        val model = if (!modelOverride.isNullOrEmpty()) modelOverride else (aiPref.getString(getModelPrefKey(), "") ?: "")
 
         if (apiKey.isEmpty() || endpoint.isEmpty() || model.isEmpty()) {
             callback.onError("Please set your API Key, Endpoint, and Model Name in System Settings")
@@ -182,22 +183,48 @@ object AiClient {
                     val errorBody = response.body?.string() ?: ""
                     val delayMillis = parseRetryAfter(errorBody)
                     
-                    mainHandler.post {
-                        callback.onRetry(retryCount + 1, delayMillis)
-                    }
+                    val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
+                    val isGroq = "groq".equals(provider, ignoreCase = true) || endpoint.contains("groq.com", ignoreCase = true)
 
-                    executor.execute {
-                        try {
-                            var elapsed = 0L
-                            while (elapsed < delayMillis) {
-                                if (isCanceledByUser) return@execute
-                                TimeUnit.MILLISECONDS.sleep(100)
-                                elapsed += 100
-                            }
-                        } catch (ignored: InterruptedException) {
+                    if (isGroq && delayMillis > 10000) {
+                        val currentModel = aiPref.getString(getModelPrefKey(), "") ?: ""
+                        val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
+                        val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
+                        val alternateModel = if (currentIndex != -1) {
+                            groqModels[(currentIndex + 1) % groqModels.size]
+                        } else {
+                            "openai/gpt-oss-120b"
                         }
-                        if (!isCanceledByUser) {
-                            performAiRequest(context, systemPrompt, chatHistory, temperature, tools, callback, retryCount + 1)
+                        aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
+
+                        mainHandler.post {
+                            callback.onModelSwitched(alternateModel)
+                            callback.onRetry(retryCount + 1, 500)
+                        }
+
+                        executor.execute {
+                            if (!isCanceledByUser) {
+                                performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                            }
+                        }
+                    } else {
+                        mainHandler.post {
+                            callback.onRetry(retryCount + 1, delayMillis)
+                        }
+
+                        executor.execute {
+                            try {
+                                var elapsed = 0L
+                                while (elapsed < delayMillis) {
+                                    if (isCanceledByUser) return@execute
+                                    TimeUnit.MILLISECONDS.sleep(100)
+                                    elapsed += 100
+                                }
+                            } catch (ignored: InterruptedException) {
+                            }
+                            if (!isCanceledByUser) {
+                                performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                            }
                         }
                     }
                 } else {

@@ -14,7 +14,6 @@ import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
@@ -124,25 +123,75 @@ public class SystemSettingActivity extends BaseAppCompatActivity {
         }
 
         private void setupAiProviderPreference(String key) {
-            ListPreference pref = findPreference(key);
+            Preference pref = findPreference(key);
             if (pref == null) return;
 
-            pref.setOnPreferenceChangeListener((preference, newValue) -> {
-                String provider = (String) newValue;
+            updateAiProviderSummary(pref);
+
+            pref.setOnPreferenceClickListener(p -> {
                 var sp = getPreferenceManager().getSharedPreferences();
-                if (sp != null) {
-                    if ("google".equalsIgnoreCase(provider)) {
-                        sp.edit()
-                                .putString("P12I4", "https://generativelanguage.googleapis.com/v1beta/openai/")
-                                .apply();
-                        Preference endpointPref = findPreference("P12I4");
-                        if (endpointPref != null) {
-                            updateEditTextSummary(endpointPref);
-                        }
+                String currentProvider = sp != null ? sp.getString("P12_PROVIDER", "custom") : "custom";
+
+                String[] items = new String[] {
+                    "Groq (Recommended)",
+                    "Google AI (Gemini)",
+                    "Custom (OpenAI Compatible)"
+                };
+                String[] values = new String[] { "groq", "google", "custom" };
+
+                int checkedItem = 0;
+                for (int i = 0; i < values.length; i++) {
+                    if (values[i].equalsIgnoreCase(currentProvider)) {
+                        checkedItem = i;
+                        break;
                     }
                 }
+
+                new MaterialAlertDialogBuilder(requireContext())
+                        .setTitle("Select AI Provider")
+                        .setSingleChoiceItems(items, checkedItem, (dialog, which) -> {
+                            String selectedProvider = values[which];
+                            if (sp != null) {
+                                sp.edit().putString("P12_PROVIDER", selectedProvider).apply();
+                                updateAiProviderSummary(pref);
+
+                                if ("google".equalsIgnoreCase(selectedProvider)) {
+                                    sp.edit().putString("P12I4", "https://generativelanguage.googleapis.com/v1beta/openai/").apply();
+                                } else if ("groq".equalsIgnoreCase(selectedProvider) || "grog".equalsIgnoreCase(selectedProvider)) {
+                                    sp.edit().putString("P12I4", "https://api.groq.com/openai/v1").apply();
+                                    String currentModel = sp.getString("P12I5", "");
+                                    if (currentModel.isEmpty()) {
+                                        sp.edit().putString("P12I5", "openai/gpt-oss-20b").apply();
+                                    }
+                                }
+
+                                Preference endpointPref = findPreference("P12I4");
+                                if (endpointPref != null) {
+                                    updateEditTextSummary(endpointPref);
+                                }
+                                Preference modelPref = findPreference("P12I5");
+                                if (modelPref != null) {
+                                    updateEditTextSummary(modelPref);
+                                }
+                            }
+                            dialog.dismiss();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
                 return true;
             });
+        }
+
+        private void updateAiProviderSummary(Preference pref) {
+            if (getPreferenceManager().getSharedPreferences() == null) return;
+            String provider = getPreferenceManager().getSharedPreferences().getString(pref.getKey(), "custom");
+            if ("groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider)) {
+                pref.setSummary("Groq (Recommended)");
+            } else if ("google".equalsIgnoreCase(provider)) {
+                pref.setSummary("Google AI (Gemini)");
+            } else {
+                pref.setSummary("Custom (OpenAI Compatible)");
+            }
         }
 
         private void setupEditTextPreference(String key, String title) {

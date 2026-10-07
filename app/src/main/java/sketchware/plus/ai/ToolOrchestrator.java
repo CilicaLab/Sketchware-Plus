@@ -143,6 +143,14 @@ public class ToolOrchestrator {
             }
 
             @Override
+            public void onModelSwitched(String newModel) {
+                mainHandler.post(() -> {
+                    fragment.updateCurrentModelBadge();
+                    fragment.addSystemMessage("Rate limit reached (>10s). Switched active model to " + newModel);
+                });
+            }
+
+            @Override
             public void onSuccess(String response) {
                 onSuccess(response, 0, 0, 0);
             }
