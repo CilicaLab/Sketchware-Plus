@@ -38,6 +38,15 @@ public class AssistantToolRegistry {
                         .addProperty("summary", "string", "what changed")
                         .setRequired("xml", "summary").build()));
 
+        t.put(createTool("get_manifest_xml", "Get AndroidManifest.xml content or specific section (permissions, components, application_attributes, full)",
+                new ParameterBuilder().addProperty("section", "string", "optional section name: permissions|components|application_attributes|full").build()));
+
+        t.put(createTool("search_manifest", "Search keyword/entry in AndroidManifest.xml",
+                new ParameterBuilder().addProperty("query", "string", "keyword to search").setRequired("query").build()));
+
+        t.put(createTool("apply_manifest_xml", "Apply/inject manifest XML snippet (permissions, activities, services, receivers, application attributes)",
+                new ParameterBuilder().addProperty("xml", "string", "manifest XML snippet").setRequired("xml").build()));
+
         t.put(createTool("inject_imports", "Add imports to current activity",
                 new ParameterBuilder()
                         .addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")

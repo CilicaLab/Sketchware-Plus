@@ -146,7 +146,8 @@ public class ToolOrchestrator {
             public void onModelSwitched(String newModel) {
                 mainHandler.post(() -> {
                     fragment.updateCurrentModelBadge();
-                    fragment.addSystemMessage("Rate limit reached (>10s). Switched active model to " + newModel);
+
+                   /** fragment.addSystemMessage("Rate limit reached (>10s). Switched active model to " + newModel);***/
                 });
             }
 
@@ -158,18 +159,20 @@ public class ToolOrchestrator {
     }
 
     private String buildBaseSystemPrompt() {
-        return "You are the SK Assistant for Sketchware Plus.\n" +
+        return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
-                "1. Gather info first (get_layout_xml, get_class_outline, list_methods, list_project_files, search_project_files, search_in_code, list_available_components).\n" +
-                "2. Only call tools from the provided list. Never invent tools.\n" +
-                "3. Don't web search component IDs. Use list_available_components.\n" +
-                "4. Once you know what to do, call the tool right away.\n" +
-                "5. To patch code: inspect structure with get_class_outline/list_methods, use read_method for the exact anchor, then add_java_patch.\n" +
-                "6. manage_local_library works on LOCAL libs only, using the EXACT folder name (with version) from AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) can't be changed.\n" +
-                "7. No redundant tool calls. Reuse info you already have.\n" +
-                "8. Tool args must be valid JSON.\n" +
-                "9. When done, summarize changes with no tool calls.";
+                "1. Inspect before acting. Use get_layout_xml, get_class_outline, list_methods, " +
+                "list_project_files, search_project_files, search_in_code, list_available_components.\n" +
+                "2. Call only tools from the provided list. Never invent tools.\n" +
+                "3. Never web search component IDs. Use list_available_components.\n" +
+                "4. Once you know the action, call the tool immediately. No narration first.\n" +
+                "5. Patching code: get_class_outline/list_methods -> read_method for the exact anchor -> add_java_patch.\n" +
+                "6. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
+                "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
+                "7. No redundant tool calls. Reuse info already retrieved.\n" +
+                "8. Tool arguments must be valid JSON.\n" +
+                "9. When finished, reply with a brief summary of changes and make no tool calls.";
     }
 
     private String buildMetricsContext() {
@@ -303,6 +306,20 @@ public class ToolOrchestrator {
                 String summary = args.optString("summary", "Modified layout");
                 boolean success = SketchwareXmlBridge.applyAiXmlToSketchware(context, fragment.scId, fragment.projectFile.getXmlName(), xml);
                 return success ? "Success: " + summary : "Error: Failed to apply XML. Check syntax.";
+
+            case "get_manifest_xml":
+                String mSection = args.optString("section", "full");
+                return SketchwareManifestBridge.getManifestSection(context, fragment.scId, mSection);
+
+            case "search_manifest":
+                return SketchwareManifestBridge.searchManifest(context, fragment.scId, args.getString("query"));
+
+            case "apply_manifest_xml":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String mXml = args.getString("xml");
+                boolean mApplied = SketchwareManifestBridge.applyAiManifestToSketchware(context, fragment.scId, mXml);
+                return mApplied ? "Manifest updated successfully." : "No updates made to manifest.";
 
             case "inject_imports":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");

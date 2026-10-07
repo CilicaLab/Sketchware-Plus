@@ -1565,18 +1565,6 @@ public class SkAssistantFragment extends Fragment {
                                 notifyItemChanged(position);
                             });
                         }
-                    } else if (!msg.xmlBlocks.isEmpty() && !msg.wasApplied) {
-                        hasActions = true;
-                        msgHolder.btnApply.setVisibility(View.VISIBLE);
-                        msgHolder.btnApply.setText("Apply Layout");
-                        msgHolder.btnApply.setOnClickListener(v -> {
-                            HapticManager.vibrateRun(v);
-                            if (msg.xmlBlocks.size() == 1) {
-                                fragment.layoutSpecialist.applyXml(msg.xmlBlocks.get(0), msg.targetXmlName);
-                            } else {
-                                fragment.showBlockSelector(msg.xmlBlocks, msg.targetXmlName);
-                            }
-                        });
                     } else if (!msg.actions.isEmpty() && !msg.wasApplied) {
                         hasActions = true;
                         msgHolder.btnApply.setVisibility(View.VISIBLE);
