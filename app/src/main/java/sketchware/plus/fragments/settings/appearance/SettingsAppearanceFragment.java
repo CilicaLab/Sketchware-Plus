@@ -16,6 +16,7 @@ import a.a.a.qA;
 import sketchware.plus.R;
 import sketchware.plus.databinding.FragmentSettingsAppearanceBinding;
 import sketchware.plus.utility.AppIconManager;
+import sketchware.plus.utility.AssistantPatternManager;
 import sketchware.plus.utility.theme.ThemeManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -39,6 +40,7 @@ public class SettingsAppearanceFragment extends qA {
         setupToolbar();
         initializeThemeSettings();
         initializeIconSettings();
+        initializePatternSettings();
         setupClickListeners();
 
         {
@@ -194,6 +196,72 @@ public class SettingsAppearanceFragment extends qA {
         @Override
         public int getItemCount() {
             return AppIconManager.ICON_NAMES.length;
+        }
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            MaterialCardView card;
+            ImageView icon;
+            TextView name;
+
+            ViewHolder(View itemView) {
+                super(itemView);
+                card = (MaterialCardView) itemView;
+                icon = itemView.findViewById(R.id.icon);
+                name = itemView.findViewById(R.id.name);
+            }
+        }
+    }
+
+    private void initializePatternSettings() {
+        int selectedPattern = AssistantPatternManager.getSelectedPattern(requireContext());
+        PatternAdapter adapter = new PatternAdapter(selectedPattern);
+        binding.patternRecycler.setLayoutManager(new GridLayoutManager(requireContext(), 3));
+        binding.patternRecycler.setAdapter(adapter);
+    }
+
+    private class PatternAdapter extends RecyclerView.Adapter<PatternAdapter.ViewHolder> {
+        private int selectedIndex;
+
+        PatternAdapter(int selectedIndex) {
+            this.selectedIndex = selectedIndex;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_pattern_selection, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            int pos = holder.getBindingAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION) return;
+
+            int drawableRes = AssistantPatternManager.PATTERN_DRAWABLES[pos];
+            if (drawableRes != 0) {
+                holder.icon.setImageResource(drawableRes);
+                holder.icon.setVisibility(View.VISIBLE);
+            } else {
+                holder.icon.setVisibility(View.INVISIBLE);
+            }
+            holder.name.setText(AssistantPatternManager.PATTERN_NAMES[pos]);
+            holder.card.setChecked(pos == selectedIndex);
+            holder.itemView.setOnClickListener(v -> {
+                int currentPos = holder.getBindingAdapterPosition();
+                if (currentPos != RecyclerView.NO_POSITION && selectedIndex != currentPos) {
+                    int oldIndex = selectedIndex;
+                    selectedIndex = currentPos;
+                    notifyItemChanged(oldIndex);
+                    notifyItemChanged(selectedIndex);
+                    AssistantPatternManager.setSelectedPattern(requireContext(), currentPos);
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return AssistantPatternManager.PATTERN_NAMES.length;
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {

@@ -108,6 +108,7 @@ import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.SketchwareUtil;
 import sketchware.plus.utility.AttributeConstants;
+import sketchware.plus.utility.AssistantPatternManager;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
 import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
@@ -242,10 +243,17 @@ public class SkAssistantFragment extends Fragment {
 
         PatternBackgroundView patternBg = view.findViewById(R.id.pattern_bg);
         if (patternBg != null) {
-            patternBg.setPattern(patternBg.convertVectorToBitmap(getContext(), R.drawable.ic_dot_pattern, 30, 30));
-            int dotColor = MaterialColors.getColor(view, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
-            patternBg.setColor(dotColor);
-            patternBg.setOpacity(40);
+            int selectedPattern = AssistantPatternManager.getSelectedPattern(getContext());
+            int drawableRes = AssistantPatternManager.getPatternDrawableRes(selectedPattern);
+            if (drawableRes != 0) {
+                patternBg.setVisibility(View.VISIBLE);
+                patternBg.setPattern(patternBg.convertVectorToBitmap(getContext(), drawableRes, 30, 30));
+                int dotColor = MaterialColors.getColor(view, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
+                patternBg.setColor(dotColor);
+                patternBg.setOpacity(40);
+            } else {
+                patternBg.setVisibility(View.GONE);
+            }
         }
 
         View rootLayout = view.findViewById(R.id.root_layout);
@@ -1439,10 +1447,17 @@ public class SkAssistantFragment extends Fragment {
                     lp.height = popupHeight;
                     patternBg.setLayoutParams(lp);
 
-                    patternBg.setPattern(patternBg.convertVectorToBitmap(v.getContext(), R.drawable.ic_dot_pattern, 30, 30));
-                    int dotColor = MaterialColors.getColor(popupView, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
-                    patternBg.setColor(dotColor);
-                    patternBg.setOpacity(40);
+                    int selectedPattern = AssistantPatternManager.getSelectedPattern(v.getContext());
+                    int drawableRes = AssistantPatternManager.getPatternDrawableRes(selectedPattern);
+                    if (drawableRes != 0) {
+                        patternBg.setVisibility(View.VISIBLE);
+                        patternBg.setPattern(patternBg.convertVectorToBitmap(v.getContext(), drawableRes, 30, 30));
+                        int dotColor = MaterialColors.getColor(popupView, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
+                        patternBg.setColor(dotColor);
+                        patternBg.setOpacity(40);
+                    } else {
+                        patternBg.setVisibility(View.GONE);
+                    }
                 }
 
                 PopupWindow popupWindow = new PopupWindow(
