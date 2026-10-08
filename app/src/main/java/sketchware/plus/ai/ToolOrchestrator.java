@@ -306,6 +306,9 @@ public class ToolOrchestrator {
 
     public String dispatchTool(String name, JSONObject args) throws Exception {
         switch (name) {
+            case "get_device_info":
+                return DeviceInfoAide.getDeviceInfo(context, args).toString();
+
             case "web_search":
                 return WebSearchAide.searchWeb(args.getString("query")).toString();
                 

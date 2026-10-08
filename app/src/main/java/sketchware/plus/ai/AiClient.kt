@@ -193,7 +193,7 @@ object AiClient {
                         val alternateModel = if (currentIndex != -1) {
                             groqModels[(currentIndex + 1) % groqModels.size]
                         } else {
-                            "openai/gpt-oss-120b"
+                            groqModels[0] // Start/restart at the beginning of the list (openai/gpt-oss-20b)
                         }
                         aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
 

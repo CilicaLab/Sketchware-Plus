@@ -108,6 +108,11 @@ public class AssistantToolRegistry {
                         .addProperty("xml", "string", "XML content")
                         .setRequired("name", "xml").build()));
 
+        t.put(createTool("get_device_info", "Get real-time device metadata (date, time, timezone, device model, Android OS, display metrics, battery, memory, storage)",
+                new ParameterBuilder()
+                        .addProperty("category", "string", "optional category filter: all|time|hardware|display|battery|memory")
+                        .build()));
+
         return t;
     }
 

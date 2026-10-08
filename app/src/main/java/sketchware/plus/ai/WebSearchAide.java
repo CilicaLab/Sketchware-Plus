@@ -2,6 +2,10 @@ package sketchware.plus.ai;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -11,17 +15,16 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * A utility class enabling the SK Assistant to search the web and browse URLs.
- * It processes and structures the information by removing HTML boilerplates (scripts, styles, navigation)
- * to prevent feeding unnecessary or bloated information into the AI context.
+ * A utility class enabling the SK Assistant to search the web and browse URLs using Jsoup.
+ * It processes and structures web content by stripping boilerplate elements (scripts, styles, navs)
+ * and truncating output to prevent token explosion or memory issues.
  */
 public class WebSearchAide {
 
@@ -33,7 +36,7 @@ public class WebSearchAide {
             .build();
 
     /**
-     * Performs a web search using a privacy-focused HTML endpoint and extracts structured results.
+     * Performs a web search using DuckDuckGo HTML endpoint and parses results with Jsoup.
      * @param query The search query string.
      * @return A JSONObject containing a structured array of search results (title, snippet, url).
      */
@@ -56,28 +59,20 @@ public class WebSearchAide {
                 }
 
                 String html = readBoundedResponseBody(response, MAX_RESPONSE_BYTES);
-                
-                // Regex patterns to parse DuckDuckGo HTML results safely without heavy external parser libraries
-                Pattern resultPattern = Pattern.compile("<div class=\"result__body\">([\r\n\\s\\S]*?)</div\\s*>\\s*</div\\s*>");
-                Pattern titleUrlPattern = Pattern.compile("<a class=\"result__url\" href=\"([^\"]+)\"[^>]*>([\r\n\\s\\S]*?)</a>");
-                Pattern snippetPattern = Pattern.compile("<a class=\"result__snippet\"[^>]*>([\r\n\\s\\S]*?)</a>");
+                Document doc = Jsoup.parse(html, url);
 
-                Matcher matcher = resultPattern.matcher(html);
+                Elements resultBodies = doc.select("div.result__body");
                 int count = 0;
-                while (matcher.find() && count < 8) { // Limit to top 8 clean results
-                    String body = matcher.group(1);
+                for (Element body : resultBodies) {
+                    if (count >= 8) break; // Limit to top 8 clean results
 
-                    Matcher titleUrlMatch = titleUrlPattern.matcher(body);
-                    Matcher snippetMatch = snippetPattern.matcher(body);
+                    Element titleUrlElem = body.selectFirst("a.result__url");
+                    Element snippetElem = body.selectFirst("a.result__snippet");
 
-                    if (titleUrlMatch.find()) {
-                        String resUrl = titleUrlMatch.group(1).trim();
-                        String resTitle = stripHtmlTags(titleUrlMatch.group(2)).trim();
-                        String resSnippet = "";
-
-                        if (snippetMatch.find()) {
-                            resSnippet = stripHtmlTags(snippetMatch.group(1)).trim();
-                        }
+                    if (titleUrlElem != null) {
+                        String resUrl = titleUrlElem.attr("href").trim();
+                        String resTitle = titleUrlElem.text().trim();
+                        String resSnippet = snippetElem != null ? snippetElem.text().trim() : "";
 
                         JSONObject singleResult = new JSONObject();
                         singleResult.put("title", resTitle);
@@ -102,10 +97,10 @@ public class WebSearchAide {
     }
 
     /**
-     * Fetches a web page by URL, strips all boilerplates (scripts, styles, footers, headers),
-     * and extracts a clean, structured text output suitable for an LLM context.
+     * Fetches a web page by URL, strips boilerplates via Jsoup DOM manipulation,
+     * and extracts clean, structured text output suitable for LLM context.
      * @param url The page URL to browse.
-     * @return A JSONObject containing the clean structured lines, title, and word count.
+     * @return A JSONObject containing clean structured lines, title, and word count.
      */
     public static JSONObject browseWebPage(String url) {
         JSONObject result = new JSONObject();
@@ -123,42 +118,29 @@ public class WebSearchAide {
                 }
 
                 String rawHtml = readBoundedResponseBody(response, MAX_RESPONSE_BYTES);
-                
-                // Extract Title
-                String title = "";
-                Matcher titleMatcher = Pattern.compile("<title>\\s*([\\s\\S]*?)\\s*</title>", Pattern.CASE_INSENSITIVE).matcher(rawHtml);
-                if (titleMatcher.find()) {
-                    title = stripHtmlTags(titleMatcher.group(1)).trim();
-                }
+                Document doc = Jsoup.parse(rawHtml, url);
 
-                // Clean the HTML from non-content sections
-                String cleanHtml = rawHtml;
-                cleanHtml = Pattern.compile("<script[\\s\\S]*?</script>", Pattern.CASE_INSENSITIVE).matcher(cleanHtml).replaceAll("");
-                cleanHtml = Pattern.compile("<style[\\s\\S]*?</style>", Pattern.CASE_INSENSITIVE).matcher(cleanHtml).replaceAll("");
-                cleanHtml = Pattern.compile("<nav[\\s\\S]*?</nav>", Pattern.CASE_INSENSITIVE).matcher(cleanHtml).replaceAll("");
-                cleanHtml = Pattern.compile("<header[\\s\\S]*?</header>", Pattern.CASE_INSENSITIVE).matcher(cleanHtml).replaceAll("");
-                cleanHtml = Pattern.compile("<footer[\\s\\S]*?</footer>", Pattern.CASE_INSENSITIVE).matcher(cleanHtml).replaceAll("");
-                cleanHtml = Pattern.compile("<!--[\\s\\S]*?-->").matcher(cleanHtml).replaceAll(""); // Comments
+                // Extract page title
+                String title = doc.title().trim();
 
-                // Parse out block texts (headings, paragraphs, list items) to build clean semantic info
-                Pattern textBlockPattern = Pattern.compile("<(p|h1|h2|h3|h4|li|article)[^>]*>([\\s\\S]*?)</\\1>", Pattern.CASE_INSENSITIVE);
-                Matcher textMatcher = textBlockPattern.matcher(cleanHtml);
+                // Clean HTML DOM from non-content sections
+                doc.select("script, style, nav, header, footer, iframe, noscript, svg").remove();
 
+                // Extract text blocks (paragraphs, headings, list items, articles)
+                Elements textElems = doc.select("p, h1, h2, h3, h4, h5, h6, li, article, section");
                 ArrayList<String> cleanLines = new ArrayList<>();
                 int totalWords = 0;
 
-                while (textMatcher.find()) {
-                    String cleanText = stripHtmlTags(textMatcher.group(2)).trim();
-                    // Remove double spacing and normalize whitespace
-                    cleanText = cleanText.replaceAll("\\s+", " ");
-                    
-                    // Filter out short menu items, empty entries, or cookie warning boilerplate fragments
+                for (Element elem : textElems) {
+                    String cleanText = elem.text().trim().replaceAll("\\s+", " ");
+
+                    // Filter out short menu items, empty entries, or cookie warning boilerplates
                     if (cleanText.length() > 20 && !cleanText.toLowerCase().contains("cookie") && !cleanText.toLowerCase().contains("privacy policy")) {
                         cleanLines.add(cleanText);
                         totalWords += cleanText.split("\\s+").length;
                     }
-                    
-                    // Cap the text limit to avoid blowing up the LLM window tokens context unexpectedly
+
+                    // Cap the text limit to avoid blowing up LLM context window tokens
                     if (totalWords > 1200) {
                         cleanLines.add("[... Content truncated to save context window tokens ...]");
                         break;
@@ -169,6 +151,7 @@ public class WebSearchAide {
                 for (String line : cleanLines) {
                     linesJson.put("[UNTRUSTED_WEB_DATA] " + line);
                 }
+
                 result.put("status", "success");
                 result.put("title", "[UNTRUSTED_WEB_TITLE] " + title);
                 result.put("url", url);
@@ -183,21 +166,6 @@ public class WebSearchAide {
             } catch (Exception ignored) {}
         }
         return result;
-    }
-
-    /**
-     * Helper method to strip all raw HTML tags using regex pattern replacing.
-     */
-    private static String stripHtmlTags(String html) {
-        if (html == null) return "";
-        // Replace common entities
-        String txt = html.replaceAll("&amp;", "&")
-                         .replaceAll("&lt;", "<")
-                         .replaceAll("&gt;", ">")
-                         .replaceAll("&quot;", "\"")
-                         .replaceAll("&nbsp;", " ");
-        // Strip tags
-        return txt.replaceAll("<[^>]*>", "");
     }
 
     /**
