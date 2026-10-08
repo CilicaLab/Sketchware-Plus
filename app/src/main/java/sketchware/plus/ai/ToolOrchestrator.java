@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import a.a.a.eC;
 import a.a.a.jC;
 import a.a.a.yq;
 import mod.hilal.saif.components.ComponentsHandler;
@@ -453,13 +454,19 @@ public class ToolOrchestrator {
                 mainHandler.post(() -> fragment.manifestSpecialist.applyPermission(perm));
                 return "Permission " + perm + " added successfully.";
 
-            case "add_component":
+            case "add_component": {
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
                 int typeId = args.getInt("type");
-                String compId = args.getString("id");
-                mainHandler.post(() -> fragment.componentSpecialist.applyAddComponent(typeId, compId));
-                return "Component " + compId + " added successfully.";
+                String requestedId = args.getString("id");
+                String compJavaName = fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main";
+                String resolvedId = resolveUniqueComponentId(fragment.scId, compJavaName, requestedId);
+                mainHandler.post(() -> fragment.componentSpecialist.applyAddComponent(typeId, resolvedId));
+                if (!resolvedId.equals(requestedId)) {
+                    return "Component ID '" + requestedId + "' was already in use. Automatically renamed and added as '" + resolvedId + "' successfully.";
+                }
+                return "Component " + resolvedId + " added successfully.";
+            }
 
             case "list_available_components":
                 JSONObject components = new JSONObject();
@@ -499,6 +506,42 @@ public class ToolOrchestrator {
         }
     }
     
+    private String resolveUniqueComponentId(String scId, String javaName, String requestedId) {
+        if (scId == null || javaName == null || requestedId == null) return requestedId;
+        eC dataManager = jC.a(scId);
+        if (dataManager == null) return requestedId;
+
+        ArrayList<ComponentBean> existing = dataManager.e(javaName);
+        if (existing == null || existing.isEmpty()) return requestedId;
+
+        boolean exists = false;
+        for (ComponentBean cb : existing) {
+            if (cb != null && requestedId.equals(cb.componentId)) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) return requestedId;
+
+        int counter = 2;
+        String newId;
+        while (true) {
+            newId = requestedId + "_" + counter;
+            boolean collision = false;
+            for (ComponentBean cb : existing) {
+                if (cb != null && newId.equals(cb.componentId)) {
+                    collision = true;
+                    break;
+                }
+            }
+            if (!collision) {
+                return newId;
+            }
+            counter++;
+        }
+    }
+
     // ========== EXECUTION METRICS INNER CLASS ==========
     
     /**

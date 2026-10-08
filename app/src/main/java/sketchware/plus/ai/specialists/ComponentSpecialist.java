@@ -35,24 +35,20 @@ public class ComponentSpecialist extends BaseSpecialist {
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(1000); } catch (Exception ignored) {}
             String contextStr = fragment.gatherScopedContext(androidContext, "COMPONENT_ARCHITECT", prompt);
-
-            String systemPrompt = "COMPONENT EXPERT AGENT PROTOCOL:\n" +
-                    "1. IDENTIFY: Determine the Component Type and ID (name) from the user's request and chat history.\n" +
-                    "2. VALIDATE (STRICT):\n" +
-                    "   - If the COMPONENT TYPE is missing or ambiguous, ask 'Which component would you like to add?'.\n" +
-                    "   - If the ID (name) is missing, ask 'What name should I give to the [Type] component?'.\n" +
-                    "   - For components like SharedPref, Firebase, and Firebase Storage, ALWAYS use the component ID (name) as the required parameter (filename/path). DO NOT ask the user for a separate filename.\n" +
-                    "   - For FILE_PICKER, if the mime type is not specified, use 'image/*' as default.\n" +
-                    "3. EXECUTE: Only if BOTH Type and ID are clearly specified, use ADD_COMPONENT.\n\n" +
-                    "RESPONSE CONTRACT:\n" +
-                    "{\n" +
-                    "  \"category\": \"COMPONENT_ARCHITECT\",\n" +
-                    "  \"thought_process\": \"Logic for identifying the component\",\n" +
-                    "  \"summary\": \"Confirmation of adding the component\",\n" +
-                    "  \"actions\": [ {\"type\":\"ADD_COMPONENT\",\"componentType\":\"...\",\"id\":\"...\",\"params\":[...] } ]\n" +
-                    "}\n" +
-                    "Important: params should contain the ID if it's a component that requires a filename/path.\n\n" +
-                    "Classification Reasoning: " + reasoning;
+            String systemPrompt =
+                    "COMPONENT EXPERT AGENT\n" +
+                            "1. Identify the component Type and ID (name) from the request. and \n" +
+                            "   - SharedPref, Firebase, Firebase Storage: the ID is the filename/path param. Never ask for a separate filename.\n" +
+                            "   - FILE_PICKER: default mime type is 'image/*' if unspecified.\n" +
+                            "2. Execute: only when BOTH Type and ID are clear, emit ADD_COMPONENT.\n\n" +
+                            "Respond with JSON only:\n" +
+                            "{\n" +
+                            "  \"category\": \"COMPONENT_ARCHITECT\",\n" +
+                            "  \"thought_process\": \"how you identified the component\",\n" +
+                            "  \"summary\": \"confirmation of what was added\",\n" +
+                            "  \"actions\": [{\"type\":\"ADD_COMPONENT\",\"componentType\":\"...\",\"id\":\"...\",\"params\":[...]}]\n" +
+                            "}\n\n" +
+                            "Classification reasoning: " + reasoning;
 
             Activity activity = fragment.getActivity();
             if (activity != null) {
@@ -114,7 +110,6 @@ public class ComponentSpecialist extends BaseSpecialist {
                             dataManager.a(javaName, type, id, finalParams.get(0));
                         }
                         dataManager.k(); 
-                        fragment.refreshDesigner();
                         fragment.addSystemMessage("Component '" + id + "' (" + typeStr + ") added.");
                         fragment.setUndoVisible(true);
                     })
@@ -149,7 +144,7 @@ public class ComponentSpecialist extends BaseSpecialist {
             }
             
             dataManager.k();
-            fragment.refreshDesigner();
+
             fragment.addSystemMessage("Component '" + id + "' (" + typeName + ") added automatically.");
             fragment.setUndoVisible(true);
             

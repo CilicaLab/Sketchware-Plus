@@ -355,7 +355,6 @@ public class CodeSpecialist extends BaseSpecialist {
                         boolean success = LogicIrBridge.saveIrToProject(scId, javaName, eventKey, finalIr);
                         if (success) {
                             fragment.addSystemMessage(" Logic applied successfully to " + eventKey + " (" + validation.blockCount + " blocks).");
-                            fragment.refreshDesigner();
                         } else {
                             fragment.addSystemMessage(" Failed to persist logic. Restoring original blocks.");
                             if (originalBlocks != null) {
@@ -489,7 +488,6 @@ public class CodeSpecialist extends BaseSpecialist {
                 if ("success".equals(result.optString("status"))) {
                     fragment.addSystemMessage(" Java Command added successfully (" + command + " near '" + reference + "')");
                     stepHistory.add("ADD_JAVA_COMMAND: " + command + " near '" + reference + "'");
-                    fragment.refreshDesigner();
                 } else {
                     fragment.addSystemMessage(" Failed to add Java Command: " + result.optString("message"));
                     stepHistory.add("ADD_JAVA_COMMAND: Failed");
@@ -537,7 +535,6 @@ public class CodeSpecialist extends BaseSpecialist {
             }
             blocks.add(block);
             dataManager.k();
-            fragment.getActivity().runOnUiThread(fragment::refreshDesigner);
         };
         if (isSync) r.run();
     }
@@ -550,7 +547,6 @@ public class CodeSpecialist extends BaseSpecialist {
         boolean success = AssistantImportInjector.injectImports(getScId(), javaName, new String[]{importPath}, fragment.getActivity());
         if (success) {
             fragment.addSystemMessage("Import added: " + importPath);
-            fragment.refreshDesigner();
         } else {
             fragment.addSystemMessage("Import already exists or failed to add: " + importPath);
         }
