@@ -72,11 +72,11 @@ public class ToolExecutor {
         List<ToolResult> results = new ArrayList<>();
         
         if (!readTools.isEmpty()) {
-            executeReadToolsParallel(readTools, results);
+            executeReadToolsParallel(readTools, results, callback);
         }
         
         if (!writeTools.isEmpty()) {
-            executeWriteToolsSequential(writeTools, results);
+            executeWriteToolsSequential(writeTools, results, callback);
         }
         
         callback.onComplete(results);
@@ -85,10 +85,11 @@ public class ToolExecutor {
     /**
      * Execute read-only tools in parallel for maximum throughput.
      */
-    private void executeReadToolsParallel(List<ToolCallInfo> toolCalls, List<ToolResult> results) {
+    private void executeReadToolsParallel(List<ToolCallInfo> toolCalls, List<ToolResult> results, Callback callback) {
         List<Future<ToolResult>> futures = new ArrayList<>();
         
         for (ToolCallInfo info : toolCalls) {
+            callback.onToolStart(info.toolName);
             futures.add(parallelExecutor.submit(new Callable<ToolResult>() {
                 @Override
                 public ToolResult call() throws Exception {
@@ -120,10 +121,11 @@ public class ToolExecutor {
     /**
      * Execute write tools sequentially to prevent race conditions and data corruption.
      */
-    private void executeWriteToolsSequential(List<ToolCallInfo> toolCalls, List<ToolResult> results) {
+    private void executeWriteToolsSequential(List<ToolCallInfo> toolCalls, List<ToolResult> results, Callback callback) {
         for (int i = 0; i < toolCalls.size(); i++) {
             try {
                 ToolCallInfo info = toolCalls.get(i);
+                callback.onToolStart(info.toolName);
                 ToolResult result = executeToolInternal(info);
                 results.add(result);
                 
@@ -395,6 +397,7 @@ public class ToolExecutor {
      * Callback for async tool batch execution.
      */
     public interface Callback {
+        default void onToolStart(String toolName) {}
         void onComplete(List<ToolResult> results);
     }
 }

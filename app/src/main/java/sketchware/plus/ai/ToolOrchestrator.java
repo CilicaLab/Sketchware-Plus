@@ -255,10 +255,18 @@ public class ToolOrchestrator {
                 // Use ToolExecutor for optimized parallel/sequential execution
                 toolExecutor.executeBatch(toolCalls, new ToolExecutor.Callback() {
                     @Override
+                    public void onToolStart(String toolName) {
+                        mainHandler.post(() -> {
+                            fragment.setStatus("Executing: " + toolName + "...");
+                        });
+                    }
+
+                    @Override
                     public void onComplete(List<ToolExecutor.ToolResult> results) {
                         if (isCanceled) return;
 
                         try {
+                            boolean hasWriteTools = false;
                             for (ToolExecutor.ToolResult result : results) {
                                 // Add to history
                                 JSONObject toolResultMsg = new JSONObject();
@@ -275,12 +283,24 @@ public class ToolOrchestrator {
 
                                 chatHistory.put(toolResultMsg);
 
+                                // Check if tool is a write tool (not read-only)
+                                if (!result.toolName.matches("(list_.*|get_.*|read_.*|search_.*|web_.*)")) {
+                                    hasWriteTools = true;
+                                }
+
                                 // Update UI with per-tool timing
                                 mainHandler.post(() -> {
                                     String statusMsg = "Completed: " + result.toolName +
                                         " (" + result.executionTimeMs + "ms" +
                                         (result.fromCache ? ", cached" : "") + ")";
                                     fragment.setStatus(statusMsg);
+                                });
+                            }
+
+                            // Refresh designer ONCE per batch if write tools were executed
+                            if (hasWriteTools) {
+                                mainHandler.post(() -> {
+                                    fragment.refreshDesigner();
                                 });
                             }
 

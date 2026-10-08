@@ -181,6 +181,10 @@ public class FileUtil {
 
     public static String readFileIfExist(String path) {
         StringBuilder sb = new StringBuilder();
+        File file = new File(path);
+        if (!file.exists()) {
+            return sb.toString();
+        }
         try (FileReader fr = new FileReader(path)) {
             char[] buff = new char[1024];
             int length;
