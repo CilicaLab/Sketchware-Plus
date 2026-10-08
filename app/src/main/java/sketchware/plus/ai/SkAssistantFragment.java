@@ -1,5 +1,7 @@
 package sketchware.plus.ai;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -14,6 +16,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -31,6 +34,7 @@ import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.MaterialColors;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.AbstractMarkwonPlugin;
@@ -133,6 +137,8 @@ public class SkAssistantFragment extends Fragment {
     public ProjectFileBean projectFile;
     public RecyclerView recyclerView;
     public MessageAdapter adapter;
+    private FloatingActionButton fabScrollBottom;
+    private ObjectAnimator fabBounceAnimator;
     public final List<Message> messages = new ArrayList<>();
     private String historyPath;
     private String logPath;
@@ -150,6 +156,7 @@ public class SkAssistantFragment extends Fragment {
     private int retryCount = 0;
     private static final int MAX_RETRIES = 2;
     private volatile boolean isRequestCanceled = false;
+    private boolean isSendButtonThinking = false;
 
     public LayoutSpecialist layoutSpecialist;
     public ComponentSpecialist componentSpecialist;
@@ -280,6 +287,24 @@ public class SkAssistantFragment extends Fragment {
         adapter = new MessageAdapter(messages, this);
         recyclerView.setAdapter(adapter);
 
+        fabScrollBottom = view.findViewById(R.id.fab_scroll_bottom);
+        if (fabScrollBottom != null) {
+            fabScrollBottom.setOnClickListener(v -> {
+                HapticManager.vibrateRun(v);
+                scrollToBottom();
+            });
+        }
+
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                updateFabScrollBottomVisibility();
+            }
+        });
+
+        scrollToBottom();
+
         tokenUsageContainer = view.findViewById(R.id.token_usage_container);
         tvTokenUsage = view.findViewById(R.id.tv_token_usage);
         tvTokenUsage.setOnClickListener(v -> showTokenDetails());
@@ -342,6 +367,7 @@ public class SkAssistantFragment extends Fragment {
     public void onResume() {
         super.onResume();
         updateCurrentModelBadge();
+        scrollToBottom();
     }
 
     private void hideKeyboard() {
@@ -350,6 +376,61 @@ public class SkAssistantFragment extends Fragment {
             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
             if (imm != null) {
                 imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        }
+    }
+
+    private void startFabBounceAnimation() {
+        if (fabScrollBottom == null) return;
+        if (fabBounceAnimator == null) {
+            fabBounceAnimator = ObjectAnimator.ofFloat(fabScrollBottom, "translationY", 0f, -10f, 0f);
+            fabBounceAnimator.setDuration(1200);
+            fabBounceAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+            fabBounceAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            fabBounceAnimator.setRepeatMode(ValueAnimator.RESTART);
+        }
+        if (!fabBounceAnimator.isRunning()) {
+            fabBounceAnimator.start();
+        }
+    }
+
+    private void stopFabBounceAnimation() {
+        if (fabBounceAnimator != null) {
+            fabBounceAnimator.cancel();
+            if (fabScrollBottom != null) {
+                fabScrollBottom.setTranslationY(0f);
+            }
+        }
+    }
+
+    public void updateFabScrollBottomVisibility() {
+        if (fabScrollBottom == null || recyclerView == null || adapter == null) return;
+
+        RecyclerView.LayoutManager lm = recyclerView.getLayoutManager();
+        if (lm instanceof LinearLayoutManager) {
+            LinearLayoutManager llm = (LinearLayoutManager) lm;
+            int lastVisiblePos = llm.findLastVisibleItemPosition();
+            int totalItems = adapter.getItemCount();
+
+            // Threshold: Only show FAB if user has scrolled up past 4 message items from the bottom
+            if (totalItems > 0 && lastVisiblePos != RecyclerView.NO_POSITION && (totalItems - 1 - lastVisiblePos) > 4) {
+                if (fabScrollBottom.getVisibility() != View.VISIBLE) {
+                    fabScrollBottom.setVisibility(View.VISIBLE);
+                    fabScrollBottom.setAlpha(0f);
+                    fabScrollBottom.animate().alpha(1f).setDuration(150).start();
+                }
+                startFabBounceAnimation();
+            } else {
+                if (fabScrollBottom.getVisibility() == View.VISIBLE) {
+                    fabScrollBottom.animate().alpha(0f).setDuration(150)
+                            .withEndAction(() -> {
+                                fabScrollBottom.setVisibility(View.GONE);
+                                stopFabBounceAnimation();
+                            })
+                            .start();
+                } else {
+                    stopFabBounceAnimation();
+                }
             }
         }
     }
@@ -363,6 +444,7 @@ public class SkAssistantFragment extends Fragment {
                 recyclerView.postDelayed(() -> {
                     if (adapter != null && messages.size() > 0) {
                         recyclerView.scrollToPosition(messages.size() - 1);
+                        updateFabScrollBottomVisibility();
                     }
                 }, 100);
             }
@@ -437,17 +519,32 @@ public class SkAssistantFragment extends Fragment {
         Context context = getContext();
         if (context == null) return;
 
-        if (isThinking) {
-            btnSend.setIconResource(R.drawable.ic_mtrl_stop);
-            btnSend.setBackgroundTintList(ColorStateList.valueOf(
-                    ContextCompat.getColor(context, R.color.scolor_red_01)));
-            btnSend.setIconTintResource(android.R.color.white);
-        } else {
-            btnSend.setIconResource(R.drawable.ic_mtrl_send);
-            btnSend.setBackgroundTintList(ColorStateList.valueOf(
-                    ContextCompat.getColor(context, R.color.color_primary)));
-            btnSend.setIconTintResource(android.R.color.white);
+        if (isSendButtonThinking == isThinking) {
+            return;
         }
+        isSendButtonThinking = isThinking;
+
+        int targetIcon = isThinking ? R.drawable.ic_mtrl_stop : R.drawable.ic_mtrl_send;
+        int targetColor = ContextCompat.getColor(context, isThinking ? R.color.scolor_red_01 : R.color.color_primary);
+
+        btnSend.animate()
+                .scaleX(0f)
+                .scaleY(0f)
+                .rotation(isThinking ? 90f : -90f)
+                .setDuration(150)
+                .withEndAction(() -> {
+                    btnSend.setIconResource(targetIcon);
+                    btnSend.setBackgroundTintList(ColorStateList.valueOf(targetColor));
+                    btnSend.setIconTintResource(android.R.color.white);
+                    btnSend.setRotation(isThinking ? -90f : 90f);
+                    btnSend.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .rotation(0f)
+                            .setDuration(150)
+                            .start();
+                })
+                .start();
     }
 
     private boolean isReasoningActive() {
@@ -472,11 +569,30 @@ public class SkAssistantFragment extends Fragment {
     public void cancelSKRequests() {
         Context context = getContext();
         if (context == null) return;
-        btnSend.setIconResource(R.drawable.ic_mtrl_send);
-        btnSend.setBackgroundTintList(ColorStateList.valueOf(
-                ContextCompat.getColor(context, R.color.color_primary)));
-        btnSend.setIconTintResource(android.R.color.white);
+        if (btnSend == null) return;
 
+        isSendButtonThinking = false;
+        int targetIcon = R.drawable.ic_mtrl_send;
+        int targetColor = ContextCompat.getColor(context, R.color.color_primary);
+
+        btnSend.animate()
+                .scaleX(0f)
+                .scaleY(0f)
+                .rotation(90f)
+                .setDuration(150)
+                .withEndAction(() -> {
+                    btnSend.setIconResource(targetIcon);
+                    btnSend.setBackgroundTintList(ColorStateList.valueOf(targetColor));
+                    btnSend.setIconTintResource(android.R.color.white);
+                    btnSend.setRotation(-90f);
+                    btnSend.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .rotation(0f)
+                            .setDuration(150)
+                            .start();
+                })
+                .start();
     }
 
 
@@ -1257,6 +1373,7 @@ public class SkAssistantFragment extends Fragment {
                 if (adapter != null) {
                     adapter.notifyDataSetChanged();
                 }
+                scrollToBottom();
             });
         }
     }

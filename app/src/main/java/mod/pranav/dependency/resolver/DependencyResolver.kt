@@ -74,6 +74,7 @@ class DependencyResolver(
                 repositoriesJson.writeText(DEFAULT_REPOS)
             }
         }
+        repositories.clear()
         Gson().fromJson(repositoriesJson.readText(), Helper.TYPE_MAP_LIST).forEach {
             val url: String? = it["url"] as String?
             if (url != null) {
@@ -125,7 +126,19 @@ class DependencyResolver(
 
     fun resolveDependency(callback: DependencyResolverCallback) = runBlocking {
         eventReciever = callback
-        val dependency = getArtifact(groupId, artifactId, version) ?: return@runBlocking
+        val dummyArtifact = Artifact(groupId, artifactId, version)
+
+        val dependency = try {
+            getArtifact(groupId, artifactId, version)
+        } catch (_: Throwable) {
+            callback.onArtifactNotFound(dummyArtifact)
+            return@runBlocking
+        }
+
+        if (dependency == null) {
+            callback.onArtifactNotFound(dummyArtifact)
+            return@runBlocking
+        }
 
         if (dependency.extension != "jar" && dependency.extension != "aar") {
             callback.invalidPackaging(dependency)
@@ -150,36 +163,46 @@ class DependencyResolver(
             dependencyClasspath.add(Paths.get(it))
         }
 
-        dependency.downloadTo(
-            File(downloadPath + "/${dependency.artifactId}-v${dependency.version}/classes.${dependency.extension}")
-                .apply {
-                    parentFile?.mkdirs()
-                }
-        )
+        try {
+            dependency.downloadTo(
+                File(downloadPath + "/${dependency.artifactId}-v${dependency.version}/classes.${dependency.extension}")
+                    .apply {
+                        parentFile?.mkdirs()
+                    }
+            )
+        } catch (e: Throwable) {
+            callback.onDownloadError(dependency, e)
+            return@runBlocking
+        }
 
         if (dependency.extension == "aar") {
-            callback.unzipping(dependency)
-            unzip(
-                Paths.get(
-                    downloadPath,
-                    "${dependency.artifactId}-v${dependency.version}",
-                    "classes.aar"
+            try {
+                callback.unzipping(dependency)
+                unzip(
+                    Paths.get(
+                        downloadPath,
+                        "${dependency.artifactId}-v${dependency.version}",
+                        "classes.aar"
+                    )
                 )
-            )
-            Files.delete(
-                Paths.get(
-                    downloadPath,
-                    "${dependency.artifactId}-v${dependency.version}",
-                    "classes.aar"
+                Files.delete(
+                    Paths.get(
+                        downloadPath,
+                        "${dependency.artifactId}-v${dependency.version}",
+                        "classes.aar"
+                    )
                 )
-            )
-            val packageName = findPackageName(
-                Paths.get(downloadPath, "${dependency.artifactId}-v${dependency.version}")
-                    .toAbsolutePath().toString(),
-                dependency.groupId
-            )
-            Paths.get(downloadPath, "${dependency.artifactId}-v${dependency.version}", "config")
-                .writeText(packageName)
+                val packageName = findPackageName(
+                    Paths.get(downloadPath, "${dependency.artifactId}-v${dependency.version}")
+                        .toAbsolutePath().toString(),
+                    dependency.groupId
+                )
+                Paths.get(downloadPath, "${dependency.artifactId}-v${dependency.version}", "config")
+                    .writeText(packageName)
+            } catch (e: Throwable) {
+                callback.onDownloadError(dependency, e)
+                return@runBlocking
+            }
         }
 
         val jar = Paths.get(
@@ -201,7 +224,13 @@ class DependencyResolver(
             callback.onTaskCompleted(listOf("${dependency.artifactId}-v${dependency.version}"))
             return@runBlocking
         }
-        dependency.resolveDependencyTree()
+
+        try {
+            dependency.resolveDependencyTree()
+        } catch (e: Throwable) {
+            callback.onDownloadError(dependency, e)
+            return@runBlocking
+        }
 
         dependency.getAllDependencies().forEach { dep ->
             println("Resolving dependency: ${dep.artifactId} v${dep.version}")
