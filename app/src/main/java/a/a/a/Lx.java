@@ -122,7 +122,7 @@ public class Lx {
             content.append("implementation 'com.github.bumptech.glide:glide:4.16.0'\r\n");
         }
 
-        if (isLibraryNotExcluded(BuiltInLibraries.GSON, excludedLibraries) && metadata.isGsonUsed) {
+        if (isLibraryNotExcluded(BuiltInLibraries.GSON, excludedLibraries)) {
             content.append("implementation 'com.google.code.gson:gson:2.11.0'\r\n");
         }
 
