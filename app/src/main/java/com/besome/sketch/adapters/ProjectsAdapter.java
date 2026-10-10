@@ -36,6 +36,8 @@ import sketchware.plus.R;
 import sketchware.plus.activities.main.fragments.projects.ProjectsFragment;
 import sketchware.plus.databinding.BottomSheetProjectOptionsBinding;
 import sketchware.plus.databinding.MyprojectsItemBinding;
+import sketchware.plus.snapshot.SnapshotManager;
+import sketchware.plus.snapshot.SnapshotsDialog;
 
 public class ProjectsAdapter extends RecyclerView.Adapter<ProjectsAdapter.ProjectViewHolder> {
     private final ProjectsFragment projectsFragment;
@@ -204,6 +206,7 @@ public class ProjectsAdapter extends RecyclerView.Adapter<ProjectsAdapter.Projec
         String scId = yB.c(projectMap, "sc_id");
         new Thread(() -> {
             lC.a(activity, scId);
+            SnapshotManager.getInstance(activity).onProjectDeleted(scId);
             activity.runOnUiThread(() -> {
                 progressDialog.dismiss();
                 shownProjects.remove(position);
@@ -247,6 +250,11 @@ public class ProjectsAdapter extends RecyclerView.Adapter<ProjectsAdapter.Projec
         binding.projectSettings.setOnClickListener(v -> {
             toProjectSettingOrRequestPermission(projectMap, position);
             projectOptionsBSD.dismiss();
+        });
+
+        binding.projectSnapshots.setOnClickListener(v -> {
+            projectOptionsBSD.dismiss();
+            new SnapshotsDialog(activity, yB.c(projectMap, "sc_id")).show();
         });
 
         binding.projectBackup.setOnClickListener(v -> {

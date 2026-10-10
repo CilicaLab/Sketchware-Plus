@@ -1,5 +1,7 @@
 package sketchware.plus.activities.main.fragments.explore;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -7,12 +9,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.widget.SearchView;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.PopupMenu;
+import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -43,6 +47,9 @@ import sketchware.plus.store.widget.StateView;
 
 public class ExploreFragment extends Fragment {
 
+    private static final String PREF_STORE_DEV_MODE = "pref_store_dev_mode";
+    private static final int REQUIRED_TAPS = 16;
+
     private StoreRepository repository;
     private StoreItemAdapter adapter;
     private StateView stateView;
@@ -58,9 +65,29 @@ public class ExploreFragment extends Fragment {
     private String currentSortBy = "newest";
     private StoreUser currentUser;
 
+    // Secret tap counter for developer mode toggle
+    private int tapCount = 0;
+    private long lastTapTime = 0;
+
+    private boolean isDevModeEnabled() {
+        if (getContext() == null) return false;
+        SharedPreferences prefs = requireContext().getSharedPreferences("sketchware_plus_prefs", Context.MODE_PRIVATE);
+        return prefs.getBoolean(PREF_STORE_DEV_MODE, false);
+    }
+
+    private void setDevModeEnabled(boolean enabled) {
+        if (getContext() == null) return;
+        SharedPreferences prefs = requireContext().getSharedPreferences("sketchware_plus_prefs", Context.MODE_PRIVATE);
+        prefs.edit().putBoolean(PREF_STORE_DEV_MODE, enabled).apply();
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        if (!isDevModeEnabled()) {
+            return setupUnderConstructionView(inflater, container);
+        }
+
         View view = inflater.inflate(R.layout.activity_store, container, false);
 
         repository = RepositoryProvider.getRepository(requireContext());
@@ -77,6 +104,69 @@ public class ExploreFragment extends Fragment {
         return view;
     }
 
+    private View setupUnderConstructionView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
+        View view = inflater.inflate(R.layout.fragment_store_under_construction, container, false);
+
+        MaterialToolbar toolbar = view.findViewById(R.id.toolbar_under_construction);
+        if (toolbar != null) {
+            toolbar.setNavigationIcon(null);
+        }
+
+        ImageView imgConstruction = view.findViewById(R.id.img_under_construction);
+        TextView tvTitle = view.findViewById(R.id.tv_title_under_construction);
+
+        View.OnClickListener tapListener = v -> handleSecretTap();
+
+        if (imgConstruction != null) {
+            imgConstruction.setOnClickListener(tapListener);
+        }
+
+        if (tvTitle != null) {
+            tvTitle.setOnClickListener(tapListener);
+        }
+
+        return view;
+    }
+
+    private void handleSecretTap() {
+        long now = System.currentTimeMillis();
+        if (now - lastTapTime > 2000) {
+            tapCount = 0;
+        }
+        lastTapTime = now;
+        tapCount++;
+
+        if (tapCount >= REQUIRED_TAPS) {
+            tapCount = 0;
+            setDevModeEnabled(true);
+            Toast.makeText(requireContext(), "⚡ Developer Mode Activated! Unlocking Store...", Toast.LENGTH_SHORT).show();
+            reloadFragment();
+        }
+    }
+
+    private void promptDeveloperModeToggle() {
+        if (getContext() == null || !isDevModeEnabled()) return;
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Lock Store")
+                .setMessage("Developer Mode is currently active. Would you like to lock the Store and return to the Under Construction view for regular users?")
+                .setPositiveButton("Lock Store", (dialog, which) -> {
+                    setDevModeEnabled(false);
+                    Toast.makeText(requireContext(), "🔒 Store Locked (Normal User View)", Toast.LENGTH_SHORT).show();
+                    reloadFragment();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void reloadFragment() {
+        if (getActivity() != null && isAdded()) {
+            getParentFragmentManager().beginTransaction()
+                    .detach(this)
+                    .attach(this)
+                    .commitAllowingStateLoss();
+        }
+    }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -87,15 +177,25 @@ public class ExploreFragment extends Fragment {
         if (getActivity() != null) {
             ExtendedFloatingActionButton fab = getActivity().findViewById(R.id.create_new_project);
             if (fab != null) {
-                fab.setText("Upload Pack");
-                fab.setIconResource(R.drawable.ic_add_white_24dp);
-                fab.setOnClickListener(v -> handleUploadPackClick());
-                fab.show();
-                fab.extend();
+                if (isDevModeEnabled()) {
+                    fab.setText("Upload Pack");
+                    fab.setIconResource(R.drawable.ic_add_white_24dp);
+                    fab.setOnClickListener(v -> handleUploadPackClick());
+                    fab.show();
+                    fab.extend();
+                } else {
+                    fab.setText("Coming Soon");
+                    fab.setIconResource(R.drawable.ic_mtrl_deployed_code);
+                    fab.setOnClickListener(v -> {
+                        Toast.makeText(requireContext(), "Store feature is coming soon!", Toast.LENGTH_SHORT).show();
+                    });
+                    fab.show();
+                    fab.extend();
+                }
             }
         }
         if (fabUpload != null) {
-            fabUpload.setVisibility(View.GONE); // Hide inner container FAB since main activity FAB is active
+            fabUpload.setVisibility(View.GONE);
         }
     }
 
@@ -114,8 +214,15 @@ public class ExploreFragment extends Fragment {
     }
 
     private void setupToolbar() {
-        toolbar.setNavigationIcon(null); // No back button since it's embedded in bottom nav tab
+        if (toolbar == null) return;
+        toolbar.setNavigationIcon(null);
         toolbar.inflateMenu(R.menu.menu_store);
+
+        // Long press on store toolbar title to allow developer to lock store back
+        toolbar.setOnLongClickListener(v -> {
+            promptDeveloperModeToggle();
+            return true;
+        });
 
         MenuItem searchItem = toolbar.getMenu().findItem(R.id.action_search);
         if (searchItem != null) {
@@ -138,7 +245,6 @@ public class ExploreFragment extends Fragment {
                     }
                 });
             }
-
         }
 
         toolbar.setOnMenuItemClickListener(item -> {
@@ -168,6 +274,7 @@ public class ExploreFragment extends Fragment {
     }
 
     private void setupTabs() {
+        if (tabLayout == null) return;
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
@@ -194,6 +301,7 @@ public class ExploreFragment extends Fragment {
     }
 
     private void setupRecyclerView() {
+        if (recyclerView == null) return;
         adapter = new StoreItemAdapter(requireContext());
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerView.setAdapter(adapter);
@@ -228,12 +336,18 @@ public class ExploreFragment extends Fragment {
     }
 
     private void setupListeners() {
-        swipeRefresh.setColorSchemeResources(R.color.color_primary);
-        swipeRefresh.setOnRefreshListener(() -> loadItems(false));
+        if (swipeRefresh != null) {
+            swipeRefresh.setColorSchemeResources(R.color.color_primary);
+            swipeRefresh.setOnRefreshListener(() -> loadItems(false));
+        }
 
-        btnSort.setOnClickListener(this::showSortMenu);
+        if (btnSort != null) {
+            btnSort.setOnClickListener(this::showSortMenu);
+        }
 
-        fabUpload.setOnClickListener(v -> handleUploadPackClick());
+        if (fabUpload != null) {
+            fabUpload.setOnClickListener(v -> handleUploadPackClick());
+        }
     }
 
     private void handleUploadPackClick() {
@@ -260,10 +374,10 @@ public class ExploreFragment extends Fragment {
         popupMenu.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == 1) {
                 currentSortBy = "newest";
-                btnSort.setText("Newest");
+                if (btnSort != null) btnSort.setText("Newest");
             } else if (item.getItemId() == 2) {
                 currentSortBy = "most_downloaded";
-                btnSort.setText("Most Downloaded");
+                if (btnSort != null) btnSort.setText("Most Downloaded");
             }
             loadItems(true);
             return true;
@@ -272,6 +386,7 @@ public class ExploreFragment extends Fragment {
     }
 
     private void loadCurrentUser() {
+        if (!isDevModeEnabled()) return;
         if (repository == null) {
             repository = RepositoryProvider.getRepository(requireContext());
         }
@@ -293,6 +408,7 @@ public class ExploreFragment extends Fragment {
     }
 
     private void loadItems(boolean showStateLoading) {
+        if (!isDevModeEnabled()) return;
         if (repository == null) {
             repository = RepositoryProvider.getRepository(requireContext());
         }
@@ -349,7 +465,7 @@ public class ExploreFragment extends Fragment {
 
     public void refresh() {
         setupMainFab();
-        if (getView() != null && stateView != null) {
+        if (isDevModeEnabled() && getView() != null && stateView != null) {
             loadCurrentUser();
             loadItems(true);
         }
@@ -359,6 +475,8 @@ public class ExploreFragment extends Fragment {
     public void onResume() {
         super.onResume();
         setupMainFab();
-        loadCurrentUser();
+        if (isDevModeEnabled()) {
+            loadCurrentUser();
+        }
     }
 }

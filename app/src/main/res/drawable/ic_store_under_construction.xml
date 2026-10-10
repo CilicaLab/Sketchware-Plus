@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Background circle -->
+    <path
+        android:fillColor="?attr/colorSurfaceContainerHigh"
+        android:pathData="M100,100m-80,0a80,80 0 1,0 160,0a80,80 0 1,0 -160,0" />
+
+    <!-- Store Base Platform -->
+    <path
+        android:fillColor="?attr/colorOutlineVariant"
+        android:pathData="M45,145 h110 v8 h-110 z" />
+
+    <!-- Main Store Cube Top -->
+    <path
+        android:fillColor="?attr/colorPrimary"
+        android:pathData="M100,50 L150,78 L100,106 L50,78 Z" />
+
+    <!-- Main Store Cube Left Face -->
+    <path
+        android:fillColor="?attr/colorPrimaryContainer"
+        android:pathData="M50,78 L100,106 L100,142 L50,114 Z" />
+
+    <!-- Main Store Cube Right Face -->
+    <path
+        android:fillColor="?attr/colorSecondary"
+        android:pathData="M100,106 L150,78 L150,114 L100,142 Z" />
+
+    <!-- Code Symbol on Left Face -->
+    <path
+        android:fillColor="?attr/colorOnPrimaryContainer"
+        android:pathData="M66,94 L60,98 L66,102 M76,94 L82,98 L76,102 M70,104 L74,92" />
+
+    <!-- Gear / Sparkle Symbol on Right Face -->
+    <path
+        android:fillColor="?attr/colorOnSecondary"
+        android:pathData="M125,92 L128,98 L134,101 L128,104 L125,110 L122,104 L116,101 L122,98 Z" />
+
+    <!-- Construction Stripe Banner over Box -->
+    <path
+        android:fillColor="?attr/colorTertiary"
+        android:pathData="M80,67 L120,67 L110,75 L70,75 Z" />
+
+</vector>

@@ -118,6 +118,7 @@ import a.a.a.yq;
 import a.a.a.zy;
 import dev.chrisbanes.insetter.Insetter;
 import sketchware.plus.ai.SkAssistantFragment;
+import sketchware.plus.snapshot.SnapshotManager;
 import sketchware.plus.utility.ActivityTracker;
 import sketchware.plus.utility.BuildStatsManager;
 import sketchware.plus.utility.HapticManager;
@@ -1696,6 +1697,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 synchronized (jC.c(sc_id)) {
                     jC.c(sc_id).l();
                 }
+                SnapshotManager.getInstance(activity.getApplicationContext()).onProjectSaved(sc_id);
                 activity.runOnUiThread(() -> {
                     activity.hideLoadingDialog();
                     bB.a(activity.getApplicationContext(), Helper.getResString(R.string.common_message_complete_save), bB.TOAST_NORMAL).show();
@@ -1746,6 +1748,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 synchronized (jC.d(sc_id)) {
                     jC.d(sc_id).h();
                 }
+                SnapshotManager.getInstance(activity.getApplicationContext()).onProjectSaved(sc_id);
                 activity.runOnUiThread(() -> {
                     activity.hideLoadingDialog();
                     bB.a(activity.getApplicationContext(), Helper.getResString(R.string.common_message_complete_save), bB.TOAST_NORMAL).show();
