@@ -1146,9 +1146,8 @@ public final class DexMerger {
                 // all of the bytes in an annotations section may be uleb/sleb
                 annotation += (int) Math.ceil(contents.annotations.byteCount * 2);
                 // all of the bytes in a debug info section may be uleb/sleb. The additive constant
-                // is a fudge factor observed to be required when merging small
-                // DEX files (b/68483205).
-                debugInfo += contents.debugInfos.byteCount * 2 + 8;
+                // is a fudge factor required when merging DEX files with expanded ULEB128 indices (e.g., Kotlin/AndroidX).
+                debugInfo += contents.debugInfos.byteCount * 4 + 1024;
             }
         }
 
