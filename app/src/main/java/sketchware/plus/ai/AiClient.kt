@@ -184,16 +184,19 @@ object AiClient {
                     val delayMillis = parseRetryAfter(errorBody)
                     
                     val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
-                    val isGroq = "groq".equals(provider, ignoreCase = true) || endpoint.contains("groq.com", ignoreCase = true)
+                    val currentModel = aiPref.getString(getModelPrefKey(), "") ?: ""
+                    val isGroq = "groq".equals(provider, ignoreCase = true) || 
+                                 endpoint.contains("groq", ignoreCase = true) ||
+                                 currentModel.contains("gpt-oss", ignoreCase = true) ||
+                                 currentModel.contains("qwen", ignoreCase = true)
 
-                    if (isGroq && delayMillis > 10000) {
-                        val currentModel = aiPref.getString(getModelPrefKey(), "") ?: ""
+                    if (isGroq) {
                         val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
                         val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
                         val alternateModel = if (currentIndex != -1) {
                             groqModels[(currentIndex + 1) % groqModels.size]
                         } else {
-                            groqModels[0] // Start/restart at the beginning of the list (openai/gpt-oss-20b)
+                            groqModels[0]
                         }
                         aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
 
@@ -299,6 +302,8 @@ object AiClient {
         }
         return 5000
     }
+
+
 
     private fun wrapUserPrompt(userPrompt: String): JSONArray {
         return JSONArray().apply {

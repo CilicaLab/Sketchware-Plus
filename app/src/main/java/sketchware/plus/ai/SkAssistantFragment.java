@@ -13,6 +13,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -1184,7 +1186,16 @@ public class SkAssistantFragment extends Fragment {
 
     public void refreshDesigner() {
         if (getActivity() instanceof DesignActivity) {
-            ((DesignActivity) getActivity()).refresh();
+            Activity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (getActivity() instanceof DesignActivity) {
+                            ((DesignActivity) getActivity()).refresh();
+                        }
+                    }, 1300);
+                });
+            }
         }
     }
 
@@ -1258,6 +1269,7 @@ public class SkAssistantFragment extends Fragment {
                         break;
                 }
             }
+            refreshDesigner();
         } catch (Exception e) {
             SketchwareUtil.toastError("Action dispatch failed: " + e.getMessage());
             if (getView() != null) {
