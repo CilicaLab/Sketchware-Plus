@@ -365,13 +365,12 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
     public void refresh() {
         refreshFileSelector();
-        if (viewPager.getCurrentItem() == 0) {
-            refreshViewTabAdapter();
-        } else if (viewPager.getCurrentItem() == 1) {
+        refreshViewTabAdapter();
+        if (viewPager.getCurrentItem() == 1) {
             refreshEventTabAdapter();
         } else if (viewPager.getCurrentItem() == 2) {
             refreshComponentTabAdapter();
-        } else {
+        } else if (viewPager.getCurrentItem() == 3) {
             refreshSkAssistant();
         }
     }

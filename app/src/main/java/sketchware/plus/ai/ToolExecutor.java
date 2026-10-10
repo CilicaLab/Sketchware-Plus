@@ -29,7 +29,7 @@ public class ToolExecutor {
     private final ExecutorService parallelExecutor = Executors.newFixedThreadPool(4);
     private final ToolOrchestrator orchestrator;
     
-    private static final int BASE_DELAY_MS = 300;
+    private static final int BASE_DELAY_MS = 600;
     private static final int API_DELAY_MS = 1400;
     private static final int TIMEOUT_SECONDS = 30;
     

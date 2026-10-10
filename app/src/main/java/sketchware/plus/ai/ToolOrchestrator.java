@@ -14,6 +14,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import a.a.a.eC;
 import a.a.a.jC;
@@ -305,7 +307,7 @@ public class ToolOrchestrator {
                                 });
                             }
 
-                            mainHandler.postDelayed(() -> executeLoop(chatHistory), 600);
+                            mainHandler.postDelayed(() -> executeLoop(chatHistory), 800);
 
                         } catch (Exception e) {
                             mainHandler.post(() -> {
@@ -441,17 +443,17 @@ public class ToolOrchestrator {
                 fragment.setUndoVisible(true);
                 String libName = args.getString("libraryName");
                 boolean libEnabled = args.getBoolean("enabled");
-                mainHandler.post(() -> {
+                runOnMainSync(() -> {
                     if (libEnabled) fragment.librarySpecialist.applyLocalLibrary(libName);
                     else fragment.librarySpecialist.disableLocalLibrary(libName);
                 });
-                return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' sent.";
+                return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' completed.";
 
             case "add_permission":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
                 String perm = args.getString("permission");
-                mainHandler.post(() -> fragment.manifestSpecialist.applyPermission(perm));
+                runOnMainSync(() -> fragment.manifestSpecialist.applyPermission(perm));
                 return "Permission " + perm + " added successfully.";
 
             case "add_component": {
@@ -461,7 +463,7 @@ public class ToolOrchestrator {
                 String requestedId = args.getString("id");
                 String compJavaName = fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main";
                 String resolvedId = resolveUniqueComponentId(fragment.scId, compJavaName, requestedId);
-                mainHandler.post(() -> fragment.componentSpecialist.applyAddComponent(typeId, resolvedId));
+                runOnMainSync(() -> fragment.componentSpecialist.applyAddComponent(typeId, resolvedId));
                 if (!resolvedId.equals(requestedId)) {
                     return "Component ID '" + requestedId + "' was already in use. Automatically renamed and added as '" + resolvedId + "' successfully.";
                 }
@@ -498,11 +500,31 @@ public class ToolOrchestrator {
             case "apply_custom_view":
                 String cvName = args.getString("name");
                 String cvXml = args.getString("xml");
-                mainHandler.post(() -> fragment.layoutSpecialist.applyCustomView(cvName, cvXml));
-                return "Prompting user to apply custom view: " + cvName;
+                runOnMainSync(() -> fragment.layoutSpecialist.applyCustomView(cvName, cvXml));
+                return "Applied custom view: " + cvName;
 
             default:
                 return "Error: Unknown tool '" + name + "'";
+        }
+    }
+
+    private void runOnMainSync(Runnable runnable) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runnable.run();
+        } else {
+            CountDownLatch latch = new CountDownLatch(1);
+            mainHandler.post(() -> {
+                try {
+                    runnable.run();
+                } finally {
+                    latch.countDown();
+                }
+            });
+            try {
+                latch.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
     
