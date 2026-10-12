@@ -37,6 +37,7 @@ import sketchware.plus.R;
 import sketchware.plus.databinding.DialogCreateNewFileLayoutBinding;
 import sketchware.plus.databinding.PreferenceActivityBinding;
 import sketchware.plus.utility.FileUtil;
+import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.SketchwareUtil;
 
 public class ConfigActivity extends BaseAppCompatActivity {
@@ -210,6 +211,7 @@ public class ConfigActivity extends BaseAppCompatActivity {
             dataStore = DataStore.getInstance();
             getPreferenceManager().setPreferenceDataStore(dataStore);
             setPreferencesFromResource(R.xml.preferences_config_activity, rootKey);
+            HapticManager.attachSwitchHaptics(getPreferenceScreen());
             Preference backupDir = findPreference("backup-dir");
             assert backupDir != null;
             backupDir.setOnPreferenceClickListener(preference -> {

@@ -56,6 +56,7 @@ import sketchware.plus.R;
 import sketchware.plus.databinding.DialogSelectLibrariesBinding;
 import sketchware.plus.databinding.ManageLibraryExcludeBuiltinLibrariesBinding;
 import sketchware.plus.utility.FileUtil;
+import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.SketchwareUtil;
 
 public class ExcludeBuiltInLibrariesActivity extends BaseAppCompatActivity {
@@ -176,6 +177,7 @@ public class ExcludeBuiltInLibrariesActivity extends BaseAppCompatActivity {
         binding.excludeLibrary.setOnClickListener(v -> showSelectBuiltInLibrariesDialog());
         binding.layoutSwitchCard.setOnClickListener(v -> binding.libSwitch.setChecked(!binding.libSwitch.isChecked()));
         binding.libSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            HapticManager.vibrateSwitch(buttonView);
             isExcludingEnabled = isChecked;
             refresh();
         });

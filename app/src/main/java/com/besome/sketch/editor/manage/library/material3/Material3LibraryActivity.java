@@ -15,6 +15,7 @@ import java.util.Objects;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
 import sketchware.plus.databinding.ManageLibraryMaterial3Binding;
+import sketchware.plus.utility.HapticManager;
 
 public class Material3LibraryActivity extends BaseAppCompatActivity {
 
@@ -91,6 +92,7 @@ public class Material3LibraryActivity extends BaseAppCompatActivity {
 
     private CompoundButton.OnCheckedChangeListener getOnCheckedChangeListener() {
         return (buttonView, isChecked) -> {
+            HapticManager.vibrateSwitch(buttonView);
             binding.toggleGroup.setEnabled(isChecked);
             binding.dynamicColorsSwitch.setEnabled(isChecked);
         };

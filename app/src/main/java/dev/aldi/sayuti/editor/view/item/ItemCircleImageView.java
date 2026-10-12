@@ -28,6 +28,8 @@ public class ItemCircleImageView extends CircleImageView implements ItemView {
         rect = new Rect();
 
         setDrawingCacheEnabled(true);
+        setMinimumWidth((int) wB.a(context, 32.0f));
+        setMinimumHeight((int) wB.a(context, 32.0f));
     }
 
     @Override

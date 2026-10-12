@@ -22,6 +22,7 @@ import a.a.a.yB;
 import mod.hey.studios.project.stringfog.StringfogHandler;
 import sketchware.plus.databinding.FragmentSecurityGuardManagerBinding;
 import sketchware.plus.utility.FileUtil;
+import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.apk.ApkSignatures;
 
 public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
@@ -47,7 +48,10 @@ public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
         final StringfogHandler stringfogHandler = new StringfogHandler(scId);
 
         binding.swStringfog.setChecked(stringfogHandler.isStringfogEnabled());
-        binding.swStringfog.setOnCheckedChangeListener((buttonView, isChecked) -> stringfogHandler.setStringfogEnabled(isChecked));
+        binding.swStringfog.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            HapticManager.vibrateSwitch(buttonView);
+            stringfogHandler.setStringfogEnabled(isChecked);
+        });
 
         setupToggle(binding.swPackageLock, "package_lock");
         setupToggle(binding.swSignatureCheck, "signature_check");
@@ -64,6 +68,7 @@ public class ManageSecurityGuardFragment extends BottomSheetDialogFragment {
     private void setupToggle(MaterialSwitch sw, final String key) {
         sw.setChecked(handler.isFeatureEnabled(key));
         sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            HapticManager.vibrateSwitch(buttonView);
             handler.setFeatureValue(key, isChecked);
             updateUI();
         });

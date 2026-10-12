@@ -10,7 +10,7 @@ import sketchware.plus.R;
 
 public class IconCircleImageView extends IconBase {
 
-    private String resourceName = "";
+    private String resourceName = "default_image";
 
     public IconCircleImageView(Context context) {
         super(context);
@@ -26,6 +26,14 @@ public class IconCircleImageView extends IconBase {
         viewBean.inject = "app:civ_border_width=\"3dp\"\napp:civ_border_color=\"#008DCD\"\napp:civ_circle_background_color=\"#FFFFFF\"\napp:civ_border_overlay=\"true\"";
         viewBean.image.resName = resourceName;
         return viewBean;
+    }
+
+    @Override
+    public void setName(String name) {
+        super.setName(name);
+        if (name != null && !name.isEmpty()) {
+            this.resourceName = name;
+        }
     }
 
     public String getResourceName() {

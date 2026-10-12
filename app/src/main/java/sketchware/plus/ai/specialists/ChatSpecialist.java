@@ -27,7 +27,7 @@ public class ChatSpecialist extends BaseSpecialist {
 
             String systemPrompt = "You are the very friendly Companion.\n" +
                     "Provide helpful, concise, and friendly responses to the user's questions.\n" +
-                    "If they ask for technical help you cannot perform directly, explain how to do it in Sketchware pro.\n\n" +
+                    "If they ask for technical help you cannot perform directly, explain how to do it in Sketchware Plus.\n\n" +
                     "CRITICAL: Put your actual conversational response in the 'summary' field.\n\n" +
                     "RESPONSE CONTRACT:\n" +
                     "{\n" +

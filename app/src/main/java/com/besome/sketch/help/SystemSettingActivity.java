@@ -38,6 +38,7 @@ import okhttp3.Response;
 import sketchware.plus.R;
 import sketchware.plus.databinding.DialogCreateNewFileLayoutBinding;
 import sketchware.plus.databinding.PreferenceActivityBinding;
+import sketchware.plus.utility.HapticManager;
 
 public class SystemSettingActivity extends BaseAppCompatActivity {
     @Override
@@ -103,6 +104,7 @@ public class SystemSettingActivity extends BaseAppCompatActivity {
                 }
             }
             setPreferencesFromResource(R.xml.preferences_system_settings, rootKey);
+            HapticManager.attachSwitchHaptics(getPreferenceScreen());
 
             setupAiProviderPreference("P12_PROVIDER");
             setupAiFocusPreference("P12I7");

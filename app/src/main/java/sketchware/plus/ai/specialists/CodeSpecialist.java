@@ -151,7 +151,7 @@ public class CodeSpecialist extends BaseSpecialist {
 
                     if (refinedGoal != null) {
                         iterationCount++;
-                        if (iterationCount > MAX_ITERATIONS) {
+                        if (iterationCount > MAX_ITERATIONS + 1) {
                             fragment.getActivity().runOnUiThread(() -> {
                                 fragment.addSystemMessage("Stopped after " + MAX_ITERATIONS +
                                         " steps without a completion signal. Reply to continue or rephrase the goal.");
@@ -388,7 +388,7 @@ public class CodeSpecialist extends BaseSpecialist {
 
     private void applyGetCodeRange(String javaName, int start, int end) {
         log("CodeSpecialist: Getting range: " + start + "-" + end);
-        setStatus("Reading code range...");
+        setStatus("Reading code range " + "from " + start + "to" + end );
         jC.projectOperationsExecutor.execute(() -> {
             String source = getGeneratedSource(javaName);
             if (source != null) {
@@ -412,7 +412,7 @@ public class CodeSpecialist extends BaseSpecialist {
 
     private void applyGetPatchMeta(String javaName, int targetLine) {
         log("CodeSpecialist: Getting patch meta for line: " + targetLine);
-        setStatus("Calculating patch metadata...");
+        setStatus("Calculating patch metadata from line: " + targetLine);
         jC.projectOperationsExecutor.execute(() -> {
             String source = getGeneratedSource(javaName);
             if (source != null) {

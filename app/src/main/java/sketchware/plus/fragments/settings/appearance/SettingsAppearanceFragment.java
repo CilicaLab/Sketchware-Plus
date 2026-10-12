@@ -17,6 +17,7 @@ import sketchware.plus.R;
 import sketchware.plus.databinding.FragmentSettingsAppearanceBinding;
 import sketchware.plus.utility.AppIconManager;
 import sketchware.plus.utility.AssistantPatternManager;
+import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.theme.ThemeManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -95,6 +96,7 @@ public class SettingsAppearanceFragment extends qA {
         binding.themeSystem.setOnClickListener(v -> binding.switchSystem.setChecked(!binding.switchSystem.isChecked()));
 
         binding.switchSystem.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            HapticManager.vibrateSwitch(buttonView);
             unselectSelectedThemeCard();
             setThemeCardsEnabled(!isChecked);
             if (isChecked) {

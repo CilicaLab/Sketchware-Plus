@@ -1152,8 +1152,8 @@ public class SkAssistantFragment extends Fragment {
 
     String getXmlRules() {
         return "Rules for Sketchware plus XML:\n" +
-                "- Match the structure of Sketchware's generated XML exactly. Match the property style exactly.\n" +
-                "- you can use standard Android Studio XML conventions .\n" +
+                "- Match the structure of Sketchware's generated XML. Match the property style.\n" +
+                "- Always make sure your changes are nice looking as possible .\n" +
                 "- Provide the FULL XML layout code when suggesting changes.";
     }
 

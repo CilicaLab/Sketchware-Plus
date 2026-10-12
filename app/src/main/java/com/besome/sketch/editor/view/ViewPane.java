@@ -493,10 +493,11 @@ public class ViewPane extends RelativeLayout {
             updateEditText((EditText) view, viewBean);
         }
         if (classInfo.a("ImageView")) {
-            if (resourcesManager.h(viewBean.image.resName) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
-                ((ImageView) view).setImageResource(getContext().getResources().getIdentifier(viewBean.image.resName, "drawable", getContext().getPackageName()));
-            } else if (viewBean.image.resName.equals("default_image")) {
+            if (TextUtils.isEmpty(viewBean.image.resName) || viewBean.image.resName.equals("default_image")) {
+                viewBean.image.resName = "default_image";
                 ((ImageView) view).setImageResource(R.drawable.default_image);
+            } else if (resourcesManager.h(viewBean.image.resName) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
+                ((ImageView) view).setImageResource(getContext().getResources().getIdentifier(viewBean.image.resName, "drawable", getContext().getPackageName()));
             } else {
                 try {
                     String imagelocation = resourcesManager.f(viewBean.image.resName);

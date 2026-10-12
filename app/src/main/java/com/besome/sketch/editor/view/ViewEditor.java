@@ -32,6 +32,7 @@ import com.besome.sketch.beans.WidgetCollectionBean;
 import com.besome.sketch.editor.view.item.ItemHorizontalScrollView;
 import com.besome.sketch.editor.view.item.ItemVerticalScrollView;
 import com.besome.sketch.editor.view.palette.IconAdView;
+import sketchware.plus.utility.HapticManager;
 import com.besome.sketch.editor.view.palette.IconBase;
 import com.besome.sketch.editor.view.palette.IconLinearHorizontal;
 import com.besome.sketch.editor.view.palette.IconLinearVertical;
@@ -356,6 +357,7 @@ public class ViewEditor extends RelativeLayout implements View.OnClickListener, 
             lol:
             if (dummyView.getAllow()) {
                 if (D && currentTouchedView instanceof ItemView widget) {
+                    HapticManager.vibrateStop(deleteView);
                     deleteWidget(widget.getBean());
                     break lol;
                 }
@@ -419,6 +421,7 @@ public class ViewEditor extends RelativeLayout implements View.OnClickListener, 
                         a(a(arrayList, true), true);
                     }
                 } else if (currentTouchedView instanceof IconBase icon) {
+                    HapticManager.vibrateSave(currentTouchedView);
                     ViewBean bean = icon.getBean();
                     bean.id = generateWidgetId(bean);
                     viewPane.updateViewBeanProperties(bean, (int) motionEvent.getRawX(), (int) motionEvent.getRawY());
@@ -428,6 +431,7 @@ public class ViewEditor extends RelativeLayout implements View.OnClickListener, 
                     }
                     a(a(bean, true), true);
                 } else if (currentTouchedView instanceof ItemView sy) {
+                    HapticManager.vibrateSave(currentTouchedView);
                     ViewBean bean = sy.getBean();
                     viewPane.updateViewBeanProperties(bean, (int) motionEvent.getRawX(), (int) motionEvent.getRawY());
                     a(b(bean, true), true);
@@ -690,7 +694,7 @@ public class ViewEditor extends RelativeLayout implements View.OnClickListener, 
         paletteWidget.setScrollEnabled(false);
         paletteFavorite.setScrollEnabled(false);
         if (draggingListener != null) draggingListener.b();
-        if (useVibrate) SketchwareUtil.vibrate(currentTouchedView, vibrator, 100L);
+        if (useVibrate) HapticManager.vibrateRun(currentTouchedView);
         isDragged = true;
         dummyView.b(currentTouchedView);
         dummyView.bringToFront();

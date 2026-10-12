@@ -28,6 +28,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
+import sketchware.plus.utility.HapticManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -2212,7 +2213,9 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
                     }
                 }
                 q();
+                HapticManager.vibrateSave(v);
             } else if (logicTopMenu.isDeleteActive) {
+                HapticManager.vibrateStop(v);
                 Rs rs5 = (Rs) v;
                 if (rs5.getBlockType() == 2) {
                     g(true);
@@ -2462,7 +2465,7 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
             }
 
             if (G) {
-                SketchwareUtil.vibrate(currentTouchedView, vibrator, 100L);
+                HapticManager.vibrateRun(currentTouchedView);
             }
 
             isDragged = true;
