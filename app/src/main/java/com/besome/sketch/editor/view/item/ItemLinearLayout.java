@@ -60,7 +60,7 @@ public class ItemLinearLayout extends LinearLayout implements ItemView, ScrollCo
     public void addView(View child, int index) {
         int childCount = getChildCount();
         if (index > childCount || index < 0) {
-            super.addView(child);
+            super.addView(child, -1);
         } else {
             int firstGoneIndex = -1;
             for (int i = 0; i < childCount; i++) {
