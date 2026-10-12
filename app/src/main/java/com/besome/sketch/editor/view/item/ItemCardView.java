@@ -49,15 +49,15 @@ public class ItemCardView extends MaterialCardView implements ItemView, ScrollCo
     @Override
     public void addView(View child, int i) {
         int childCount = getChildCount();
-        if (i > childCount) {
-            addView(child);
-            return;
+        int targetIndex = i;
+        if (targetIndex < 0 || targetIndex > childCount) {
+            targetIndex = childCount;
         }
         int index = 0;
         while (index < childCount && getChildAt(index).getVisibility() != View.GONE) {
             index++;
         }
-        super.addView(child, i);
+        super.addView(child, targetIndex);
     }
 
     @Override
