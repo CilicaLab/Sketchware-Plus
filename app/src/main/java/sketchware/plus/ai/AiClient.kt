@@ -136,7 +136,12 @@ object AiClient {
         try {
             val jsonBody = JSONObject().apply {
                 put("model", model)
-                put("temperature", temperature.toDouble())
+                val effectiveTemp = if (tools != null && tools.length() > 0) {
+                    temperature.coerceAtMost(0.1f)
+                } else {
+                    temperature
+                }
+                put("temperature", effectiveTemp.toDouble())
                 if (tools != null && tools.length() > 0) {
                     put("tools", tools)
                     put("tool_choice", "auto")
@@ -179,7 +184,7 @@ object AiClient {
                         val content = message.optString("content", "").trim()
                         callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
                     }
-                } else if (response.code == 429 && retryCount < 5) {
+                } else if ((response.code == 429 || response.code == 413) && retryCount < 5) {
                     val errorBody = response.body?.string() ?: ""
                     val delayMillis = parseRetryAfter(errorBody)
                     
@@ -188,10 +193,11 @@ object AiClient {
                     val isGroq = "groq".equals(provider, ignoreCase = true) || 
                                  endpoint.contains("groq", ignoreCase = true) ||
                                  currentModel.contains("gpt-oss", ignoreCase = true) ||
-                                 currentModel.contains("qwen", ignoreCase = true)
+                                 currentModel.contains("qwen", ignoreCase = true) ||
+                                 currentModel.contains("llama", ignoreCase = true)
 
                     if (isGroq) {
-                        val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
+                        val groqModels = listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
                         val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
                         val alternateModel = if (currentIndex != -1) {
                             groqModels[(currentIndex + 1) % groqModels.size]
@@ -229,6 +235,20 @@ object AiClient {
                                 performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
                             }
                         }
+                    }
+                } else if (response.code == 400 && retryCount < 2) {
+                    val errorMsg = response.body?.string() ?: ""
+                    if (errorMsg.contains("output_parse_failed")) {
+                        mainHandler.post {
+                            callback.onRetry(retryCount + 1, 300)
+                        }
+                        executor.execute {
+                            if (!isCanceledByUser) {
+                                performAiRequest(context, systemPrompt, chatHistory, 0.0f, tools, modelOverride, callback, retryCount + 1)
+                            }
+                        }
+                    } else {
+                        callback.onError("API Error (${response.code}): $errorMsg")
                     }
                 } else {
                     val errorMsg = response.body?.string() ?: "Unknown error"

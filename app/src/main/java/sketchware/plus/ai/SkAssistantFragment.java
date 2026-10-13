@@ -490,6 +490,7 @@ public class SkAssistantFragment extends Fragment {
             getActivity().runOnUiThread(() -> {
                 updateSendButtonState(isThinking);
 
+
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     if ("status".equals(messages.get(i).role)) {
                         messages.remove(i);
@@ -525,6 +526,12 @@ public class SkAssistantFragment extends Fragment {
             return;
         }
         isSendButtonThinking = isThinking;
+
+        if (isThinking) {
+            HapticManager.startTicking(1000);
+        } else {
+            HapticManager.stopTicking();
+        }
 
         int targetIcon = isThinking ? R.drawable.ic_mtrl_stop : R.drawable.ic_mtrl_send;
         int targetColor = ContextCompat.getColor(context, isThinking ? R.color.scolor_red_01 : R.color.color_primary);

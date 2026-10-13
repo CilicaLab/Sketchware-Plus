@@ -145,6 +145,9 @@ public class ToolOrchestrator {
         String metricsContext = buildMetricsContext();
         String finalSystemPrompt = baseSystemPrompt + metricsContext;
 
+        // Prune older large tool outputs in history to remain within rate limits (ITPM / TPM limits)
+        pruneHistory(chatHistory);
+
         JSONArray tools = AssistantToolRegistry.getAllTools();
 
         AiClient.askAi(context, finalSystemPrompt, chatHistory, AiClient.AiTemperatureType.ASSISTANT_MODE, tools, new AiClient.AiCallback() {
@@ -226,6 +229,24 @@ public class ToolOrchestrator {
                 ", tokens used: " + executionMetrics.totalTokensUsed;
     }
 
+    private void pruneHistory(JSONArray chatHistory) {
+        int len = chatHistory.length();
+        if (len <= 6) return;
+
+        // Preserve recent 4 messages, prune older tool output messages if large
+        for (int i = 0; i < len - 4; i++) {
+            try {
+                JSONObject msg = chatHistory.getJSONObject(i);
+                if ("tool".equals(msg.optString("role"))) {
+                    String content = msg.optString("content", "");
+                    if (content.length() > 800) {
+                        msg.put("content", content.substring(0, 400) + "\n... [Tool output truncated to save context window] ...");
+                    }
+                }
+            } catch (JSONException ignored) {}
+        }
+    }
+
     private void handleToolCalls(JSONArray toolCalls, String thought, JSONArray chatHistory) {
         if (isCanceled) return;
 
@@ -251,7 +272,7 @@ public class ToolOrchestrator {
                 // Add the tool_calls message from assistant to history
                 JSONObject assistantMsg = new JSONObject();
                 assistantMsg.put("role", "assistant");
-                assistantMsg.put("content", thought); // Include thoughts if present
+                assistantMsg.put("content", thought != null ? thought : JSONObject.NULL);
                 assistantMsg.put("tool_calls", sanitizedToolCalls);
                 chatHistory.put(assistantMsg);
 
@@ -276,7 +297,7 @@ public class ToolOrchestrator {
                                 toolResultMsg.put("role", "tool");
                                 toolResultMsg.put("tool_call_id", result.toolCallId);
                                 toolResultMsg.put("name", result.toolName);
-                                toolResultMsg.put("content", result.content);
+                                toolResultMsg.put("content", result.content != null ? result.content : "");
 
                                 // Track metrics
                                 executionMetrics.toolsExecuted++;

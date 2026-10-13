@@ -13,7 +13,8 @@ import androidx.preference.PreferenceGroup
 import androidx.preference.TwoStatePreference
 import sketchware.plus.SketchApplication
 import java.lang.ref.WeakReference
-
+import android.os.Handler
+import android.os.Looper
 /**
  * Mapping (Tremor style, one system-tuned effect per action):
  *  Save / Run      -> View CONFIRM
@@ -31,10 +32,50 @@ object HapticManager {
     private var anchor: WeakReference<View>? = null
     private var accessibilityAttrs: VibrationAttributes? = null
 
+    private val tickHandler = Handler(Looper.getMainLooper())
+    private var tickRunnable: Runnable? = null
+
     @JvmStatic
     fun setAnchor(v: View?) {
         anchor = v?.let { WeakReference(it) }
     }
+
+
+    /** Keeps ticking every intervalMs until stopTicking() is called. */
+    @JvmStatic
+    @JvmOverloads
+    fun startTicking(intervalMs: Long = 50L, v: View? = null) {
+        stopTicking()
+        val interval = intervalMs.coerceAtLeast(10L)
+        val viewRef = v?.let { WeakReference(it) }
+        val r = object : Runnable {
+            override fun run() {
+                if (isHapticsEnabled()) tick(viewRef?.get())
+                tickHandler.postDelayed(this, interval)
+            }
+        }
+        tickRunnable = r
+        tickHandler.post(r)
+    }
+
+    @JvmStatic
+    fun stopTicking() {
+        tickRunnable?.let { tickHandler.removeCallbacks(it) }
+        tickRunnable = null
+    }
+
+    @JvmStatic
+    fun isTicking(): Boolean = tickRunnable != null
+
+    private fun tick(v: View?) {
+        val constant = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
+        } else {
+            HapticFeedbackConstants.CLOCK_TICK
+        }
+        if (!viewHaptic(v, constant)) playEffect(VibrationEffect.EFFECT_TICK, 10)
+    }
+
 
     @JvmStatic
     @JvmOverloads
@@ -99,20 +140,6 @@ object HapticManager {
             if (isChecked) 35 else 20
         )
     }
-
-    @JvmStatic
-    @JvmOverloads
-    fun vibrateS() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            HapticFeedbackConstants.TOGGLE_ON
-        }
-        playEffect(
-            VibrationEffect.EFFECT_CLICK,
-            35
-        )
-    }
-
-
 
 
 

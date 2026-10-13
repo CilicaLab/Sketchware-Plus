@@ -338,9 +338,11 @@ public class SystemSettingFragment extends qA {
     }
 
     private void fetchGoogleAiModels(String apiKey) {
+        HapticManager.startTicking(100);
         ProgressDialog progressDialog = new ProgressDialog(requireContext());
         progressDialog.setMessage("Fetching available Gemini models...");
         progressDialog.setCancelable(false);
+        progressDialog.setOnDismissListener(dialog -> HapticManager.stopTicking());
         progressDialog.show();
 
         OkHttpClient client = new OkHttpClient.Builder()
@@ -515,9 +517,11 @@ public class SystemSettingFragment extends qA {
             return;
         }
 
+        HapticManager.startTicking(100);
         ProgressDialog progressDialog = new ProgressDialog(requireContext());
         progressDialog.setMessage("Fetching available models...");
         progressDialog.setCancelable(false);
+        progressDialog.setOnDismissListener(dialog -> HapticManager.stopTicking());
         progressDialog.show();
 
         String url = endpoint;

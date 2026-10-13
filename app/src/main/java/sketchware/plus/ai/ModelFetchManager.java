@@ -30,6 +30,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import sketchware.plus.databinding.DialogCreateNewFileLayoutBinding;
+import sketchware.plus.utility.HapticManager;
 
 public class ModelFetchManager {
 
@@ -100,9 +101,11 @@ public class ModelFetchManager {
 
     public void fetchAndPickGoogleModels(String apiKey) {
         if (fragment.getContext() == null) return;
+        HapticManager.startTicking(100);
         ProgressDialog progressDialog = new ProgressDialog(fragment.requireContext());
         progressDialog.setMessage("Fetching available Gemini models...");
         progressDialog.setCancelable(false);
+        progressDialog.setOnDismissListener(dialog -> HapticManager.stopTicking());
         progressDialog.show();
 
         OkHttpClient client = new OkHttpClient.Builder()
@@ -276,9 +279,11 @@ public class ModelFetchManager {
             return;
         }
 
+        HapticManager.startTicking(100);
         ProgressDialog progressDialog = new ProgressDialog(fragment.requireContext());
         progressDialog.setMessage("Fetching available models...");
         progressDialog.setCancelable(false);
+        progressDialog.setOnDismissListener(dialog -> HapticManager.stopTicking());
         progressDialog.show();
 
         String url = endpoint;
