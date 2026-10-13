@@ -374,6 +374,9 @@ public class ToolOrchestrator {
                 String xml = args.getString("xml");
                 String summary = args.optString("summary", "Modified layout");
                 boolean success = SketchwareXmlBridge.applyAiXmlToSketchware(context, fragment.scId, fragment.projectFile.getXmlName(), xml);
+                if (success) {
+                    fragment.refreshDesigner();
+                }
                 return success ? "Success: " + summary : "Error: Failed to apply XML. Check syntax.";
 
             case "get_manifest_xml":

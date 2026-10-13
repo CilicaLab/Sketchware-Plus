@@ -1185,17 +1185,12 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void refreshDesigner() {
-        if (getActivity() instanceof DesignActivity) {
-            Activity activity = getActivity();
-            if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        if (getActivity() instanceof DesignActivity) {
-                            ((DesignActivity) getActivity()).refresh();
-                        }
-                    }, 1300);
-                });
-            }
+        Activity activity = getActivity();
+        if (activity instanceof DesignActivity da) {
+            activity.runOnUiThread(() -> {
+                da.refreshViewTabAdapter();
+                da.refresh();
+            });
         }
     }
 

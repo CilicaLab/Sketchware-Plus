@@ -101,6 +101,26 @@ object HapticManager {
     }
 
     @JvmStatic
+    @JvmOverloads
+    fun vibrateS() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            HapticFeedbackConstants.TOGGLE_ON
+        }
+        playEffect(
+            VibrationEffect.EFFECT_CLICK,
+            35
+        )
+    }
+
+
+
+
+
+
+
+
+
+    @JvmStatic
     fun attachSwitchHaptics(group: PreferenceGroup?) {
         if (group == null) return
         for (i in 0 until group.preferenceCount) {

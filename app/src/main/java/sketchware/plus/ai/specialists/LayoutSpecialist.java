@@ -193,6 +193,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), getScId(), finalXmlName, xml);
                         fragment.addSystemMessage("Layout applied to " + finalXmlName);
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     } catch (Exception e) {
                         fragment.handleXmlError(xml, e.getMessage(), finalXmlName);
                     }
@@ -221,6 +222,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), getScId(), finalXmlName, editedXml);
                         fragment.addSystemMessage("Layout applied to " + finalXmlName);
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     } catch (Exception e) {
                         fragment.handleXmlError(editedXml, e.getMessage(), finalXmlName);
                     }
@@ -285,6 +287,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                     rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
                 }
                 dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
+                fragment.refreshDesigner();
                 return;
             }
 
@@ -304,6 +307,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.addSystemMessage("View '" + viewId + "' modified.");
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -369,6 +373,7 @@ public class LayoutSpecialist extends BaseSpecialist {
             if (!snapshot) {
                 dataManager.a(getProjectFile().getXmlName(), bean);
                 dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
+                fragment.refreshDesigner();
                 return;
             }
 
@@ -381,6 +386,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.addSystemMessage("View '" + newId + "' added.");
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -413,6 +419,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                     dataManager.a(getProjectFile(), affected.get(i));
                 }
                 dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
+                fragment.refreshDesigner();
                 return;
             }
 
@@ -428,6 +435,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.addSystemMessage("View '" + viewId + "' deleted.");
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -472,6 +480,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                 finalTarget.parent = newParentId;
                 finalTarget.index = newIndex;
                 dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
+                fragment.refreshDesigner();
                 return;
             }
 
@@ -485,6 +494,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.addSystemMessage("View '" + viewId + "' moved.");
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -520,6 +530,7 @@ public class LayoutSpecialist extends BaseSpecialist {
                         SketchwareXmlBridge.applyAiXmlToSketchware(getContext(), getScId(), name + ".xml", initialXml != null ? initialXml : "<LinearLayout android:layout_width=\"match_parent\" android:layout_height=\"match_parent\" android:orientation=\"vertical\"/>");
                         fragment.addSystemMessage("Custom View '" + name + "' " + (exists ? "updated" : "created") + ".");
                         fragment.setUndoVisible(true);
+                        fragment.refreshDesigner();
                     } catch (Exception e) {
                         SketchwareUtil.toastError("Failed to create Custom View: " + e.getMessage());
                     }
