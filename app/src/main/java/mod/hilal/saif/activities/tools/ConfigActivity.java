@@ -2,28 +2,17 @@ package mod.hilal.saif.activities.tools;
 
 import static sketchware.plus.utility.GsonUtils.getGson;
 
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.View;
-import android.view.WindowManager;
-import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.preference.Preference;
 import androidx.preference.PreferenceDataStore;
-import androidx.preference.PreferenceFragmentCompat;
-import androidx.preference.SwitchPreferenceCompat;
 
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.snackbar.BaseTransientBottomBar;
-import com.google.android.material.snackbar.Snackbar;
-import com.topjohnwu.superuser.Shell;
 
 import java.io.File;
 import java.util.Arrays;
@@ -33,12 +22,8 @@ import java.util.Map;
 
 import mod.hey.studios.util.Helper;
 import mod.jbk.util.LogUtil;
-import sketchware.plus.R;
-import sketchware.plus.databinding.DialogCreateNewFileLayoutBinding;
 import sketchware.plus.databinding.PreferenceActivityBinding;
 import sketchware.plus.utility.FileUtil;
-import sketchware.plus.utility.HapticManager;
-import sketchware.plus.utility.SketchwareUtil;
 
 public class ConfigActivity extends BaseAppCompatActivity {
 
@@ -111,8 +96,6 @@ public class ConfigActivity extends BaseAppCompatActivity {
                     return settings;
                 }
             } catch (Exception e) {
-                // Silently handle parsing errors on start.
-                // We'll restore defaults below.
                 LogUtil.e("ConfigActivity", "Failed to parse App Settings from " + SETTINGS_FILE.getAbsolutePath(), e);
             }
         }
@@ -167,7 +150,7 @@ public class ConfigActivity extends BaseAppCompatActivity {
 
         binding.topAppBar.setTitle("App Settings");
         binding.topAppBar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
-        var fragment = new PreferenceFragment();
+        var fragment = new ConfigFragment();
         fragment.setSnackbarView(binding.getRoot());
         getSupportFragmentManager().beginTransaction()
                 .replace(binding.fragmentContainer.getId(), fragment)
@@ -199,113 +182,6 @@ public class ConfigActivity extends BaseAppCompatActivity {
                 v.setPadding(left + insets.left, top, right + insets.right, bottom + insets.bottom);
                 return i;
             });
-        }
-    }
-
-    public static class PreferenceFragment extends PreferenceFragmentCompat {
-        private View snackbarView;
-        private DataStore dataStore;
-
-        @Override
-        public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
-            dataStore = DataStore.getInstance();
-            getPreferenceManager().setPreferenceDataStore(dataStore);
-            setPreferencesFromResource(R.xml.preferences_config_activity, rootKey);
-            HapticManager.attachSwitchHaptics(getPreferenceScreen());
-            Preference backupDir = findPreference("backup-dir");
-            assert backupDir != null;
-            backupDir.setOnPreferenceClickListener(preference -> {
-                DialogCreateNewFileLayoutBinding binding = DialogCreateNewFileLayoutBinding.inflate(getLayoutInflater());
-                binding.inputText.setText(getBackupPath());
-                binding.chipGroupTypes.setVisibility(View.GONE);
-                AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
-                        .setView(binding.getRoot())
-                        .setTitle("Backup directory")
-                        .setMessage("Directory inside /Internal storage/, e.g. .sketchware/backups")
-                        .setNegativeButton(R.string.common_word_cancel, null)
-                        .setPositiveButton(R.string.common_word_save, null)
-                        .create();
-
-                dialog.setOnShowListener(dialogInterface -> {
-                    dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(
-                            Helper.getDialogDismissListener(dialogInterface));
-                    Button positiveButton = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
-                    positiveButton.setOnClickListener(view -> {
-                        getDataStore().putString(SETTING_BACKUP_DIRECTORY, Helper.getText(binding.inputText));
-                        dialog.dismiss();
-                    });
-
-                    dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
-                    binding.inputText.requestFocus();
-                });
-                dialog.show();
-                return true;
-            });
-
-            SwitchPreferenceCompat installWithRoot = findPreference("root-auto-install-projects");
-            assert installWithRoot != null;
-            installWithRoot.setOnPreferenceClickListener(preference -> {
-                if (installWithRoot.isChecked()) {
-                    Shell.getShell(shell -> {
-                        if (!shell.isRoot()) {
-                            Snackbar.make(snackbarView, "Couldn't acquire root access", BaseTransientBottomBar.LENGTH_SHORT).show();
-                            installWithRoot.setChecked(false);
-                        }
-                    });
-                }
-                return true;
-            });
-
-            Preference backupFilename = findPreference("backup-filename");
-            assert backupFilename != null;
-            backupFilename.setOnPreferenceClickListener(preference -> {
-                DialogCreateNewFileLayoutBinding binding = DialogCreateNewFileLayoutBinding.inflate(getLayoutInflater());
-                binding.chipGroupTypes.setVisibility(View.GONE);
-                binding.inputText.setText(getBackupFileName());
-
-                AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
-                        .setView(binding.getRoot())
-                        .setTitle("Backup filename format")
-                        .setMessage("This defines how SWB backup files get named.\n" +
-                                "Available variables:\n" +
-                                " - $projectName - Project name\n" +
-                                " - $versionCode - App version code\n" +
-                                " - $versionName - App version name\n" +
-                                " - $pkgName - App package name\n" +
-                                " - $timeInMs - Time during backup in milliseconds\n" +
-                                "\n" +
-                                "Additionally, you can format your own time like this using Java's date formatter syntax:\n" +
-                                "$time(yyyy-MM-dd'T'HHmmss)\n")
-                        .setNegativeButton(R.string.common_word_cancel, null)
-                        .setPositiveButton(R.string.common_word_save, null)
-                        .setNeutralButton(R.string.common_word_reset, (dialogInterface, which) -> {
-                            getDataStore().putString(SETTING_BACKUP_FILENAME, null);
-                            Snackbar.make(snackbarView, "Reset to default complete.", BaseTransientBottomBar.LENGTH_SHORT).show();
-                        })
-                        .create();
-
-                dialog.setOnShowListener(dialogInterface -> {
-                    dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener(
-                            Helper.getDialogDismissListener(dialog));
-                    Button positiveButton = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
-                    positiveButton.setOnClickListener(view -> {
-                        getDataStore().putString(SETTING_BACKUP_FILENAME, Helper.getText(binding.inputText));
-                        dialog.dismiss();
-                    });
-                    dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
-                    binding.inputText.requestFocus();
-                });
-                dialog.show();
-                return true;
-            });
-        }
-
-        public DataStore getDataStore() {
-            return dataStore;
-        }
-
-        public void setSnackbarView(View snackbarView) {
-            this.snackbarView = snackbarView;
         }
     }
 
