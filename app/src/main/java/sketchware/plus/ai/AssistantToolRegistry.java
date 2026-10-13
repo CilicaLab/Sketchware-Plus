@@ -93,10 +93,11 @@ public class AssistantToolRegistry {
                 new ParameterBuilder().addProperty("permission", "string", "e.g. android.permission.CAMERA")
                         .setRequired("permission").build()));
 
-        t.put(createTool("add_component", "Add Sketchware component to activity",
+        t.put(createTool("add_component", "Add Sketchware component(s) to activity",
                 new ParameterBuilder()
                         .addProperty("type", "integer", "type ID from list_available_components")
-                        .addProperty("id", "string", "unique instance name")
+                        .addProperty("id", "string", "unique instance name or prefix (e.g. 'vibrator' or 'intent')")
+                        .addProperty("count", "integer", "Optional number of components of this type to add at once (default 1). E.g. set to 10 or 500 for batch addition.")
                         .setRequired("type", "id").build()));
 
         t.put(createTool("list_available_components", "List built-in + custom components",

@@ -37,16 +37,16 @@ public class ComponentSpecialist extends BaseSpecialist {
             String contextStr = fragment.gatherScopedContext(androidContext, "COMPONENT_ARCHITECT", prompt);
             String systemPrompt =
                     "COMPONENT EXPERT AGENT\n" +
-                            "1. Identify the component Type and ID (name) from the request. and \n" +
+                            "1. Identify the component Type, ID (name prefix), and optional Count from the request.\n" +
                             "   - SharedPref, Firebase, Firebase Storage: the ID is the filename/path param. Never ask for a separate filename.\n" +
                             "   - FILE_PICKER: default mime type is 'image/*' if unspecified.\n" +
-                            "2. Execute: only when BOTH Type and ID are clear, emit ADD_COMPONENT.\n\n" +
+                            "2. Execute: emit ADD_COMPONENT with componentType, id, params, and optional count.\n\n" +
                             "Respond with JSON only:\n" +
                             "{\n" +
                             "  \"category\": \"COMPONENT_ARCHITECT\",\n" +
                             "  \"thought_process\": \"how you identified the component\",\n" +
                             "  \"summary\": \"confirmation of what was added\",\n" +
-                            "  \"actions\": [{\"type\":\"ADD_COMPONENT\",\"componentType\":\"...\",\"id\":\"...\",\"params\":[...]}]\n" +
+                            "  \"actions\": [{\"type\":\"ADD_COMPONENT\",\"componentType\":\"...\",\"id\":\"...\",\"count\":1,\"params\":[...]}]\n" +
                             "}\n\n" +
                             "Classification reasoning: " + reasoning;
 
@@ -65,11 +65,16 @@ public class ComponentSpecialist extends BaseSpecialist {
             if (jParams != null) {
                 for (int j = 0; j < jParams.length(); j++) params.add(jParams.getString(j));
             }
-            applyAddComponent(action.getString("componentType"), action.getString("id"), params);
+            int count = action.optInt("count", 1);
+            applyAddComponent(action.getString("componentType"), action.getString("id"), params, count);
         }
     }
 
     public void applyAddComponent(String typeStr, String id, List<String> params) {
+        applyAddComponent(typeStr, id, params, 1);
+    }
+
+    public void applyAddComponent(String typeStr, String id, List<String> params, int count) {
         try {
             int typeVal = -1;
             try {
@@ -84,34 +89,18 @@ public class ComponentSpecialist extends BaseSpecialist {
                 return;
             }
             final int type = typeVal;
+            final int actualCount = Math.max(1, Math.min(count, 1000));
 
-            final List<String> finalParams = new ArrayList<>(params);
-            if (finalParams.isEmpty()) {
-                if (typeStr.equalsIgnoreCase("SHAREDPREF") ||
-                        typeStr.equalsIgnoreCase("FIREBASE") ||
-                        typeStr.equalsIgnoreCase("FIREBASE_STORAGE")) {
-                    finalParams.add(id);
-                } else if (typeStr.equalsIgnoreCase("FILE_PICKER")) {
-                    finalParams.add("image/*");
-                }
-            }
-
-            eC dataManager = jC.a(getScId());
-            String javaName = getProjectFile().getJavaName();
+            String message = (actualCount == 1)
+                    ? "Add " + typeStr + " component with ID '" + id + "'?"
+                    : "Add " + actualCount + " " + typeStr + " components with base ID '" + id + "'?";
 
             new MaterialAlertDialogBuilder(getContext())
-                    .setTitle("Add Component")
-                    .setMessage("Add " + typeStr + " component with ID '" + id + "'?")
+                    .setTitle("Add Component(s)")
+                    .setMessage(message)
                     .setPositiveButton("Add", (dialog, which) -> {
                         fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-                        if (finalParams.isEmpty()) {
-                            dataManager.a(javaName, type, id);
-                        } else {
-                            dataManager.a(javaName, type, id, finalParams.get(0));
-                        }
-                        dataManager.k(); 
-                        fragment.addSystemMessage("Component '" + id + "' (" + typeStr + ") added.");
-                        fragment.setUndoVisible(true);
+                        applyBatchAddComponent(type, id, actualCount);
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -121,35 +110,89 @@ public class ComponentSpecialist extends BaseSpecialist {
     }
 
     public void applyAddComponent(int type, String id) {
+        applyBatchAddComponent(type, id, 1);
+    }
+
+    public int applyBatchAddComponent(int type, String baseId, int count) {
         try {
             eC dataManager = jC.a(getScId());
             String javaName = getProjectFile().getJavaName();
             String typeName = ComponentBean.getComponentTypeName(type);
 
             fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-            
-            List<String> params = new ArrayList<>();
-            if (type == ComponentBean.COMPONENT_TYPE_SHAREDPREF ||
-                type == ComponentBean.COMPONENT_TYPE_FIREBASE ||
-                type == ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE) {
-                params.add(id);
-            } else if (type == ComponentBean.COMPONENT_TYPE_FILE_PICKER) {
-                params.add("image/*");
+
+            List<String> addedIds = new ArrayList<>();
+            int actualCount = Math.max(1, Math.min(count, 1000));
+
+            for (int i = 0; i < actualCount; i++) {
+                String requestedId = (actualCount == 1) ? baseId : (baseId + (i + 1));
+                String resolvedId = resolveUniqueComponentId(getScId(), javaName, requestedId);
+
+                List<String> params = new ArrayList<>();
+                if (type == ComponentBean.COMPONENT_TYPE_SHAREDPREF ||
+                        type == ComponentBean.COMPONENT_TYPE_FIREBASE ||
+                        type == ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE) {
+                    params.add(resolvedId);
+                } else if (type == ComponentBean.COMPONENT_TYPE_FILE_PICKER) {
+                    params.add("image/*");
+                }
+
+                if (params.isEmpty()) {
+                    dataManager.a(javaName, type, resolvedId);
+                } else {
+                    dataManager.a(javaName, type, resolvedId, params.get(0));
+                }
+                addedIds.add(resolvedId);
             }
 
-            if (params.isEmpty()) {
-                dataManager.a(javaName, type, id);
-            } else {
-                dataManager.a(javaName, type, id, params.get(0));
-            }
-            
             dataManager.k();
 
-            fragment.addSystemMessage("Component '" + id + "' (" + typeName + ") added automatically.");
+            if (actualCount == 1) {
+                fragment.addSystemMessage("Component '" + addedIds.get(0) + "' (" + typeName + ") added.");
+            } else {
+                fragment.addSystemMessage("Added " + actualCount + " " + typeName + " components ('" + addedIds.get(0) + "' to '" + addedIds.get(addedIds.size() - 1) + "').");
+            }
             fragment.setUndoVisible(true);
-            
+            return actualCount;
         } catch (Exception e) {
-            fragment.addSystemMessage("Error adding component: " + e.getMessage());
+            fragment.addSystemMessage("Error adding components: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    public static String resolveUniqueComponentId(String scId, String javaName, String requestedId) {
+        if (scId == null || javaName == null || requestedId == null) return requestedId;
+        eC dataManager = jC.a(scId);
+        if (dataManager == null) return requestedId;
+
+        ArrayList<ComponentBean> existing = dataManager.e(javaName);
+        if (existing == null || existing.isEmpty()) return requestedId;
+
+        boolean exists = false;
+        for (ComponentBean cb : existing) {
+            if (cb != null && requestedId.equals(cb.componentId)) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) return requestedId;
+
+        int counter = 2;
+        String newId;
+        while (true) {
+            newId = requestedId + "_" + counter;
+            boolean collision = false;
+            for (ComponentBean cb : existing) {
+                if (cb != null && newId.equals(cb.componentId)) {
+                    collision = true;
+                    break;
+                }
+            }
+            if (!collision) {
+                return newId;
+            }
+            counter++;
         }
     }
 }

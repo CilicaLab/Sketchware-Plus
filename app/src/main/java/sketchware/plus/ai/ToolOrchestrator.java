@@ -485,13 +485,19 @@ public class ToolOrchestrator {
                 fragment.setUndoVisible(true);
                 int typeId = args.getInt("type");
                 String requestedId = args.getString("id");
-                String compJavaName = fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main";
-                String resolvedId = resolveUniqueComponentId(fragment.scId, compJavaName, requestedId);
-                runOnMainSync(() -> fragment.componentSpecialist.applyAddComponent(typeId, resolvedId));
-                if (!resolvedId.equals(requestedId)) {
-                    return "Component ID '" + requestedId + "' was already in use. Automatically renamed and added as '" + resolvedId + "' successfully.";
+                int count = args.optInt("count", 1);
+                
+                final int[] addedCount = new int[1];
+                runOnMainSync(() -> {
+                    addedCount[0] = fragment.componentSpecialist.applyBatchAddComponent(typeId, requestedId, count);
+                });
+                
+                String typeName = ComponentBean.getComponentTypeName(typeId);
+                if (addedCount[0] == 1) {
+                    return "Component '" + requestedId + "' (" + typeName + ") added successfully.";
+                } else {
+                    return "Successfully added " + addedCount[0] + " " + typeName + " components in batch with base ID '" + requestedId + "'.";
                 }
-                return "Component " + resolvedId + " added successfully.";
             }
 
             case "list_available_components":

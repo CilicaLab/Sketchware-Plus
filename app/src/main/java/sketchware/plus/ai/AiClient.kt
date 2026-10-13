@@ -184,7 +184,7 @@ object AiClient {
                         val content = message.optString("content", "").trim()
                         callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
                     }
-                } else if ((response.code == 429 || response.code == 413) && retryCount < 5) {
+                } else if ((response.code == 429 || response.code == 413 || response.code == 404) && retryCount < 5) {
                     val errorBody = response.body?.string() ?: ""
                     val delayMillis = parseRetryAfter(errorBody)
                     
@@ -197,7 +197,7 @@ object AiClient {
                                  currentModel.contains("llama", ignoreCase = true)
 
                     if (isGroq) {
-                        val groqModels = listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
+                        val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
                         val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
                         val alternateModel = if (currentIndex != -1) {
                             groqModels[(currentIndex + 1) % groqModels.size]
