@@ -3,26 +3,22 @@ package sketchware.plus.ai.specialists;
 import android.app.Activity;
 import android.content.Context;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 import a.a.a.Ix;
 import a.a.a.eC;
 import a.a.a.jC;
 import a.a.a.jq;
 import a.a.a.yq;
+import mod.hey.studios.util.Helper;
 import sketchware.plus.ai.ProjectSnapshot;
 import sketchware.plus.ai.SkAssistantFragment;
 import sketchware.plus.util.library.BuiltInLibraryManager;
 import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
-import mod.hey.studios.util.Helper;
 
 public class ManifestSpecialist extends BaseSpecialist {
 
@@ -41,13 +37,8 @@ public class ManifestSpecialist extends BaseSpecialist {
             String contextStr = fragment.gatherScopedContext(androidContext, "SYSTEM_MANIFEST", prompt);
 
             String systemPrompt = "You are the Sketchware Plus Manifest Specialist.\n" +
-                    "Help the user add permissions or manifest injections.\n" +
-                    "For permissions, use ADD_PERMISSION with the full android.permission string.\n\n" +
-                    "RESPONSE CONTRACT:\n" +
-                    "{\n" +
-                    "  \"category\": \"SYSTEM_MANIFEST\",\n" +
-                    "  \"actions\": [ {\"type\":\"ADD_PERMISSION\",\"name\":\"...\"} ]\n" +
-                    "}\n" +
+                    "Help the user inspect, read, and modify AndroidManifest.xml and its sections.\n" +
+                    "To modify AndroidManifest.xml, use the `add_xml_patch` tool targeting `xmlName: \"AndroidManifest.xml\"` (which registers the command in the XML Command Manager).\n\n" +
                     "Reasoning: " + reasoning;
 
             Activity activity = fragment.getActivity();
@@ -58,10 +49,8 @@ public class ManifestSpecialist extends BaseSpecialist {
     }
 
     @Override
-    public void handleAction(JSONObject action) throws JSONException {
-        if ("ADD_PERMISSION".equals(action.optString("type"))) {
-            applyPermission(action.getString("name"));
-        }
+    public void handleAction(JSONObject action) {
+        // Read-only specialist
     }
 
     public void applyPermission(String permission) {
@@ -87,7 +76,6 @@ public class ManifestSpecialist extends BaseSpecialist {
                 dataManager.l.addPermission(permMask);
             }
 
-            // Also persistently add it to the project's Permission Manager JSON file
             try {
                 FilePathUtil pathUtil = new FilePathUtil();
                 String permissionFilePath = pathUtil.getPathPermission(getScId());
@@ -120,38 +108,5 @@ public class ManifestSpecialist extends BaseSpecialist {
         } catch (Exception e) {
             fragment.addSystemMessage("Error adding permission: " + e.getMessage());
         }
-    }
-
-    public void applyManifestInjection(String type, String value) {
-        new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Manifest Injection")
-                .setMessage("Add " + type + ": " + value + "?")
-                .setPositiveButton("Add", (dialog, which) -> {
-                    try {
-                        if ("ATTR".equals(type)) {
-                            String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + getScId() + "/Injection/androidmanifest/attributes.json";
-                            ArrayList<HashMap<String, Object>> data = new ArrayList<>();
-                            if (FileUtil.isExistFile(path)) {
-                                data = GsonUtils.getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
-                            }
-
-                            HashMap<String, Object> item = new HashMap<>();
-                            item.put("name", "_application_attrs"); 
-                            item.put("value", value);
-                            data.add(item);
-                            FileUtil.writeFile(path, GsonUtils.getGson().toJson(data));
-                        } else if ("COMPONENT".equals(type)) {
-                            String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + getScId() + "/Injection/androidmanifest/app_components.txt";
-                            String content = FileUtil.isExistFile(path) ? FileUtil.readFile(path) : "";
-                            content += "\n" + value;
-                            FileUtil.writeFile(path, content);
-                        }
-                        fragment.addSystemMessage("Manifest injection added.");
-                    } catch (Exception e) {
-                        fragment.addSystemMessage("Error injecting manifest: " + e.getMessage());
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
     }
 }

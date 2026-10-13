@@ -72,11 +72,16 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
     public static final String FLAG_FROM_ANDROID_MANIFEST = "from_android_manifest";
     public static final List<Pair<String, Class<? extends EditorColorScheme>>> KNOWN_COLOR_SCHEMES = List.of(
             new Pair<>("Default", EditorColorScheme.class),
-            new Pair<>("GitHub", SchemeGitHub.class),
+            new Pair<>("GitHub (Sora)", SchemeGitHub.class),
             new Pair<>("Eclipse", SchemeEclipse.class),
-            new Pair<>("Darcula", SchemeDarcula.class),
+            new Pair<>("Darcula (Sora)", SchemeDarcula.class),
             new Pair<>("VS2019", SchemeVS2019.class),
-            new Pair<>("NotepadXX", SchemeNotepadXX.class)
+            new Pair<>("NotepadXX", SchemeNotepadXX.class),
+            new Pair<>("Dracula", TextMateColorScheme.class),
+            new Pair<>("Monokai", TextMateColorScheme.class),
+            new Pair<>("Solarized Dark", TextMateColorScheme.class),
+            new Pair<>("One Dark", TextMateColorScheme.class),
+            new Pair<>("Nord", TextMateColorScheme.class)
     );
     public static SharedPreferences pref;
     public static int languageId;
@@ -107,18 +112,21 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
     }
 
     public static void selectTheme(CodeEditor ed, int which) {
-        if (!(ed.getColorScheme() instanceof TextMateColorScheme)) {
-            EditorColorScheme scheme = switch (which) {
-                case 1 -> new SchemeGitHub();
-                case 2 -> new SchemeEclipse();
-                case 3 -> new SchemeDarcula();
-                case 4 -> new SchemeVS2019();
-                case 5 -> new SchemeNotepadXX();
-                default -> new EditorColorScheme();
-            };
+        EditorColorScheme scheme = switch (which) {
+            case 1 -> new SchemeGitHub();
+            case 2 -> new SchemeEclipse();
+            case 3 -> new SchemeDarcula();
+            case 4 -> new SchemeVS2019();
+            case 5 -> new SchemeNotepadXX();
+            case 6 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_DRACULA);
+            case 7 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_MONOKAI);
+            case 8 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_SOLARIZED_DARK);
+            case 9 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_ONE_DARK);
+            case 10 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_NORD);
+            default -> new EditorColorScheme();
+        };
 
-            ed.setColorScheme(scheme);
-        }
+        ed.setColorScheme(scheme);
     }
 
     public static void selectLanguage(CodeEditor ed, int which) {
@@ -242,14 +250,7 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
     }
 
     public static void showSwitchThemeDialog(Activity activity, CodeEditor codeEditor, DialogInterface.OnClickListener listener) {
-        EditorColorScheme currentScheme = codeEditor.getColorScheme();
-        var knownColorSchemesProperlyOrdered = new ArrayList<>(KNOWN_COLOR_SCHEMES);
-        Collections.reverse(knownColorSchemesProperlyOrdered);
-        int selectedThemeIndex = knownColorSchemesProperlyOrdered.stream()
-                .filter(pair -> pair.second.equals(currentScheme.getClass()))
-                .map(KNOWN_COLOR_SCHEMES::indexOf)
-                .findFirst()
-                .orElse(-1);
+        int selectedThemeIndex = pref != null ? pref.getInt("act_theme", 3) : 3;
         String[] themeItems = KNOWN_COLOR_SCHEMES.stream()
                 .map(pair -> pair.first)
                 .toArray(String[]::new);

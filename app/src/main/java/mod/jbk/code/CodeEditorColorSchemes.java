@@ -16,7 +16,18 @@ import sketchware.plus.SketchApplication;
 public class CodeEditorColorSchemes {
     public static final String THEME_DRACULA = "dracula.json";
     public static final String THEME_GITHUB = "GitHub.tmTheme";
-    public static final String[] THEMES = {THEME_DRACULA, THEME_GITHUB};
+    public static final String THEME_MONOKAI = "monokai.json";
+    public static final String THEME_SOLARIZED_DARK = "solarized-dark.json";
+    public static final String THEME_ONE_DARK = "one-dark.json";
+    public static final String THEME_NORD = "nord.json";
+    public static final String[] THEMES = {
+            THEME_DRACULA,
+            THEME_GITHUB,
+            THEME_MONOKAI,
+            THEME_SOLARIZED_DARK,
+            THEME_ONE_DARK,
+            THEME_NORD
+    };
     private static final String TAG = "CodeEditorColorSchemes";
 
     static {

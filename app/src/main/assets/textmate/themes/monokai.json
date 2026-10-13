@@ -1,0 +1,79 @@
+{
+    "name": "monokai",
+    "settings": [
+        {
+            "settings": {
+                "background": "#272822",
+                "foreground": "#F8F8F2",
+                "caret": "#F8F8F0",
+                "lineHighlight": "#3E3D32",
+                "selection": "#49483E"
+            }
+        },
+        {
+            "name": "Comment",
+            "scope": "comment, punctuation.definition.comment",
+            "settings": { "foreground": "#75715E" }
+        },
+        {
+            "name": "String",
+            "scope": "string, string.quoted",
+            "settings": { "foreground": "#E6DB74" }
+        },
+        {
+            "name": "Number",
+            "scope": "constant.numeric",
+            "settings": { "foreground": "#AE81FF" }
+        },
+        {
+            "name": "Language constant",
+            "scope": "constant.language, constant.character, constant.other",
+            "settings": { "foreground": "#AE81FF" }
+        },
+        {
+            "name": "Keyword",
+            "scope": "keyword, storage.modifier, storage.type.class, storage.type.function, keyword.control",
+            "settings": { "foreground": "#F92672" }
+        },
+        {
+            "name": "Operator",
+            "scope": "keyword.operator",
+            "settings": { "foreground": "#F92672" }
+        },
+        {
+            "name": "Storage type (int, String, etc)",
+            "scope": "storage.type, support.type, support.class",
+            "settings": { "foreground": "#66D9EF", "fontStyle": "italic" }
+        },
+        {
+            "name": "Class / type name",
+            "scope": "entity.name.type, entity.name.class, entity.other.inherited-class",
+            "settings": { "foreground": "#A6E22E" }
+        },
+        {
+            "name": "Function",
+            "scope": "entity.name.function, support.function, meta.method-call",
+            "settings": { "foreground": "#A6E22E" }
+        },
+        {
+            "name": "Parameter",
+            "scope": "variable.parameter",
+            "settings": { "foreground": "#FD971F", "fontStyle": "italic" }
+        },
+        {
+            "name": "Annotation",
+            "scope": "storage.type.annotation, meta.annotation, punctuation.definition.annotation",
+            "settings": { "foreground": "#66D9EF" }
+        },
+        {
+            "name": "Variable",
+            "scope": "variable, variable.other",
+            "settings": { "foreground": "#F8F8F2" }
+        },
+        {
+            "name": "Punctuation",
+            "scope": "punctuation, meta.brace",
+            "settings": { "foreground": "#F8F8F2" }
+        }
+    ]
+}

@@ -32,6 +32,10 @@ public class SourceCodeAide {
     public static JSONObject addJavaCommandToManager(Context context, String scId, String javaName,
                                                      String reference, int distance, int front, int back,
                                                      String command, String inputCode) {
+        if (javaName != null && (javaName.toLowerCase().endsWith(".xml") || javaName.equalsIgnoreCase("AndroidManifest.xml"))) {
+            return addXmlCommandToManager(context, scId, javaName, reference, distance, front, back, command, inputCode);
+        }
+
         JSONObject result = new JSONObject();
         try {
             String commandPath = wq.b(scId) + "/java_command";
@@ -50,6 +54,44 @@ public class SourceCodeAide {
             map.put("before", back);
             map.put("command", command);
             map.put("input", ">" + javaName + "\n" + inputCode);
+
+            commands.add(map);
+            FileUtil.writeFile(commandPath, GsonUtils.getGson().toJson(commands));
+
+            result.put("status", "success");
+        } catch (Exception e) {
+            try {
+                result.put("status", "error");
+                result.put("message", e.getMessage());
+            } catch (Exception ignored) {}
+        }
+        return result;
+    }
+
+    /**
+     * Adds an XML command to the global XML Command Manager file (for AndroidManifest.xml, layout XMLs, resources).
+     */
+    public static JSONObject addXmlCommandToManager(Context context, String scId, String xmlName,
+                                                    String reference, int distance, int front, int back,
+                                                    String command, String inputCode) {
+        JSONObject result = new JSONObject();
+        try {
+            String commandPath = wq.b(scId) + "/command";
+            ArrayList<HashMap<String, Object>> commands = new ArrayList<>();
+            if (FileUtil.isExistFile(commandPath)) {
+                String content = FileUtil.readFile(commandPath);
+                if (!content.isEmpty() && !content.equals("[]")) {
+                    commands = GsonUtils.getGson().fromJson(content, Helper.TYPE_MAP_LIST);
+                }
+            }
+
+            HashMap<String, Object> map = new HashMap<>();
+            map.put("reference", reference);
+            map.put("distance", distance);
+            map.put("after", front);
+            map.put("before", back);
+            map.put("command", command);
+            map.put("input", ">" + xmlName + "\n" + inputCode);
 
             commands.add(map);
             FileUtil.writeFile(commandPath, GsonUtils.getGson().toJson(commands));

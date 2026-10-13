@@ -44,9 +44,6 @@ public class AssistantToolRegistry {
         t.put(createTool("search_manifest", "Search keyword/entry in AndroidManifest.xml",
                 new ParameterBuilder().addProperty("query", "string", "keyword to search").setRequired("query").build()));
 
-        t.put(createTool("apply_manifest_xml", "Apply/inject manifest XML snippet (permissions, activities, services, receivers, application attributes)",
-                new ParameterBuilder().addProperty("xml", "string", "manifest XML snippet").setRequired("xml").build()));
-
         t.put(createTool("inject_imports", "Add imports to current activity",
                 new ParameterBuilder()
                         .addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
@@ -82,6 +79,17 @@ public class AssistantToolRegistry {
                         .addProperty("front", "integer", "lines to delete before anchor")
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("javaName", "reference", "command", "inputCode").build()));
+
+        t.put(createTool("add_xml_patch", "Patch generated XML source code (e.g. AndroidManifest.xml, main.xml, strings.xml) via XML Command Manager",
+                new ParameterBuilder()
+                        .addProperty("xmlName", "string", "target XML file, e.g. AndroidManifest.xml or main.xml")
+                        .addProperty("reference", "string", "EXACT anchor line in XML")
+                        .addProperty("command", "string", "insert|add|replace|find-replace|find-replace-first|find-replace-all")
+                        .addProperty("inputCode", "string", "new XML code")
+                        .addProperty("distance", "integer", "line offset from anchor, default 0")
+                        .addProperty("front", "integer", "lines to delete before anchor")
+                        .addProperty("back", "integer", "lines to delete after anchor")
+                        .setRequired("xmlName", "reference", "command", "inputCode").build()));
 
         t.put(createTool("manage_local_library", "Enable/disable local library",
                 new ParameterBuilder()

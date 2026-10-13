@@ -1,0 +1,46 @@
+{
+    "name": "solarized-dark",
+    "settings": [{
+        "settings": {
+            "background": "#002B36",
+            "foreground": "#839496",
+            "lineHighlight": "#073642",
+            "selection": "#073642"
+        }
+    },
+    {
+        "name": "Comment",
+        "scope": "comment",
+        "settings": {
+            "foreground": "#586E75"
+        }
+    },
+    {
+        "name": "String",
+        "scope": "string",
+        "settings": {
+            "foreground": "#2AA198"
+        }
+    },
+    {
+        "name": "Number",
+        "scope": "constant.numeric",
+        "settings": {
+            "foreground": "#D33682"
+        }
+    },
+    {
+        "name": "Keyword",
+        "scope": "keyword",
+        "settings": {
+            "foreground": "#859900"
+        }
+    },
+    {
+        "name": "Function",
+        "scope": "entity.name.function,support.function",
+        "settings": {
+            "foreground": "#268BD2"
+        }
+    }]
+}

@@ -1442,7 +1442,7 @@ public class SkAssistantFragment extends Fragment {
             List<Action> actions = new ArrayList<>();
             if (text == null) return actions;
 
-            String[] tags = {"CUSTOM_VIEW", "LIBRARY", "IMPORT", "PERMISSION", "LOCAL_LIBRARY", "MANIFEST_ATTR", "MANIFEST_COMPONENT", "MODIFY_VIEW", "ADD_VIEW", "DELETE_VIEW", "MOVE_VIEW"};
+            String[] tags = {"CUSTOM_VIEW", "LIBRARY", "IMPORT", "LOCAL_LIBRARY", "MODIFY_VIEW", "ADD_VIEW", "DELETE_VIEW", "MOVE_VIEW"};
             for (String tag : tags) {
                 Pattern p = Pattern.compile("\\[" + tag + ":\\s*([^\\]]+)\\]");
                 Matcher m = p.matcher(text);
@@ -1726,9 +1726,6 @@ public class SkAssistantFragment extends Fragment {
                                 case "LIBRARY": fragment.librarySpecialist.applyLibrary(action.value); break;
                                 case "LOCAL_LIBRARY": fragment.librarySpecialist.applyLocalLibrary(action.value); break;
                                 case "IMPORT": fragment.codeSpecialist.applyImport(action.value); break;
-                                case "PERMISSION": fragment.manifestSpecialist.applyPermission(action.value); break;
-                                case "MANIFEST_ATTR": fragment.manifestSpecialist.applyManifestInjection("ATTR", action.value); break;
-                                case "MANIFEST_COMPONENT": fragment.manifestSpecialist.applyManifestInjection("COMPONENT", action.value); break;
                                 case "MODIFY_VIEW": fragment.handleModifyAction(action.value); break;
                                 case "MOVE_VIEW": fragment.handleMoveAction(action.value); break;
                                 case "ADD_VIEW": fragment.handleAddAction(action.value); break;

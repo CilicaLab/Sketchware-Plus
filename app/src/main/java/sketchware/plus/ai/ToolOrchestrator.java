@@ -216,7 +216,7 @@ public class ToolOrchestrator {
                 "2. Call only tools from the provided list. Never invent tools.\n" +
                 "3. Never web search component IDs. Use list_available_components.\n" +
                 "4. Once you know the action, call the tool immediately. No narration first.\n" +
-                "5. Patching code: get_class_outline/list_methods -> read_method for the exact anchor -> add_java_patch.\n" +
+                "5. Patching code: For Java files, use add_java_patch. For XML files (like AndroidManifest.xml, main.xml, strings.xml), use add_xml_patch (which writes to the XML Command Manager).\n" +
                 "6. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
                 "7. No redundant tool calls. Reuse info already retrieved.\n" +
@@ -407,13 +407,6 @@ public class ToolOrchestrator {
             case "search_manifest":
                 return SketchwareManifestBridge.searchManifest(context, fragment.scId, args.getString("query"));
 
-            case "apply_manifest_xml":
-                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
-                fragment.setUndoVisible(true);
-                String mXml = args.getString("xml");
-                boolean mApplied = SketchwareManifestBridge.applyAiManifestToSketchware(context, fragment.scId, mXml);
-                return mApplied ? "Manifest updated successfully." : "No updates made to manifest.";
-
             case "inject_imports":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
@@ -461,6 +454,17 @@ public class ToolOrchestrator {
                     args.getString("command"), args.getString("inputCode")
                 );
                 return patch.toString();
+
+            case "add_xml_patch":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                JSONObject xmlPatch = SourceCodeAide.addXmlCommandToManager(
+                    context, fragment.scId, args.getString("xmlName"),
+                    args.getString("reference"), args.optInt("distance", 0),
+                    args.optInt("front", 0), args.optInt("back", 0),
+                    args.getString("command"), args.getString("inputCode")
+                );
+                return xmlPatch.toString();
 
             case "manage_local_library":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");

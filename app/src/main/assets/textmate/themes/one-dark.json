@@ -1,0 +1,47 @@
+{
+    "name": "one-dark",
+    "settings": [{
+        "settings": {
+            "background": "#282C34",
+            "foreground": "#ABB2BF",
+            "lineHighlight": "#2C313A",
+            "selection": "#3E4451"
+        }
+    },
+    {
+        "name": "Comment",
+        "scope": "comment",
+        "settings": {
+            "foreground": "#5C6370",
+            "fontStyle": "italic"
+        }
+    },
+    {
+        "name": "String",
+        "scope": "string",
+        "settings": {
+            "foreground": "#98C379"
+        }
+    },
+    {
+        "name": "Number",
+        "scope": "constant.numeric",
+        "settings": {
+            "foreground": "#D19A66"
+        }
+    },
+    {
+        "name": "Keyword",
+        "scope": "keyword",
+        "settings": {
+            "foreground": "#C678DD"
+        }
+    },
+    {
+        "name": "Function",
+        "scope": "entity.name.function,support.function",
+        "settings": {
+            "foreground": "#61AFEF"
+        }
+    }]
+}

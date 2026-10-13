@@ -1,0 +1,46 @@
+{
+    "name": "nord",
+    "settings": [{
+        "settings": {
+            "background": "#2E3440",
+            "foreground": "#D8DEE9",
+            "lineHighlight": "#3B4252",
+            "selection": "#434C5E"
+        }
+    },
+    {
+        "name": "Comment",
+        "scope": "comment",
+        "settings": {
+            "foreground": "#4C566A"
+        }
+    },
+    {
+        "name": "String",
+        "scope": "string",
+        "settings": {
+            "foreground": "#A3BE8C"
+        }
+    },
+    {
+        "name": "Number",
+        "scope": "constant.numeric",
+        "settings": {
+            "foreground": "#B48EAD"
+        }
+    },
+    {
+        "name": "Keyword",
+        "scope": "keyword",
+        "settings": {
+            "foreground": "#81A1C1"
+        }
+    },
+    {
+        "name": "Function",
+        "scope": "entity.name.function,support.function",
+        "settings": {
+            "foreground": "#88C0D0"
+        }
+    }]
+}
