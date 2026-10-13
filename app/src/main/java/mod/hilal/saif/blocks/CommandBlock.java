@@ -173,7 +173,6 @@ public class CommandBlock {
             ArrayList<HashMap<String, Object>> Cs = new ArrayList<>();
             getCBs(Cs, RC, SID, EID);
             RC = rCCs(RC, SID, EID);
-            RC = CBForXml(RC);
             RC = aCs(Cs, RC);
             return RC;
         } catch (Exception e) {

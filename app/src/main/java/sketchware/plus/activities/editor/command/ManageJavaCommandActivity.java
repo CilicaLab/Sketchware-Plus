@@ -44,9 +44,9 @@ import mod.hilal.saif.blocks.CommandBlock;
 import mod.jbk.code.CodeEditorColorSchemes;
 import mod.jbk.code.CodeEditorLanguages;
 import sketchware.plus.R;
-import sketchware.plus.activities.editor.command.adapters.XMLCommandAdapter;
-import sketchware.plus.databinding.ManageXmlCommandAddBinding;
-import sketchware.plus.databinding.ManageXmlCommandBinding;
+import sketchware.plus.activities.editor.command.adapters.JavaCommandAdapter;
+import sketchware.plus.databinding.ManageJavaCommandAddBinding;
+import sketchware.plus.databinding.ManageJavaCommandBinding;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.SketchwareUtil;
 import sketchware.plus.utility.ThemeUtils;
@@ -59,7 +59,7 @@ public class ManageJavaCommandActivity extends BaseAppCompatActivity {
     };
     private String sc_id;
     private String commandPath;
-    private XMLCommandAdapter adapter;
+    private JavaCommandAdapter adapter;
     private ArrayList<HashMap<String, Object>> commands = new ArrayList<>();
     private ArrayList<String> javaFiles;
 
@@ -91,7 +91,7 @@ public class ManageJavaCommandActivity extends BaseAppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ManageXmlCommandBinding binding = ManageXmlCommandBinding.inflate(getLayoutInflater());
+        ManageJavaCommandBinding binding = ManageJavaCommandBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         setSupportActionBar(binding.toolbar);
         getSupportActionBar().setTitle("Java Command Manager");
@@ -120,7 +120,7 @@ public class ManageJavaCommandActivity extends BaseAppCompatActivity {
             javaFiles.add(bean.getJavaName());
         }
         
-        adapter = new XMLCommandAdapter();
+        adapter = new JavaCommandAdapter();
         adapter.setOnItemClickListener(
                 item -> {
                     int position = item.second;
@@ -210,8 +210,8 @@ public class ManageJavaCommandActivity extends BaseAppCompatActivity {
 
     private void dialog(boolean edit, int position) {
         var dialog = new BottomSheetDialog(this);
-        ManageXmlCommandAddBinding binding =
-                ManageXmlCommandAddBinding.inflate(getLayoutInflater());
+        ManageJavaCommandAddBinding binding =
+                ManageJavaCommandAddBinding.inflate(getLayoutInflater());
         dialog.setContentView(binding.getRoot());
         dialog.setOnShowListener(
                 d -> {
