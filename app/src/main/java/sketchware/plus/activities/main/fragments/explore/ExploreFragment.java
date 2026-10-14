@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -180,13 +181,17 @@ public class ExploreFragment extends Fragment {
                 if (isDevModeEnabled()) {
                     fab.setText("Upload Pack");
                     fab.setIconResource(R.drawable.ic_add_white_24dp);
-                    fab.setOnClickListener(v -> handleUploadPackClick());
+                    fab.setOnClickListener(v -> {
+                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                        handleUploadPackClick();
+                    });
                     fab.show();
                     fab.extend();
                 } else {
                     fab.setText("Coming Soon");
                     fab.setIconResource(R.drawable.ic_mtrl_deployed_code);
                     fab.setOnClickListener(v -> {
+                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                         Toast.makeText(requireContext(), "Store feature is coming soon!", Toast.LENGTH_SHORT).show();
                     });
                     fab.show();

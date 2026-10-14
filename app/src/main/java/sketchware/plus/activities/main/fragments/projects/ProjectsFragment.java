@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -143,7 +144,10 @@ public class ProjectsFragment extends DA {
         if (fab != null) {
             fab.setText("New project");
             fab.setIconResource(R.drawable.ic_mtrl_add);
-            fab.setOnClickListener((v) -> toProjectSettingsActivity());
+            fab.setOnClickListener((v) -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                toProjectSettingsActivity();
+            });
             Insetter.builder().margin(WindowInsetsCompat.Type.navigationBars()).applyToView(fab);
             fab.show();
             fab.extend();

@@ -1,7 +1,6 @@
 package sketchware.plus.activities.main.activities;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -12,8 +11,12 @@ import android.os.CountDownTimer;
 import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.HapticFeedbackConstants;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.OvershootInterpolator;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -26,6 +29,9 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import com.besome.sketch.lib.base.BasePermissionAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -268,6 +274,7 @@ public class MainActivity extends BasePermissionAppCompatActivity {
 
         binding.bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
+            performTabHapticAndAnimation(id);
             if (id == R.id.item_projects) {
                 navigateToProjectsFragment();
                 return true;
@@ -279,7 +286,9 @@ public class MainActivity extends BasePermissionAppCompatActivity {
         });
 
         binding.bottomNav.setOnItemReselectedListener(item -> {
-            if (item.getItemId() == R.id.item_explore && exploreFragment != null) {
+            int id = item.getItemId();
+            performTabHapticAndAnimation(id);
+            if (id == R.id.item_explore && exploreFragment != null) {
                 exploreFragment.refresh();
             }
         });
@@ -364,6 +373,70 @@ public class MainActivity extends BasePermissionAppCompatActivity {
 
         activeFragment = exploreFragment;
         currentNavItemId = R.id.item_explore;
+    }
+
+    private void performTabHapticAndAnimation(int itemId) {
+        binding.bottomNav.performHapticFeedback(
+                HapticFeedbackConstants.KEYBOARD_TAP,
+                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+        );
+
+        View iconView = findNavigationIconView(binding.bottomNav, itemId);
+        if (iconView != null) {
+            iconView.animate().cancel();
+            iconView.setScaleX(0.75f);
+            iconView.setScaleY(0.75f);
+            iconView.animate()
+                    .scaleX(1.2f)
+                    .scaleY(1.2f)
+                    .setDuration(150)
+                    .setInterpolator(new FastOutSlowInInterpolator())
+                    .withEndAction(() -> {
+                        iconView.animate()
+                                .scaleX(1.0f)
+                                .scaleY(1.0f)
+                                .setDuration(120)
+                                .setInterpolator(new OvershootInterpolator(2.0f))
+                                .start();
+                    })
+                    .start();
+        }
+    }
+
+    private View findNavigationIconView(BottomNavigationView bottomNav, int itemId) {
+        try {
+            ViewGroup menuView = (ViewGroup) bottomNav.getChildAt(0);
+            if (menuView != null) {
+                for (int i = 0; i < menuView.getChildCount(); i++) {
+                    View itemView = menuView.getChildAt(i);
+                    if (itemView.getId() == itemId) {
+                        View iconView = itemView.findViewById(com.google.android.material.R.id.navigation_bar_item_icon_container);
+                        if (iconView == null) {
+                            iconView = itemView.findViewById(com.google.android.material.R.id.navigation_bar_item_icon_view);
+                        }
+                        if (iconView == null) {
+                            iconView = findImageView(itemView);
+                        }
+                        return iconView != null ? iconView : itemView;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error finding navigation icon view", e);
+        }
+        return null;
+    }
+
+    private View findImageView(View parent) {
+        if (parent instanceof ImageView) return parent;
+        if (parent instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) parent;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View res = findImageView(group.getChildAt(i));
+                if (res != null) return res;
+            }
+        }
+        return null;
     }
 
     @NonNull
