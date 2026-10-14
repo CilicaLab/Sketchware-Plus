@@ -173,7 +173,7 @@ public class ExploreFragment extends Fragment {
         setupMainFab();
     }
 
-    private void setupMainFab() {
+    public void setupMainFab() {
         if (getActivity() != null) {
             ExtendedFloatingActionButton fab = getActivity().findViewById(R.id.create_new_project);
             if (fab != null) {
@@ -196,6 +196,14 @@ public class ExploreFragment extends Fragment {
         }
         if (fabUpload != null) {
             fabUpload.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden && isAdded()) {
+            setupMainFab();
         }
     }
 

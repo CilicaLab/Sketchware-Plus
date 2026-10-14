@@ -137,13 +137,24 @@ public class ProjectsFragment extends DA {
         binding = null; // avoid memory leaks
     }
 
+    public void setupFab() {
+        if (getActivity() == null || !isAdded()) return;
+        ExtendedFloatingActionButton fab = requireActivity().findViewById(R.id.create_new_project);
+        if (fab != null) {
+            fab.setText("New project");
+            fab.setIconResource(R.drawable.ic_mtrl_add);
+            fab.setOnClickListener((v) -> toProjectSettingsActivity());
+            Insetter.builder().margin(WindowInsetsCompat.Type.navigationBars()).applyToView(fab);
+            fab.show();
+            fab.extend();
+        }
+    }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         preference = new DB(requireContext(), "project");
 
-        ExtendedFloatingActionButton fab = requireActivity().findViewById(R.id.create_new_project);
-        fab.setOnClickListener((v) -> toProjectSettingsActivity());
-        Insetter.builder().margin(WindowInsetsCompat.Type.navigationBars()).applyToView(fab);
+        setupFab();
 
         binding.swipeRefresh.setOnRefreshListener(this::refreshProjectsList);
 
@@ -158,10 +169,13 @@ public class ProjectsFragment extends DA {
         UI.addSystemWindowInsetToPadding(binding.myprojects, true, false, true, true);
 
         binding.nestedScroll.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-            if (scrollY > oldScrollY) {
-                fab.shrink();
-            } else if (scrollY < oldScrollY) {
-                fab.extend();
+            ExtendedFloatingActionButton fab = requireActivity().findViewById(R.id.create_new_project);
+            if (fab != null) {
+                if (scrollY > oldScrollY) {
+                    fab.shrink();
+                } else if (scrollY < oldScrollY) {
+                    fab.extend();
+                }
             }
         });
 
@@ -199,6 +213,12 @@ public class ProjectsFragment extends DA {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        setupFab();
+    }
+
+    @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
         if (getActivity() == null) return;
@@ -206,6 +226,7 @@ public class ProjectsFragment extends DA {
             requireActivity().removeMenuProvider(menuProvider);
         } else {
             requireActivity().addMenuProvider(menuProvider);
+            setupFab();
         }
     }
 
