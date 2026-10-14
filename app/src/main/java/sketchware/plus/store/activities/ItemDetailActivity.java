@@ -288,6 +288,15 @@ public class ItemDetailActivity extends AppCompatActivity {
         return false;
     }
 
+    private int parsePaletteIndex(Object paletteObj) {
+        if (paletteObj == null) return -1;
+        try {
+            return (int) Double.parseDouble(paletteObj.toString());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
     private void showRenameDialog(String originalJson) {
         final TextInputEditText input = new TextInputEditText(this);
         input.setText(currentItem.getName() + " (2)");
@@ -300,17 +309,7 @@ public class ItemDetailActivity extends AppCompatActivity {
                     String newName = input.getText() != null ? input.getText().toString().trim() : "";
                     if (!newName.isEmpty()) {
                         currentItem.setName(newName);
-                        String updatedJson = originalJson;
-                        try {
-                            JsonObject obj = SupabaseClient.getInstance().getGson().fromJson(originalJson, JsonObject.class);
-                            if (obj.has("blocks") && obj.getAsJsonArray("blocks").size() > 0) {
-                                obj.getAsJsonArray("blocks").get(0).getAsJsonObject().addProperty("name", newName);
-                            } else if (obj.has("components") && obj.getAsJsonArray("components").size() > 0) {
-                                obj.getAsJsonArray("components").get(0).getAsJsonObject().addProperty("name", newName);
-                            }
-                            updatedJson = SupabaseClient.getInstance().getGson().toJson(obj);
-                        } catch (Exception ignored) {}
-                        installPack("renamed & installed", updatedJson);
+                        installPack("renamed & installed", originalJson);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -331,21 +330,6 @@ public class ItemDetailActivity extends AppCompatActivity {
                         paletteFile.getParentFile().mkdirs();
                     }
 
-                    List<Map<String, Object>> existingBlocks = new ArrayList<>();
-                    if (blockFile.exists()) {
-                        String content = FileUtil.readFile(blockFile.getAbsolutePath());
-                        if (content != null && !content.isEmpty()) {
-                            List<Map<String, Object>> parsed = SupabaseClient.getInstance().getGson().fromJson(content, new TypeToken<List<Map<String, Object>>>(){}.getType());
-                            if (parsed != null) existingBlocks.addAll(parsed);
-                        }
-                    }
-
-                    List<Map<String, Object>> newBlocks = SupabaseClient.getInstance().getGson().fromJson(obj.getAsJsonArray("blocks"), new TypeToken<List<Map<String, Object>>>(){}.getType());
-                    if (newBlocks != null) {
-                        existingBlocks.addAll(newBlocks);
-                        FileUtil.writeFile(blockFile.getAbsolutePath(), SupabaseClient.getInstance().getGson().toJson(existingBlocks));
-                    }
-
                     List<Map<String, Object>> existingPalettes = new ArrayList<>();
                     if (paletteFile.exists()) {
                         String pContent = FileUtil.readFile(paletteFile.getAbsolutePath());
@@ -354,11 +338,58 @@ public class ItemDetailActivity extends AppCompatActivity {
                             if (pParsed != null) existingPalettes.addAll(pParsed);
                         }
                     }
-                    Map<String, Object> newPalette = new HashMap<>();
-                    newPalette.put("name", currentItem.getName());
-                    newPalette.put("color", "#ff8a55d7");
-                    existingPalettes.add(newPalette);
-                    FileUtil.writeFile(paletteFile.getAbsolutePath(), SupabaseClient.getInstance().getGson().toJson(existingPalettes));
+
+                    int existingPaletteIndexInList = -1;
+                    for (int i = 0; i < existingPalettes.size(); i++) {
+                        Map<String, Object> pMap = existingPalettes.get(i);
+                        if (pMap != null && currentItem.getName().equalsIgnoreCase(String.valueOf(pMap.get("name")))) {
+                            existingPaletteIndexInList = i;
+                            break;
+                        }
+                    }
+
+                    int targetPaletteId;
+                    boolean isReplacing = statusMessage.contains("replaced") && existingPaletteIndexInList != -1;
+
+                    if (isReplacing) {
+                        targetPaletteId = existingPaletteIndexInList + 9;
+                    } else {
+                        targetPaletteId = existingPalettes.size() + 9;
+                        Map<String, Object> newPalette = new HashMap<>();
+                        newPalette.put("name", currentItem.getName());
+                        newPalette.put("color", "#ff8a55d7");
+                        existingPalettes.add(newPalette);
+                        FileUtil.writeFile(paletteFile.getAbsolutePath(), SupabaseClient.getInstance().getGson().toJson(existingPalettes));
+                    }
+
+                    List<Map<String, Object>> newBlocks = SupabaseClient.getInstance().getGson().fromJson(obj.getAsJsonArray("blocks"), new TypeToken<List<Map<String, Object>>>(){}.getType());
+                    if (newBlocks != null && !newBlocks.isEmpty()) {
+                        for (Map<String, Object> blockMap : newBlocks) {
+                            blockMap.put("palette", String.valueOf(targetPaletteId));
+                        }
+
+                        List<Map<String, Object>> existingBlocks = new ArrayList<>();
+                        if (blockFile.exists()) {
+                            String content = FileUtil.readFile(blockFile.getAbsolutePath());
+                            if (content != null && !content.isEmpty()) {
+                                List<Map<String, Object>> parsed = SupabaseClient.getInstance().getGson().fromJson(content, new TypeToken<List<Map<String, Object>>>(){}.getType());
+                                if (parsed != null) existingBlocks.addAll(parsed);
+                            }
+                        }
+
+                        if (isReplacing) {
+                            List<Map<String, Object>> filtered = new ArrayList<>();
+                            for (Map<String, Object> b : existingBlocks) {
+                                if (parsePaletteIndex(b.get("palette")) != targetPaletteId) {
+                                    filtered.add(b);
+                                }
+                            }
+                            existingBlocks = filtered;
+                        }
+
+                        existingBlocks.addAll(newBlocks);
+                        FileUtil.writeFile(blockFile.getAbsolutePath(), SupabaseClient.getInstance().getGson().toJson(existingBlocks));
+                    }
 
                     BlockLoader.refresh();
                 } else if (StoreItem.TYPE_COMPONENT.equalsIgnoreCase(currentItem.getType()) && obj.has("components")) {
@@ -377,7 +408,23 @@ public class ItemDetailActivity extends AppCompatActivity {
                     }
 
                     List<Map<String, Object>> newComps = SupabaseClient.getInstance().getGson().fromJson(obj.getAsJsonArray("components"), new TypeToken<List<Map<String, Object>>>(){}.getType());
-                    if (newComps != null) {
+                    if (newComps != null && !newComps.isEmpty()) {
+                        if (statusMessage.contains("replaced")) {
+                            List<String> newCompNames = new ArrayList<>();
+                            for (Map<String, Object> c : newComps) {
+                                Object nameObj = c.get("name");
+                                if (nameObj != null) newCompNames.add(nameObj.toString());
+                            }
+                            List<Map<String, Object>> filteredComps = new ArrayList<>();
+                            for (Map<String, Object> existing : existingComps) {
+                                Object nameObj = existing.get("name");
+                                if (nameObj == null || !newCompNames.contains(nameObj.toString())) {
+                                    filteredComps.add(existing);
+                                }
+                            }
+                            existingComps = filteredComps;
+                        }
+
                         existingComps.addAll(newComps);
                         FileUtil.writeFile(compFile.getAbsolutePath(), SupabaseClient.getInstance().getGson().toJson(existingComps));
                     }
