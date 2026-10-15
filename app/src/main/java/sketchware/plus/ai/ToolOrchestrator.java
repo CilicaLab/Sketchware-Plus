@@ -208,6 +208,17 @@ public class ToolOrchestrator {
     }
 
     private String buildBaseSystemPrompt() {
+        if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
+            SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
+            return "You are SK Assistant editing " + provider.getFileName() + " in SrcCodeEditor for Sketchware Plus.\n" +
+                    "CURRENT FILE CONTENT:\n" + provider.getCodeText() + "\n\n" +
+                    "RULES:\n" +
+                    "1. Analyze the current file content above.\n" +
+                    "2. When updating or patching code/XML, use apply_layout_xml, add_java_patch, or add_xml_patch, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
+                    "3. Call only tools from the provided list. Never invent tools.\n" +
+                    "4. Once you know the action, call the tool immediately. No narration first.\n" +
+                    "5. When finished, reply with a brief summary of changes and make no tool calls.";
+        }
         return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
@@ -387,9 +398,18 @@ public class ToolOrchestrator {
                 return sResult.toString();
 
             case "get_layout_xml":
+                if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
+                    return ((SkAssistantDialog.CodeEditorProvider) fragment.getActivity()).getCodeText();
+                }
                 return SketchwareXmlBridge.getRawXml(context, fragment.scId, fragment.projectFile);
 
             case "apply_layout_xml":
+                if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
+                    SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
+                    String xml = args.getString("xml");
+                    provider.setCodeText(xml);
+                    return "Success: Layout XML updated directly in editor for " + provider.getFileName();
+                }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
                 String xml = args.getString("xml");
@@ -422,13 +442,18 @@ public class ToolOrchestrator {
             case "get_class_outline":
             case "read_method":
             case "search_in_code":
-                String javaName = args.optString("javaName", fragment.projectFile.getJavaName());
-                String source = new yq(context, fragment.scId).getFileSrc(
-                    javaName, 
-                    jC.b(fragment.scId),
-                    jC.a(fragment.scId),
-                    jC.c(fragment.scId)
-                );
+                String source;
+                if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
+                    source = ((SkAssistantDialog.CodeEditorProvider) fragment.getActivity()).getCodeText();
+                } else {
+                    String javaName = args.optString("javaName", fragment.projectFile.getJavaName());
+                    source = new yq(context, fragment.scId).getFileSrc(
+                        javaName, 
+                        jC.b(fragment.scId),
+                        jC.a(fragment.scId),
+                        jC.c(fragment.scId)
+                    );
+                }
                 if ("list_methods".equals(name)) {
                     return SourceCodeAide.listMethods(source).toString();
                 } else if ("get_class_outline".equals(name) || "get_full_code".equals(name)) {
@@ -445,26 +470,30 @@ public class ToolOrchestrator {
                 }
 
             case "add_java_patch":
+            case "add_xml_patch":
+                if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
+                    SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
+                    String newCode = args.optString("inputCode", args.optString("command", ""));
+                    if (newCode.isEmpty()) {
+                        newCode = args.toString();
+                    }
+                    provider.setCodeText(newCode);
+                    return "Success: Code/XML patched directly in editor for " + provider.getFileName();
+                }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
-                JSONObject patch = SourceCodeAide.addJavaCommandToManager(
+                JSONObject patch = "add_java_patch".equals(name) ? SourceCodeAide.addJavaCommandToManager(
                     context, fragment.scId, args.getString("javaName"),
                     args.getString("reference"), args.optInt("distance", 0),
                     args.optInt("front", 0), args.optInt("back", 0),
                     args.getString("command"), args.getString("inputCode")
-                );
-                return patch.toString();
-
-            case "add_xml_patch":
-                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
-                fragment.setUndoVisible(true);
-                JSONObject xmlPatch = SourceCodeAide.addXmlCommandToManager(
+                ) : SourceCodeAide.addXmlCommandToManager(
                     context, fragment.scId, args.getString("xmlName"),
                     args.getString("reference"), args.optInt("distance", 0),
                     args.optInt("front", 0), args.optInt("back", 0),
                     args.getString("command"), args.getString("inputCode")
                 );
-                return xmlPatch.toString();
+                return patch.toString();
 
             case "manage_local_library":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");

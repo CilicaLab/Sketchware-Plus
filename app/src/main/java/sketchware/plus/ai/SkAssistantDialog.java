@@ -1,5 +1,6 @@
 package sketchware.plus.ai;
 
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,7 +13,15 @@ import androidx.fragment.app.DialogFragment;
 
 import com.besome.sketch.beans.ProjectFileBean;
 
+import sketchware.plus.R;
+
 public class SkAssistantDialog extends DialogFragment {
+
+    public interface CodeEditorProvider {
+        String getCodeText();
+        void setCodeText(String code);
+        String getFileName();
+    }
 
     private String scId;
     private ProjectFileBean projectFile;
@@ -31,7 +40,7 @@ public class SkAssistantDialog extends DialogFragment {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
             scId = getArguments().getString("scId");
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 projectFile = getArguments().getParcelable("projectFile", ProjectFileBean.class);
             } else {
                 projectFile = getArguments().getParcelable("projectFile");
@@ -43,10 +52,10 @@ public class SkAssistantDialog extends DialogFragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(sketchware.plus.R.layout.sk_assistant_dialog_host, container, false);
+        View view = inflater.inflate(R.layout.sk_assistant_dialog_host, container, false);
         if (savedInstanceState == null) {
             getChildFragmentManager().beginTransaction()
-                    .replace(sketchware.plus.R.id.fragment_container, SkAssistantFragment.newInstance(scId, projectFile))
+                    .replace(R.id.fragment_container, SkAssistantFragment.newInstance(scId, projectFile))
                     .commit();
         }
         if (getDialog() != null && getDialog().getWindow() != null) {

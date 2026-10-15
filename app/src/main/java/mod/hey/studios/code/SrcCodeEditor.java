@@ -46,8 +46,11 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
 import a.a.a.Lx;
+import a.a.a.jC;
+import com.besome.sketch.beans.ProjectFileBean;
 import io.github.rosemoe.sora.langs.java.JavaLanguage;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
+import io.github.rosemoe.sora.langs.textmate.TextMateLanguage;
 import io.github.rosemoe.sora.widget.CodeEditor;
 import io.github.rosemoe.sora.widget.component.EditorAutoCompletion;
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme;
@@ -61,6 +64,7 @@ import mod.jbk.code.CodeEditorColorSchemes;
 import mod.jbk.code.CodeEditorLanguages;
 import sketchware.plus.R;
 import sketchware.plus.activities.preview.LayoutPreviewActivity;
+import sketchware.plus.ai.SkAssistantDialog;
 import sketchware.plus.databinding.CodeEditorHsBinding;
 import sketchware.plus.utility.EditorUtils;
 import sketchware.plus.utility.FileUtil;
@@ -68,7 +72,32 @@ import sketchware.plus.utility.SketchwareUtil;
 import sketchware.plus.utility.ThemeUtils;
 import sketchware.plus.utility.UI;
 
-public class SrcCodeEditor extends BaseAppCompatActivity {
+public class SrcCodeEditor extends BaseAppCompatActivity implements SkAssistantDialog.CodeEditorProvider {
+    @Override
+    public String getCodeText() {
+        return binding.editor.getText().toString();
+    }
+
+    @Override
+    public void setCodeText(String code) {
+        beforeContent = code;
+        binding.editor.setText(code);
+        if (fromAndroidManifest) {
+            save();
+        } else {
+            String contentPath = getIntent().getStringExtra("content");
+            if (contentPath != null) {
+                FileUtil.writeFile(contentPath, code);
+            }
+        }
+        SketchwareUtil.toast("Applied changes to code editor");
+    }
+
+    @Override
+    public String getFileName() {
+        return getIntent().getStringExtra("title");
+    }
+
     public static final String FLAG_FROM_ANDROID_MANIFEST = "from_android_manifest";
     public static final List<Pair<String, Class<? extends EditorColorScheme>>> KNOWN_COLOR_SCHEMES = List.of(
             new Pair<>("Default", EditorColorScheme.class),
@@ -112,42 +141,58 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
     }
 
     public static void selectTheme(CodeEditor ed, int which) {
-        EditorColorScheme scheme = switch (which) {
-            case 1 -> new SchemeGitHub();
-            case 2 -> new SchemeEclipse();
-            case 3 -> new SchemeDarcula();
-            case 4 -> new SchemeVS2019();
-            case 5 -> new SchemeNotepadXX();
-            case 6 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_DRACULA);
-            case 7 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_MONOKAI);
-            case 8 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_SOLARIZED_DARK);
-            case 9 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_ONE_DARK);
-            case 10 -> CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_NORD);
-            default -> new EditorColorScheme();
-        };
+        EditorColorScheme scheme;
+        boolean isTextMate = ed.getEditorLanguage() instanceof TextMateLanguage;
+
+        if (isTextMate) {
+            String tmTheme = switch (which) {
+                case 1, 2 -> CodeEditorColorSchemes.THEME_GITHUB;
+                case 4 -> CodeEditorColorSchemes.THEME_ONE_DARK;
+                case 5 -> CodeEditorColorSchemes.THEME_NORD;
+                case 6 -> CodeEditorColorSchemes.THEME_DRACULA;
+                case 7 -> CodeEditorColorSchemes.THEME_MONOKAI;
+                case 8 -> CodeEditorColorSchemes.THEME_SOLARIZED_DARK;
+                case 9 -> CodeEditorColorSchemes.THEME_ONE_DARK;
+                case 10 -> CodeEditorColorSchemes.THEME_NORD;
+                default -> CodeEditorColorSchemes.THEME_DRACULA;
+            };
+            scheme = CodeEditorColorSchemes.loadTextMateColorScheme(tmTheme);
+        } else {
+            scheme = switch (which) {
+                case 1 -> new SchemeGitHub();
+                case 2 -> new SchemeEclipse();
+                case 3 -> new SchemeDarcula();
+                case 4 -> new SchemeVS2019();
+                case 5 -> new SchemeNotepadXX();
+                default -> new EditorColorScheme();
+            };
+        }
 
         ed.setColorScheme(scheme);
     }
 
     public static void selectLanguage(CodeEditor ed, int which) {
+        int theme = pref != null ? pref.getInt("act_theme", 3) : 3;
         switch (which) {
             default:
             case 0:
                 ed.setEditorLanguage(new JavaLanguage());
                 languageId = 0;
+                selectTheme(ed, theme);
                 break;
 
             case 1:
                 ed.setEditorLanguage(CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_KOTLIN));
                 languageId = 1;
+                selectTheme(ed, theme);
                 break;
 
             case 2:
                 ed.setEditorLanguage(CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML));
                 languageId = 2;
+                selectTheme(ed, theme);
                 break;
         }
-
     }
 
     public static String prettifyXml(String xml, int indentAmount, Intent extras) {
@@ -405,6 +450,9 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Select theme");
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete").setCheckable(true).setChecked(local_pref.getBoolean("act_ac", true));
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete symbol pair").setCheckable(true).setChecked(local_pref.getBoolean("act_acsp", true));
+            if (scId != null && !scId.isEmpty()) {
+                toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "SK Assistant");
+            }
 
             binding.toolbar.setOnMenuItemClickListener(item -> {
                 String title1 = item.getTitle().toString();
@@ -482,9 +530,9 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                             if (searchSrcText != null) {
                                 searchSrcText.setFocusableInTouchMode(true);
                                 searchSrcText.requestFocus();
-                                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
                                 if (imm != null) {
-                                    imm.showSoftInput(searchSrcText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                                    imm.showSoftInput(searchSrcText, InputMethodManager.SHOW_IMPLICIT);
                                 }
                             }
                         }, 250);
@@ -523,6 +571,10 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                         toLayoutPreview();
                         break;
 
+                    case "SK Assistant":
+                        showSkAssistantDialog();
+                        break;
+
                     default:
                         return false;
                 }
@@ -556,5 +608,30 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         intent.putExtras(getIntent());
         intent.putExtra("xml", binding.editor.getText().toString());
         startActivity(intent);
+    }
+
+    private void showSkAssistantDialog() {
+        if (scId == null || scId.isEmpty()) {
+            SketchwareUtil.toast("Project ID not available for AI Assistant");
+            return;
+        }
+        String title = getIntent().getStringExtra("title");
+        ProjectFileBean projectFile = null;
+        if (title != null) {
+            try {
+                projectFile = jC.b(scId).b(title);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        if (projectFile == null) {
+            int fileType = ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY;
+            if (title != null && title.endsWith(".xml")) {
+                fileType = ProjectFileBean.PROJECT_FILE_TYPE_CUSTOM_VIEW;
+            }
+            projectFile = new ProjectFileBean(fileType, title != null ? title : "MainActivity.java");
+        }
+        SkAssistantDialog dialog = SkAssistantDialog.newInstance(scId, projectFile);
+        dialog.show(getSupportFragmentManager(), "sk_assistant_dialog");
     }
 }

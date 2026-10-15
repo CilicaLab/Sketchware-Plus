@@ -457,6 +457,7 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
             intent.putExtra("java", "");
             intent.putExtra("title", getFileName(position));
             intent.putExtra("content", getItem(position));
+            intent.putExtra("sc_id", sc_id);
 
             startActivity(intent);
         }
