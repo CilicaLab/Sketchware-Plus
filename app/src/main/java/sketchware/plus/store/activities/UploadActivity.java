@@ -3,7 +3,9 @@ package sketchware.plus.store.activities;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -37,11 +39,9 @@ import a.a.a.wq;
 import dev.aldi.sayuti.block.ExtraBlockFile;
 import sketchware.plus.R;
 import sketchware.plus.store.adapters.LocalItemsAdapter;
-import sketchware.plus.store.auth.SessionManager;
 import sketchware.plus.store.models.LocalItem;
 import sketchware.plus.store.models.StoreItem;
 import sketchware.plus.store.models.StoreUser;
-import sketchware.plus.store.network.SupabaseClient;
 import sketchware.plus.store.repository.RepositoryCallback;
 import sketchware.plus.store.repository.RepositoryProvider;
 import sketchware.plus.store.repository.StoreRepository;
@@ -75,6 +75,8 @@ public class UploadActivity extends AppCompatActivity {
 
     private String selectedType = StoreItem.TYPE_BLOCK;
     private StoreUser currentUser;
+    private boolean isNameAutoFilled = true;
+    private boolean isProgrammaticChange = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,13 +95,6 @@ public class UploadActivity extends AppCompatActivity {
         loadLocalItems();
     }
 
-    private boolean isLoggedIn() {
-        if (SessionManager.getInstance(this).isLoggedIn()) {
-            return true;
-        }
-        return !RepositoryProvider.isUseSupabase();
-    }
-
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         rgType = findViewById(R.id.rg_type);
@@ -115,6 +110,30 @@ public class UploadActivity extends AppCompatActivity {
         tvPreviewSelected = findViewById(R.id.tv_preview_selected);
         btnSubmit = findViewById(R.id.btn_submit);
         pbSubmit = findViewById(R.id.pb_submit);
+
+        etName.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (!isProgrammaticChange) {
+                    isNameAutoFilled = false;
+                }
+            }
+        });
+    }
+
+    private void setAutoName(String name) {
+        if (isNameAutoFilled && !TextUtils.isEmpty(name)) {
+            isProgrammaticChange = true;
+            etName.setText(name);
+            etName.setSelection(name.length());
+            isProgrammaticChange = false;
+        }
     }
 
     private void setupToolbar() {
@@ -141,6 +160,10 @@ public class UploadActivity extends AppCompatActivity {
             boolean isBlock = selectedType.equalsIgnoreCase(StoreItem.TYPE_BLOCK);
             tvLocalSectionTitle.setText("Select Local " + (isBlock ? "Block Palettes" : "Components") + " to Include");
             btnSelectItems.setText(isBlock ? "Select Block Palettes" : "Select Components");
+            isNameAutoFilled = true;
+            isProgrammaticChange = true;
+            etName.setText("");
+            isProgrammaticChange = false;
             loadLocalItems();
         });
 
@@ -275,6 +298,7 @@ public class UploadActivity extends AppCompatActivity {
                 }
             }
             tvPreviewSelected.setText(sb.toString());
+            setAutoName(selectedItems.get(0).getName());
         }
     }
 

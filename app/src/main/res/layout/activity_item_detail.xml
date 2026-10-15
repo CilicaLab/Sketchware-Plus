@@ -80,29 +80,7 @@
                     android:textColor="?attr/colorOnSurfaceVariant"
                     tools:text="Uploaded by MathWizard • Oct 12, 2026" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
 
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:contentDescription="Downloads"
-                        android:src="@drawable/ic_cloud_upload_grey600_24dp"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-
-                    <TextView
-                        android:id="@+id/tv_item_downloads"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:textAppearance="?attr/textAppearanceBodyMedium"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        tools:text="1,240 downloads" />
-                </LinearLayout>
 
                 <!-- Tags -->
                 <TextView

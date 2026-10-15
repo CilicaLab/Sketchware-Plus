@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -68,10 +67,6 @@ public class StoreItemAdapter extends RecyclerView.Adapter<StoreItemAdapter.View
         holder.tvItemAuthor.setText("by " + (item.getAuthor() != null ? item.getAuthor() : "Anonymous"));
         holder.tvItemDesc.setText(item.getDescription());
 
-        // Downloads
-        String downloadsText = NumberFormat.getInstance(Locale.US).format(item.getDownloads()) + " downloads";
-        holder.tvItemDownloads.setText(downloadsText);
-
         // Tags
         if (item.getTags() != null && !item.getTags().isEmpty()) {
             StringBuilder tagsSb = new StringBuilder();
@@ -113,7 +108,6 @@ public class StoreItemAdapter extends RecyclerView.Adapter<StoreItemAdapter.View
         TextView tvItemAuthor;
         TextView tvItemDesc;
         TextView tvItemTags;
-        TextView tvItemDownloads;
         MaterialButton btnItemInstall;
 
         public ViewHolder(@NonNull View itemView) {
@@ -123,7 +117,6 @@ public class StoreItemAdapter extends RecyclerView.Adapter<StoreItemAdapter.View
             tvItemAuthor = itemView.findViewById(R.id.tv_item_author);
             tvItemDesc = itemView.findViewById(R.id.tv_item_desc);
             tvItemTags = itemView.findViewById(R.id.tv_item_tags);
-            tvItemDownloads = itemView.findViewById(R.id.tv_item_downloads);
             btnItemInstall = itemView.findViewById(R.id.btn_item_install);
         }
     }

@@ -20,7 +20,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
-import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -71,7 +70,6 @@ public class ItemDetailActivity extends AppCompatActivity {
     private TextView tvBadgeType;
     private TextView tvItemName;
     private TextView tvItemAuthor;
-    private TextView tvItemDownloads;
     private TextView tvItemTags;
     private TextView tvItemDesc;
     private TextView tvContentsHeader;
@@ -116,7 +114,6 @@ public class ItemDetailActivity extends AppCompatActivity {
         tvBadgeType = findViewById(R.id.tv_badge_type);
         tvItemName = findViewById(R.id.tv_item_name);
         tvItemAuthor = findViewById(R.id.tv_item_author);
-        tvItemDownloads = findViewById(R.id.tv_item_downloads);
         tvItemTags = findViewById(R.id.tv_item_tags);
         tvItemDesc = findViewById(R.id.tv_item_desc);
         tvContentsHeader = findViewById(R.id.tv_contents_header);
@@ -179,9 +176,6 @@ public class ItemDetailActivity extends AppCompatActivity {
 
         String dateStr = new SimpleDateFormat("MMM dd, yyyy", Locale.US).format(new Date(item.getCreatedAt()));
         tvItemAuthor.setText("Uploaded by " + (item.getAuthor() != null ? item.getAuthor() : "Anonymous") + " • " + dateStr);
-
-        String downloadsText = NumberFormat.getInstance(Locale.US).format(item.getDownloads()) + " downloads";
-        tvItemDownloads.setText(downloadsText);
 
         tvItemDesc.setText(item.getDescription());
 
@@ -442,7 +436,6 @@ public class ItemDetailActivity extends AppCompatActivity {
         } else if (currentItem.getId() != null) {
             repository.incrementDownloads(currentItem.getId());
         }
-        tvItemDownloads.setText(NumberFormat.getInstance(Locale.US).format(currentItem.getDownloads()) + " downloads");
         btnInstall.setText("Installed");
         btnInstall.setEnabled(false);
         Snackbar.make(btnInstall, "Pack " + statusMessage + " successfully!", Snackbar.LENGTH_LONG).show();
