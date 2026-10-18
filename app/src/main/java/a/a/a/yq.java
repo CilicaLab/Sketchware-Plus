@@ -972,6 +972,7 @@ public class yq {
             stylesFileBuilder.addItemToStyle("AppTheme", "android:statusBarColor", "@android:color/transparent");
             stylesFileBuilder.addItemToStyle("AppTheme", "android:navigationBarColor", "@android:color/transparent");
             stylesFileBuilder.addItemToStyle("AppTheme", "android:windowLightStatusBar", "?attr/isLightTheme");
+            stylesFileBuilder.addItemToStyle("AppTheme", "android:windowBackground", "?attr/colorSurface");
             stylesFileBuilder.addStyle("AppTheme.FullScreen", "AppTheme");
             stylesFileBuilder.addItemToStyle("AppTheme.FullScreen", "android:windowFullscreen", "true");
             stylesFileBuilder.addItemToStyle("AppTheme.FullScreen", "android:windowContentOverlay", "@null");
@@ -993,6 +994,7 @@ public class yq {
             stylesFileBuilder.addItemToStyle("AppTheme", "colorAccent", "@color/colorAccent");
             stylesFileBuilder.addItemToStyle("AppTheme", "colorControlHighlight", "@color/colorControlHighlight");
             stylesFileBuilder.addItemToStyle("AppTheme", "colorControlNormal", "@color/colorControlNormal");
+            stylesFileBuilder.addItemToStyle("AppTheme", "android:windowBackground", "?attr/colorSurface");
 
             stylesFileBuilder.addStyle("AppTheme.FullScreen", "AppTheme");
             stylesFileBuilder.addItemToStyle("AppTheme.FullScreen", "android:windowFullscreen", "true");

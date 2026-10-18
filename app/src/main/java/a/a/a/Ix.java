@@ -498,12 +498,16 @@ public class Ix {
                 queries.addChildNode(intent);
             }
             a.addChildNode(queries);
+
         }
 
         XmlBuilder applicationTag = new XmlBuilder("application");
         applicationTag.addAttribute("android", "allowBackup", "true");
         applicationTag.addAttribute("android", "icon", "@mipmap/ic_launcher");
         applicationTag.addAttribute("android", "label", "@string/app_name");
+        applicationTag.addAttribute("android", "hardwareAccelerated", "true");
+        applicationTag.addAttribute("android", "largeHeap", "true");
+
 
         String applicationClassName = settings.getValue(ProjectSettings.SETTING_APPLICATION_CLASS, ".CoreManager");
         applicationTag.addAttribute("android", "name", applicationClassName);
