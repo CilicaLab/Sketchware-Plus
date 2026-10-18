@@ -109,8 +109,12 @@ public class ProjectSettings {
 
     public String getValue(String key, String defaultValue) {
         if (hashmap.containsKey(key)) {
-            if (!hashmap.get(key).isEmpty()) {
-                return hashmap.get(key);
+            String val = hashmap.get(key);
+            if (val != null && !val.isEmpty()) {
+                if (key.equals(SETTING_APPLICATION_CLASS) && (val.equals(".SketchApplication") || val.equals("SketchApplication"))) {
+                    return ".CoreManager";
+                }
+                return val;
             } else {
                 return defaultValue;
             }

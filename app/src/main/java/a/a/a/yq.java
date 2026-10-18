@@ -373,8 +373,8 @@ public class yq {
         }
 
         String customApplicationClassName = new ProjectSettings(sc_id).getValue(
-                ProjectSettings.SETTING_APPLICATION_CLASS, ".SketchApplication");
-        boolean notUsingCustomApplicationClass = customApplicationClassName.equals(".SketchApplication");
+                ProjectSettings.SETTING_APPLICATION_CLASS, ".CoreManager");
+        boolean notUsingCustomApplicationClass = customApplicationClassName.equals(".CoreManager");
 
         if (!customApplicationClassName.startsWith(".")) {
             customApplicationClassName = "." + customApplicationClassName; // since sketchware don't allow creating any java file outside the package name
@@ -394,7 +394,7 @@ public class yq {
             boolean applyMultiDex = projectSettings.getMinSdkVersion() < 21;
             String sketchApplicationFileContent = fileUtil.b(
                     context,
-                    "debug" + File.separator + "SketchApplication.java"
+                    "debug" + File.separator + "CoreManager.java"
             );
             sketchApplicationFileContent = PACKAGE_PLACEHOLDER_PATTERN.matcher(sketchApplicationFileContent).replaceAll(packageName);
 
@@ -418,7 +418,7 @@ public class yq {
             }
             if (!notUsingCustomApplicationClass) {
                 sketchApplicationFileContent = sketchApplicationFileContent.replaceAll(
-                        "public class SketchApplication", "public class " + customClassSimpleName);
+                        "public class CoreManager", "public class " + customClassSimpleName);
                 sketchApplicationFileContent = sketchApplicationFileContent.replaceAll(
                         "package " + packageName + ";", "package " + customClassPackage + ";");
 

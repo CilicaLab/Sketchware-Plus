@@ -505,7 +505,7 @@ public class Ix {
         applicationTag.addAttribute("android", "icon", "@mipmap/ic_launcher");
         applicationTag.addAttribute("android", "label", "@string/app_name");
 
-        String applicationClassName = settings.getValue(ProjectSettings.SETTING_APPLICATION_CLASS, ".SketchApplication");
+        String applicationClassName = settings.getValue(ProjectSettings.SETTING_APPLICATION_CLASS, ".CoreManager");
         applicationTag.addAttribute("android", "name", applicationClassName);
         if (addRequestLegacyExternalStorage) {
             applicationTag.addAttribute("android", "requestLegacyExternalStorage", "true");
