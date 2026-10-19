@@ -323,7 +323,16 @@ public class SkAssistantFragment extends Fragment {
                 if (getContext() == null) return;
                 SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
                 String provider = aiPref.getString("P12_PROVIDER", "custom");
-                String apiKey = aiPref.getString("P12I3", "").trim();
+                String apiKey = "";
+                if ("groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider)) {
+                    apiKey = aiPref.getString("P12_GROQ_API_KEY", "").trim();
+                    if (apiKey.isEmpty()) apiKey = aiPref.getString("P12I3", "").trim();
+                } else if ("google".equalsIgnoreCase(provider)) {
+                    apiKey = aiPref.getString("P12_GEMINI_API_KEY", "").trim();
+                    if (apiKey.isEmpty()) apiKey = aiPref.getString("P12I3", "").trim();
+                } else {
+                    apiKey = aiPref.getString("P12I3", "").trim();
+                }
                 String endpoint = aiPref.getString("P12I4", "").trim();
 
                 boolean isGoogle = "google".equalsIgnoreCase(provider) || apiKey.startsWith("AIzaSy");
@@ -687,7 +696,16 @@ public class SkAssistantFragment extends Fragment {
         if (tvCurrentModel == null || getContext() == null) return;
         SharedPreferences aiPref = getContext().getSharedPreferences("P12", Context.MODE_PRIVATE);
         String provider = aiPref.getString("P12_PROVIDER", "custom");
-        String apiKey = aiPref.getString("P12I3", "").trim();
+        String apiKey = "";
+        if ("groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider)) {
+            apiKey = aiPref.getString("P12_GROQ_API_KEY", "").trim();
+            if (apiKey.isEmpty()) apiKey = aiPref.getString("P12I3", "").trim();
+        } else if ("google".equalsIgnoreCase(provider)) {
+            apiKey = aiPref.getString("P12_GEMINI_API_KEY", "").trim();
+            if (apiKey.isEmpty()) apiKey = aiPref.getString("P12I3", "").trim();
+        } else {
+            apiKey = aiPref.getString("P12I3", "").trim();
+        }
         String endpoint = aiPref.getString("P12I4", "").trim();
         String model = aiPref.getString("P12I5", "").trim();
 

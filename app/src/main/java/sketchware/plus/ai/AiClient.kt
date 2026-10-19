@@ -46,10 +46,26 @@ object AiClient {
     @JvmStatic
     private external fun buildRequestUrl(endpoint: String): String
 
+    private fun resolveApiKey(aiPref: SharedPreferences): String {
+        val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
+        val defaultKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
+        return when {
+            provider.equals("groq", true) || provider.equals("grog", true) -> {
+                val groqKey = aiPref.getString("P12_GROQ_API_KEY", "") ?: ""
+                if (groqKey.isNotEmpty()) groqKey else defaultKey
+            }
+            provider.equals("google", true) -> {
+                val geminiKey = aiPref.getString("P12_GEMINI_API_KEY", "") ?: ""
+                if (geminiKey.isNotEmpty()) geminiKey else defaultKey
+            }
+            else -> defaultKey
+        }
+    }
+
     @JvmStatic
     fun isAiEnabled(context: Context): Boolean {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
-        val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
+        val apiKey = resolveApiKey(aiPref)
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
         val model = aiPref.getString(getModelPrefKey(), "") ?: ""
         return apiKey.isNotEmpty() && endpoint.isNotEmpty() && model.isNotEmpty()
@@ -104,7 +120,7 @@ object AiClient {
     @JvmOverloads
     fun askAi(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray? = null, modelOverride: String? = null, callback: AiCallback) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
-        val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
+        val apiKey = resolveApiKey(aiPref)
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
         val model = if (!modelOverride.isNullOrEmpty()) modelOverride else (aiPref.getString(getModelPrefKey(), "") ?: "")
 
@@ -124,7 +140,7 @@ object AiClient {
         }
 
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
-        val apiKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
+        val apiKey = resolveApiKey(aiPref)
         val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
         val model = if (!modelOverride.isNullOrEmpty()) modelOverride else (aiPref.getString(getModelPrefKey(), "") ?: "")
 

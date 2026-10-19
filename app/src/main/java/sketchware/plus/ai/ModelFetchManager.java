@@ -44,15 +44,25 @@ public class ModelFetchManager {
         Context context = fragment.getContext();
         if (context == null) return;
         SharedPreferences aiPref = context.getSharedPreferences("P12", Context.MODE_PRIVATE);
-        String apiKey = aiPref.getString("P12I3", "");
         String provider = aiPref.getString("P12_PROVIDER", "custom");
+        String apiKey;
+        if ("groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider)) {
+            apiKey = aiPref.getString("P12_GROQ_API_KEY", "");
+            if (apiKey.isEmpty()) apiKey = aiPref.getString("P12I3", "");
+        } else if ("google".equalsIgnoreCase(provider)) {
+            apiKey = aiPref.getString("P12_GEMINI_API_KEY", "");
+            if (apiKey.isEmpty()) apiKey = aiPref.getString("P12I3", "");
+        } else {
+            apiKey = aiPref.getString("P12I3", "");
+        }
+        final String finalApiKey = apiKey;
 
-        if (apiKey.isEmpty()) {
+        if (finalApiKey.isEmpty()) {
             Toast.makeText(context, "Please set your AI API Key in System Settings first", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        boolean isGoogle = "google".equalsIgnoreCase(provider) || apiKey.startsWith("AIzaSy");
+        boolean isGoogle = "google".equalsIgnoreCase(provider) || finalApiKey.startsWith("AIzaSy");
         boolean isGroq = "groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider) || aiPref.getString("P12I4", "").contains("groq.com");
         String title = isGoogle ? "Google AI Model" : (isGroq ? "Groq AI Model" : "AI Model Selection");
 
@@ -61,10 +71,10 @@ public class ModelFetchManager {
                 .setItems(new String[]{"Fetch Available Models", "Type Custom Model Name"}, (dialog, which) -> {
                     if (which == 0) {
                         if (isGoogle) {
-                            fetchAndPickGoogleModels(apiKey);
+                            fetchAndPickGoogleModels(finalApiKey);
                         } else {
                             String endpoint = aiPref.getString("P12I4", "");
-                            fetchAndPickCustomModels(apiKey, endpoint);
+                            fetchAndPickCustomModels(finalApiKey, endpoint);
                         }
                     } else {
                         showCustomModelInputDialog();

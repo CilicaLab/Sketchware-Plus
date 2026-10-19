@@ -83,10 +83,15 @@ public class SystemSettingFragment extends qA {
         binding.switchAutoSave.setChecked(prefs.getBoolean("P12I2", false));
         binding.switchBuildDetails.setChecked(prefs.getBoolean("P12I6", false));
         binding.switchAiMarkdown.setChecked(prefs.getBoolean("P12_MARKDOWN_ENABLED", true));
+        boolean separateApiKeys = prefs.getBoolean("P12_SEPARATE_API_KEYS", false);
+        binding.switchSeparateApiKeys.setChecked(separateApiKeys);
+        updateSeparateApiKeysVisibility(separateApiKeys);
 
         // Summaries
         updateAiProviderSummary();
         updateEditTextSummary("P12I3", binding.tvAiApiKeySummary);
+        updateEditTextSummary("P12_GROQ_API_KEY", binding.tvGroqApiKeySummary);
+        updateEditTextSummary("P12_GEMINI_API_KEY", binding.tvGeminiApiKeySummary);
         updateEditTextSummary("P12I4", binding.tvAiEndpointUrlSummary);
         updateEditTextSummary("P12I5", binding.tvAiModelNameSummary);
 
@@ -127,8 +132,22 @@ public class SystemSettingFragment extends qA {
         // AI Provider Card
         binding.cardAiProvider.setOnClickListener(v -> showAiProviderDialog());
 
+        // Separate API Keys Switch
+        binding.cardSeparateApiKeys.setOnClickListener(v -> binding.switchSeparateApiKeys.setChecked(!binding.switchSeparateApiKeys.isChecked()));
+        binding.switchSeparateApiKeys.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            HapticManager.vibrateSwitch(buttonView, isChecked);
+            getPrefs().edit().putBoolean("P12_SEPARATE_API_KEYS", isChecked).apply();
+            updateSeparateApiKeysVisibility(isChecked);
+        });
+
         // AI API Key Card
         binding.cardAiApiKey.setOnClickListener(v -> showEditTextDialog("P12I3", "AI API Key", binding.tvAiApiKeySummary));
+
+        // Groq API Key Card
+        binding.cardGroqApiKey.setOnClickListener(v -> showEditTextDialog("P12_GROQ_API_KEY", "Groq API Key", binding.tvGroqApiKeySummary));
+
+        // Google Gemini API Key Card
+        binding.cardGeminiApiKey.setOnClickListener(v -> showEditTextDialog("P12_GEMINI_API_KEY", "Google Gemini API Key", binding.tvGeminiApiKeySummary));
 
         // AI Endpoint URL Card
         binding.cardAiEndpointUrl.setOnClickListener(v -> showEditTextDialog("P12I4", "AI Endpoint URL", binding.tvAiEndpointUrlSummary));
@@ -229,7 +248,7 @@ public class SystemSettingFragment extends qA {
         if (value.isEmpty()) {
             summaryView.setText("Not set");
         } else {
-            if ("P12I3".equals(key)) {
+            if ("P12I3".equals(key) || "P12_GROQ_API_KEY".equals(key) || "P12_GEMINI_API_KEY".equals(key)) {
                 if (value.length() > 8) {
                     summaryView.setText(value.substring(0, 4) + "...." + value.substring(value.length() - 4));
                 } else {
@@ -246,7 +265,7 @@ public class SystemSettingFragment extends qA {
         dialogBinding.chipGroupTypes.setVisibility(View.GONE);
         dialogBinding.textInputLayout.setHint(title);
 
-        if ("P12I3".equals(key)) {
+        if ("P12I3".equals(key) || "P12_GROQ_API_KEY".equals(key) || "P12_GEMINI_API_KEY".equals(key)) {
             dialogBinding.inputText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         }
 
@@ -262,7 +281,7 @@ public class SystemSettingFragment extends qA {
                         getPrefs().edit().putString(key, newValue).apply();
                         updateEditTextSummary(key, summaryView);
 
-                        if ("P12I3".equals(key) && !newValue.isEmpty()) {
+                        if (("P12I3".equals(key) || "P12_GEMINI_API_KEY".equals(key)) && !newValue.isEmpty()) {
                             String provider = getPrefs().getString("P12_PROVIDER", "custom");
                             if ("google".equalsIgnoreCase(provider) || newValue.startsWith("AIzaSy")) {
                                 new MaterialAlertDialogBuilder(requireContext())
@@ -635,6 +654,14 @@ public class SystemSettingFragment extends qA {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void updateSeparateApiKeysVisibility(boolean show) {
+        int visibility = show ? View.VISIBLE : View.GONE;
+        if (binding != null) {
+            binding.cardGroqApiKey.setVisibility(visibility);
+            binding.cardGeminiApiKey.setVisibility(visibility);
+        }
     }
 
     @Override
