@@ -21,6 +21,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -1525,6 +1526,21 @@ public class SkAssistantFragment extends Fragment {
         private final List<Message> messages;
         private final SkAssistantFragment fragment;
         private Markwon markwon;
+        private int lastAnimatedPosition = -1;
+
+        private void runPopInAnimation(View view) {
+            if (view == null) return;
+            view.setScaleX(0.85f);
+            view.setScaleY(0.85f);
+            view.setAlpha(0f);
+            view.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .alpha(1.0f)
+                    .setDuration(480)
+                    .setInterpolator(new OvershootInterpolator(1.0f))
+                    .start();
+        }
 
         MessageAdapter(List<Message> messages, SkAssistantFragment fragment) {
             this.messages = messages;
@@ -1638,9 +1654,25 @@ public class SkAssistantFragment extends Fragment {
             if ("user".equals(msg.role)) {
                 msgHolder.cardUser.setVisibility(View.VISIBLE);
                 msgHolder.tvContentRight.setText(contentText);
+                if (position > lastAnimatedPosition) {
+                    lastAnimatedPosition = position;
+                    runPopInAnimation(msgHolder.cardUser);
+                } else {
+                    msgHolder.cardUser.setScaleX(1f);
+                    msgHolder.cardUser.setScaleY(1f);
+                    msgHolder.cardUser.setAlpha(1f);
+                }
             } else {
                 msgHolder.cardAssistant.setVisibility(View.VISIBLE);
                 msgHolder.tvRoleLeft.setText(msg.role.toUpperCase());
+                if (position > lastAnimatedPosition) {
+                    lastAnimatedPosition = position;
+                    runPopInAnimation(msgHolder.cardAssistant);
+                } else {
+                    msgHolder.cardAssistant.setScaleX(1f);
+                    msgHolder.cardAssistant.setScaleY(1f);
+                    msgHolder.cardAssistant.setAlpha(1f);
+                }
 
                 Context ctx = msgHolder.tvContentLeft.getContext();
                 SharedPreferences aiPref = ctx.getSharedPreferences("P12", Context.MODE_PRIVATE);

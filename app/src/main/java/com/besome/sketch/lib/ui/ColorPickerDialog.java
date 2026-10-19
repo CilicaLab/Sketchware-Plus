@@ -23,10 +23,11 @@ import com.besome.sketch.editor.manage.library.material3.Material3LibraryManager
 import com.besome.sketch.editor.view.ColorGroupItem;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import a.a.a.DB;
+import com.google.gson.Gson;
 import a.a.a.GB;
 import a.a.a.bB;
 import a.a.a.jC;
@@ -62,8 +63,40 @@ public class ColorPickerDialog extends PopupWindow {
     private int k;
     private int l;
     private int m = -1;
-    private DB colorPref;
     private boolean hasMaterialColors;
+
+    private static class ColorPickerData {
+        public String colors = "";
+        public String attrs = "";
+    }
+
+    private File getColorPickerFile() {
+        return new File(FileUtil.getExternalStorageDir(), ".sketchware/data/system/color_picker.json");
+    }
+
+    private ColorPickerData loadColorPickerData() {
+        File file = getColorPickerFile();
+        if (FileUtil.isExistFile(file.getAbsolutePath())) {
+            String json = FileUtil.readFileIfExist(file.getAbsolutePath());
+            if (json != null && !json.isEmpty()) {
+                try {
+                    ColorPickerData data = new Gson().fromJson(json, ColorPickerData.class);
+                    if (data != null) {
+                        return data;
+                    }
+                } catch (Exception e) {
+                    // fallback
+                }
+            }
+        }
+        return new ColorPickerData();
+    }
+
+    private void saveColorPickerData(ColorPickerData data) {
+        File file = getColorPickerFile();
+        FileUtil.makeDir(file.getParent());
+        FileUtil.writeFile(file.getAbsolutePath(), new Gson().toJson(data));
+    }
     private Material3LibraryManager material3LibraryManager;
     private yq yq;
     private ColorsEditorManager colorsEditorManager;
@@ -96,7 +129,9 @@ public class ColorPickerDialog extends PopupWindow {
         dialog.setTitle(R.string.picker_color_title_delete_all_custom_color);
         dialog.setMessage(R.string.picker_color_message_delete_all_custom_color);
         dialog.setPositiveButton(R.string.common_word_delete, (v, which) -> {
-            colorPref.a();
+            ColorPickerData data = loadColorPickerData();
+            data.colors = "";
+            saveColorPickerData(data);
             colorGroups.set(0, getSavedColorBeans());
             notifyChanges();
             v.dismiss();
@@ -115,7 +150,6 @@ public class ColorPickerDialog extends PopupWindow {
 
     public void initialize(Activity activity, String color, boolean isTransparentColor, boolean isNoneColor) {
         this.activity = activity;
-        colorPref = new DB(activity, "P24");
         initializeColorData(isTransparentColor, isNoneColor);
         initializeResColors();
         initializeAttrsList();
@@ -341,9 +375,11 @@ public class ColorPickerDialog extends PopupWindow {
                     return;
                 }
 
-                String savedAttrs = colorPref.f("P24I2");
-                String attrsToSave = savedAttrs + "," + attributeName;
-                colorPref.a("P24I2", (Object) attrsToSave);
+                ColorPickerData data = loadColorPickerData();
+                String savedAttrs = data.attrs;
+                String attrsToSave = savedAttrs.isEmpty() ? attributeName : savedAttrs + "," + attributeName;
+                data.attrs = attrsToSave;
+                saveColorPickerData(data);
                 attributes.add(new Attribute(attributeName, savedAttrs.isEmpty() ? "Custom" : null));
                 assert binding.colorList.getAdapter() != null;
                 binding.colorList.getAdapter().notifyItemInserted(attributes.size());
@@ -442,18 +478,21 @@ public class ColorPickerDialog extends PopupWindow {
     }
 
     private void removeSavedColor(String color) {
-        String savedColors = colorPref.f("P24I1");
+        ColorPickerData data = loadColorPickerData();
+        String savedColors = data.colors;
         if (savedColors.contains(color)) {
             String colorToRemove = color + ",";
             String colorToSave = savedColors.replaceAll(colorToRemove, "");
-            colorPref.a("P24I1", (Object) colorToSave);
+            data.colors = colorToSave;
+            saveColorPickerData(data);
             colorGroups.set(0, getSavedColorBeans());
             notifyChanges();
         }
     }
 
     private ColorBean[] getSavedColorBeans() {
-        String savedColors = colorPref.f("P24I1");
+        ColorPickerData data = loadColorPickerData();
+        String savedColors = data.colors;
         ColorBean[] colorBeansResult;
         if (!savedColors.isEmpty()) {
             String[] colorStrings = savedColors.split(",");
@@ -477,7 +516,8 @@ public class ColorPickerDialog extends PopupWindow {
                             R.drawable.checked_white_32);
 
                 } catch (Exception e) {
-                    colorPref.a();
+                    data.colors = "";
+                    saveColorPickerData(data);
                     colorBeans = new ColorBean[0];
                     break;
                 }
@@ -500,12 +540,14 @@ public class ColorPickerDialog extends PopupWindow {
     }
 
     private void savePickedColor(String color) {
-        String savedColors = colorPref.f("P24I1");
+        ColorPickerData data = loadColorPickerData();
+        String savedColors = data.colors;
         if (savedColors.contains(color)) {
             bB.b(activity, activity.getString(R.string.picker_color_already_exist), 0).show();
         } else {
-            String colorsToSave = color + "," + savedColors;
-            colorPref.a("P24I1", (Object) colorsToSave);
+            String colorsToSave = savedColors.isEmpty() ? color : color + "," + savedColors;
+            data.colors = colorsToSave;
+            saveColorPickerData(data);
             colorGroups.set(0, getSavedColorBeans());
             notifyChanges();
             k = 0;
@@ -551,7 +593,8 @@ public class ColorPickerDialog extends PopupWindow {
         attributes.add(new Attribute("colorErrorContainer"));
         attributes.add(new Attribute("colorOnErrorContainer"));
 
-        String savedAttrs = colorPref.f("P24I2");
+        ColorPickerData data = loadColorPickerData();
+        String savedAttrs = data.attrs;
         if (savedAttrs != null && !savedAttrs.isEmpty()) {
             String[] customAttrs = savedAttrs.split(",");
             for (int i = 0; i < customAttrs.length; i++) {
