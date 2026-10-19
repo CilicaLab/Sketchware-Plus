@@ -50,6 +50,12 @@ public class AssistantToolRegistry {
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
+        t.put(createTool("add_source_directly", "PREFERRED tool to add Java code to activity onCreate / initializeLogic via 'Add source directly' block. ALWAYS use this instead of java patches when adding code to onCreate.",
+                new ParameterBuilder()
+                        .addProperty("code", "string", "Java code snippet to add")
+                        .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
+                        .setRequired("code").build()));
+
         t.put(createTool("read_method", "Read a method's source",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "file, e.g. MainActivity.java")

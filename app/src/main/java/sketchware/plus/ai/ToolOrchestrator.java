@@ -437,6 +437,15 @@ public class ToolOrchestrator {
                 boolean injected = AssistantImportInjector.injectImports(fragment.scId, targetJavaName, pArray, fragment.getActivity());
                 return injected ? "Imports injected successfully." : "Imports already exist or injection failed.";
 
+            case "add_source_directly":
+            case "add_onCreate_code":
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String codeToAdd = args.getString("code");
+                String targetJava = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
+                boolean added = AssistantImportInjector.injectOnCreateSource(fragment.scId, targetJava, codeToAdd, fragment.getActivity());
+                return added ? "Code successfully added to onCreate via 'Add source directly'." : "Failed to add code to onCreate.";
+
             case "list_methods":
             case "get_full_code":
             case "get_class_outline":

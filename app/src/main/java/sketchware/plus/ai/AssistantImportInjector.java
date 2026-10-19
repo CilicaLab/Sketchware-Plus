@@ -2,6 +2,7 @@ package sketchware.plus.ai;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Color;
 
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.EventBean;
@@ -9,9 +10,12 @@ import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.editor.LogicEditorActivity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import a.a.a.eC;
 import a.a.a.jC;
+import mod.hilal.saif.blocks.BlocksHandler;
 import sketchware.plus.utility.SketchwareUtil;
 
 /**
@@ -152,7 +156,7 @@ public class AssistantImportInjector {
                 if (hostActivity != null) {
                     hostActivity.runOnUiThread(() -> {
                         try {
-                            SketchwareUtil.toast("Assistant successfully added required imports!");
+                            //SketchwareUtil.toast("Assistant successfully added required imports!");
                         } catch (Exception ignored) {}
                     });
                 }
@@ -168,5 +172,119 @@ public class AssistantImportInjector {
 
     public static boolean injectImports(String scId, String javaName, String[] importsToInject) {
         return injectImports(scId, javaName, importsToInject, null);
+    }
+
+    /**
+     * Injects an 'Add source directly' block with custom code into the onCreate (initializeLogic) event of the specified project screen data.
+     *
+     * @param scId Project ID (sc_id). If null, attempts to resolve from hostActivity.
+     * @param javaName Target activity Java name (e.g. "main" or "MainActivity.java"). If null, attempts to resolve from hostActivity.
+     * @param code The Java code snippet to add via 'Add source directly'.
+     * @param hostActivity Optional host activity for showing UI feedback toast and refreshing designer.
+     * @return true if successfully added; false on failure.
+     */
+    public static boolean injectOnCreateSource(String scId, String javaName, String code, Activity hostActivity) {
+        if (code == null || code.trim().isEmpty()) {
+            return false;
+        }
+
+        // Fallback scId and javaName resolution if not explicitly passed
+        if (scId == null || scId.isEmpty() || javaName == null || javaName.isEmpty()) {
+            if (hostActivity instanceof LogicEditorActivity) {
+                LogicEditorActivity editor = (LogicEditorActivity) hostActivity;
+                if (scId == null || scId.isEmpty()) {
+                    scId = editor.getIntent().getStringExtra("sc_id");
+                }
+                if (javaName == null || javaName.isEmpty()) {
+                    ProjectFileBean fileBean = editor.M;
+                    if (fileBean != null) {
+                        javaName = fileBean.getJavaName();
+                    }
+                }
+            } else if (hostActivity != null) {
+                Intent intent = hostActivity.getIntent();
+                if (intent != null && (scId == null || scId.isEmpty())) {
+                    scId = intent.getStringExtra("sc_id");
+                }
+            }
+        }
+
+        if (scId == null || scId.isEmpty() || javaName == null || javaName.isEmpty()) {
+            return false;
+        }
+
+        eC screenConfigHandler = jC.a(scId);
+        if (screenConfigHandler == null) {
+            return false;
+        }
+
+        synchronized (screenConfigHandler) {
+            String eventKey = "onCreate_initializeLogic";
+            ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, eventKey);
+            if (blocks == null) {
+                blocks = new ArrayList<>();
+            }
+
+            int maxId = 0;
+            for (BlockBean b : blocks) {
+                try {
+                    int bId = Integer.parseInt(b.id);
+                    if (bId > maxId) {
+                        maxId = bId;
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+            int newId = maxId + 1;
+
+            String opCode = "addSourceDirectly";
+            ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
+            BlocksHandler.builtInBlocks(blockList);
+            String type = " ", typeName = "", spec = "";
+            int blockColor = Color.parseColor("#5cb722");
+            for (HashMap<String, Object> bDef : blockList) {
+                if (opCode.equals(bDef.get("name"))) {
+                    type = (String) bDef.getOrDefault("type", " ");
+                    typeName = (String) bDef.getOrDefault("typeName", "");
+                    spec = (String) bDef.getOrDefault("spec", "");
+                    String colorStr = (String) bDef.get("color");
+                    if (colorStr != null) {
+                        try {
+                            blockColor = Color.parseColor(colorStr);
+                        } catch (Exception ignored) {}
+                    }
+                    break;
+                }
+            }
+
+            BlockBean block = new BlockBean(String.valueOf(newId), spec, type, typeName, opCode);
+            block.color = blockColor;
+            block.nextBlock = -1;
+            block.subStack1 = -1;
+            block.subStack2 = -1;
+            block.parameters = new ArrayList<>();
+            block.parameters.add(code.trim());
+
+            if (!blocks.isEmpty()) {
+                BlockBean lastBlock = blocks.get(blocks.size() - 1);
+                lastBlock.nextBlock = newId;
+            }
+
+            blocks.add(block);
+            screenConfigHandler.a(javaName, eventKey, blocks);
+            screenConfigHandler.k();
+
+            if (hostActivity != null) {
+                hostActivity.runOnUiThread(() -> {
+                    try {
+                        //SketchwareUtil.toast("Assistant successfully added code to onCreate!");
+                    } catch (Exception ignored) {}
+                });
+            }
+            return true;
+        }
+    }
+
+    public static boolean injectOnCreateSource(String scId, String javaName, String code) {
+        return injectOnCreateSource(scId, javaName, code, null);
     }
 }

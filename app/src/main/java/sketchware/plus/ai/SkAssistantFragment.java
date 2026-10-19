@@ -15,6 +15,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -360,6 +362,13 @@ public class SkAssistantFragment extends Fragment {
                 }
             }
         });
+
+        btnSend.setOnLongClickListener(v -> {
+            HapticManager.vibrateRun(v);
+            return true;
+        });
+
+
 
 
         return view;
@@ -1200,6 +1209,8 @@ public class SkAssistantFragment extends Fragment {
             });
         }
     }
+
+
 
     private void clearChat() {
         new MaterialAlertDialogBuilder(getContext())
