@@ -138,6 +138,15 @@ public class SystemSettingFragment extends qA {
             HapticManager.vibrateSwitch(buttonView, isChecked);
             getPrefs().edit().putBoolean("P12_SEPARATE_API_KEYS", isChecked).apply();
             updateSeparateApiKeysVisibility(isChecked);
+
+            if (isChecked) {
+                String groqKey = getPrefs().getString("P12_GROQ_API_KEY", "").trim();
+                String geminiKey = getPrefs().getString("P12_GEMINI_API_KEY", "").trim();
+                if (!groqKey.isEmpty() && !geminiKey.isEmpty()) {
+                    getPrefs().edit().remove("P12I3").apply();
+                    updateEditTextSummary("P12I3", binding.tvAiApiKeySummary);
+                }
+            }
         });
 
         // AI API Key Card
@@ -280,6 +289,14 @@ public class SystemSettingFragment extends qA {
                         String newValue = dialogBinding.inputText.getText().toString().trim();
                         getPrefs().edit().putString(key, newValue).apply();
                         updateEditTextSummary(key, summaryView);
+
+                        boolean separateActive = getPrefs().getBoolean("P12_SEPARATE_API_KEYS", false);
+                        String groqKey = getPrefs().getString("P12_GROQ_API_KEY", "").trim();
+                        String geminiKey = getPrefs().getString("P12_GEMINI_API_KEY", "").trim();
+                        if (separateActive && !groqKey.isEmpty() && !geminiKey.isEmpty()) {
+                            getPrefs().edit().remove("P12I3").apply();
+                            updateEditTextSummary("P12I3", binding.tvAiApiKeySummary);
+                        }
 
                         if (("P12I3".equals(key) || "P12_GEMINI_API_KEY".equals(key)) && !newValue.isEmpty()) {
                             String provider = getPrefs().getString("P12_PROVIDER", "custom");
@@ -657,10 +674,13 @@ public class SystemSettingFragment extends qA {
     }
 
     private void updateSeparateApiKeysVisibility(boolean show) {
-        int visibility = show ? View.VISIBLE : View.GONE;
+        int separateVisibility = show ? View.VISIBLE : View.GONE;
+        int defaultVisibility = show ? View.GONE : View.VISIBLE;
         if (binding != null) {
-            binding.cardGroqApiKey.setVisibility(visibility);
-            binding.cardGeminiApiKey.setVisibility(visibility);
+            binding.cardGroqApiKey.setVisibility(separateVisibility);
+            binding.cardGeminiApiKey.setVisibility(separateVisibility);
+            binding.cardAiApiKey.setVisibility(defaultVisibility);
+            binding.cardAiEndpointUrl.setVisibility(defaultVisibility);
         }
     }
 

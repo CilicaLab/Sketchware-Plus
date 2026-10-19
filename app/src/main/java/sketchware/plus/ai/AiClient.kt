@@ -200,7 +200,7 @@ object AiClient {
                         val content = message.optString("content", "").trim()
                         callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
                     }
-                } else if ((response.code == 429 || response.code == 413 || response.code == 404) && retryCount < 5) {
+                } else if ((response.code == 429 || response.code == 413 || response.code == 404 || response.code == 503)) {
                     val errorBody = response.body?.string() ?: ""
                     val delayMillis = parseRetryAfter(errorBody)
                     
@@ -212,24 +212,85 @@ object AiClient {
                                  currentModel.contains("qwen", ignoreCase = true) ||
                                  currentModel.contains("llama", ignoreCase = true)
 
+                    val isGoogle = "google".equals(provider, ignoreCase = true) ||
+                                   endpoint.contains("generativelanguage", ignoreCase = true) ||
+                                   currentModel.contains("gemini", ignoreCase = true)
+
                     if (isGroq) {
                         val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
                         val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
-                        val alternateModel = if (currentIndex != -1) {
-                            groqModels[(currentIndex + 1) % groqModels.size]
+                        
+                        if (currentIndex != -1 && currentIndex < groqModels.size - 1) {
+                            val alternateModel = groqModels[currentIndex + 1]
+                            aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
+
+                            mainHandler.post {
+                                callback.onModelSwitched(alternateModel)
+                                callback.onRetry(retryCount + 1, 500)
+                            }
+
+                            executor.execute {
+                                if (!isCanceledByUser) {
+                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                }
+                            }
                         } else {
-                            groqModels[0]
-                        }
-                        aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
+                            // All Groq models exhausted -> Fail over to Google Gemini
+                            aiPref.edit()
+                                .putString("P12_PROVIDER", "google")
+                                .putString("P12I4", "https://generativelanguage.googleapis.com/v1beta/openai/")
+                                .putString(getModelPrefKey(), "gemini-3.8-flash")
+                                .apply()
 
-                        mainHandler.post {
-                            callback.onModelSwitched(alternateModel)
-                            callback.onRetry(retryCount + 1, 500)
-                        }
+                            mainHandler.post {
+                                callback.onModelSwitched("gemini-3.8-flash (Groq exhausted -> Gemini Failover)")
+                                callback.onRetry(retryCount + 1, 1000)
+                            }
 
-                        executor.execute {
-                            if (!isCanceledByUser) {
-                                performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                            executor.execute {
+                                if (!isCanceledByUser) {
+                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                }
+                            }
+                        }
+                    } else if (isGoogle) {
+                        if (retryCount < 3) {
+                            // Retry Gemini up to 3 times before failing back to Groq
+                            mainHandler.post {
+                                callback.onRetry(retryCount + 1, delayMillis)
+                            }
+
+                            executor.execute {
+                                try {
+                                    var elapsed = 0L
+                                    while (elapsed < delayMillis) {
+                                        if (isCanceledByUser) return@execute
+                                        TimeUnit.MILLISECONDS.sleep(100)
+                                        elapsed += 100
+                                    }
+                                } catch (ignored: InterruptedException) {
+                                }
+                                if (!isCanceledByUser) {
+                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                }
+                            }
+                        } else {
+                            // Gemini exhausted after 3 retries -> Fail back to Groq
+                            aiPref.edit()
+                                .putString("P12_PROVIDER", "groq")
+                                .putString("P12I4", "https://api.groq.com/openai/v1")
+                                .putString(getModelPrefKey(), "openai/gpt-oss-20b")
+                                .apply()
+
+                            mainHandler.post {
+                                callback.onModelSwitched("openai/gpt-oss-20b (Gemini exhausted after 3 retries -> Groq Failback)")
+                                callback.onRetry(retryCount + 1, 1000)
+                            }
+
+                            executor.execute {
+                                if (!isCanceledByUser) {
+                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                }
                             }
                         }
                     } else {

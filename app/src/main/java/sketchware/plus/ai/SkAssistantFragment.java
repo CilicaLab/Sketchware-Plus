@@ -799,7 +799,21 @@ public class SkAssistantFragment extends Fragment {
 
             @Override
             public void onRetry(int retryCount, long delayMillis) {
-                setStatus("Rate limit hit. Retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s... (Attempt " + retryCount + ")");
+                SharedPreferences aiPref = getContext() != null ? getContext().getSharedPreferences("P12", Context.MODE_PRIVATE) : null;
+                String model = aiPref != null ? aiPref.getString("P12I5", "AI") : "AI";
+                if (model == null || model.isEmpty()) model = "AI";
+
+                final String finalModel = model;
+                final long totalSeconds = Math.max(1L, delayMillis / 1000L);
+                for (int sec = 1; sec <= totalSeconds; sec++) {
+                    final int currentSec = sec;
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (getActivity() != null) {
+                            setStatus(finalModel + " is generating... " + currentSec + "s");
+                        }
+                    }, currentSec * 1000L);
+                }
+                setStatus(finalModel + " is generating... 1s");
             }
         });
     }
@@ -933,7 +947,21 @@ public class SkAssistantFragment extends Fragment {
 
             @Override
             public void onRetry(int retryCount, long delayMillis) {
-                setStatus("Repairing response... rate limit hit, retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s...");
+                SharedPreferences aiPref = getContext() != null ? getContext().getSharedPreferences("P12", Context.MODE_PRIVATE) : null;
+                String model = aiPref != null ? aiPref.getString("P12I5", "AI") : "AI";
+                if (model == null || model.isEmpty()) model = "AI";
+
+                final String finalModel = model;
+                final long totalSeconds = Math.max(1L, delayMillis / 1000L);
+                for (int sec = 1; sec <= totalSeconds; sec++) {
+                    final int currentSec = sec;
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (getActivity() != null) {
+                            setStatus(finalModel + " is generating... " + currentSec + "s");
+                        }
+                    }, currentSec * 1000L);
+                }
+                setStatus(finalModel + " is generating... 1s");
             }
         });
     }
