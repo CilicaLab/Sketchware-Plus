@@ -681,6 +681,7 @@ public class SystemSettingFragment extends qA {
             binding.cardGeminiApiKey.setVisibility(separateVisibility);
             binding.cardAiApiKey.setVisibility(defaultVisibility);
             binding.cardAiEndpointUrl.setVisibility(defaultVisibility);
+            binding.cardAiFetchModels.setVisibility(defaultVisibility);
         }
     }
 
