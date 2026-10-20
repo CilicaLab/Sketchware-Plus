@@ -11,14 +11,12 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.PopupMenu;
 import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
@@ -49,7 +47,6 @@ public class StoreActivity extends AppCompatActivity {
     private SwipeRefreshLayout swipeRefresh;
     private RecyclerView recyclerView;
     private TabLayout tabLayout;
-    private MaterialButton btnSort;
     private ExtendedFloatingActionButton fabUpload;
     private MaterialToolbar toolbar;
 
@@ -78,7 +75,6 @@ public class StoreActivity extends AppCompatActivity {
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         tabLayout = findViewById(R.id.tab_layout);
-        btnSort = findViewById(R.id.btn_sort);
         swipeRefresh = findViewById(R.id.swipe_refresh);
         recyclerView = findViewById(R.id.recycler_view);
         stateView = findViewById(R.id.state_view);
@@ -156,8 +152,6 @@ public class StoreActivity extends AppCompatActivity {
         swipeRefresh.setColorSchemeResources(R.color.color_primary);
         swipeRefresh.setOnRefreshListener(() -> loadItems(false));
 
-        btnSort.setOnClickListener(this::showSortMenu);
-
         fabUpload.setOnClickListener(v -> handleUploadPackClick());
     }
 
@@ -183,24 +177,7 @@ public class StoreActivity extends AppCompatActivity {
         loadCurrentUser();
     }
 
-    private void showSortMenu(View anchor) {
-        PopupMenu popupMenu = new PopupMenu(this, anchor);
-        popupMenu.getMenu().add(0, 1, 0, "Newest First");
-        popupMenu.getMenu().add(0, 2, 1, "Most Downloaded");
 
-        popupMenu.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 1) {
-                currentSortBy = "newest";
-                btnSort.setText("Newest");
-            } else if (item.getItemId() == 2) {
-                currentSortBy = "most_downloaded";
-                btnSort.setText("Most Downloaded");
-            }
-            loadItems(true);
-            return true;
-        });
-        popupMenu.show();
-    }
 
     private void loadCurrentUser() {
         repository.getCurrentUser(new RepositoryCallback<StoreUser>() {

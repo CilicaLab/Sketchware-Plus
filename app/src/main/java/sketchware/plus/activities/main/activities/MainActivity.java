@@ -58,6 +58,7 @@ import sketchware.plus.activities.main.fragments.explore.ExploreFragment;
 import sketchware.plus.databinding.MainBinding;
 import sketchware.plus.lib.base.BottomSheetDialogView;
 import sketchware.plus.store.activities.LoginActivity;
+import sketchware.plus.store.activities.ProfileActivity;
 import sketchware.plus.store.activities.UploadActivity;
 import sketchware.plus.store.auth.SessionManager;
 import sketchware.plus.store.repository.RepositoryProvider;
@@ -330,6 +331,13 @@ public class MainActivity extends BasePermissionAppCompatActivity {
             projectsFragment = new ProjectsFragment();
         }
 
+        binding.appbar.setVisibility(View.VISIBLE);
+        binding.projectsHeaderContainer.setVisibility(View.VISIBLE);
+        binding.exploreHeaderContainer.setVisibility(View.GONE);
+        setSupportActionBar(binding.toolbar);
+        Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle(null);
+
         boolean shouldShow = true;
         FragmentManager fm = getSupportFragmentManager();
         FragmentTransaction transaction = fm.beginTransaction();
@@ -354,6 +362,13 @@ public class MainActivity extends BasePermissionAppCompatActivity {
         if (exploreFragment == null) {
             exploreFragment = new ExploreFragment();
         }
+
+        binding.appbar.setVisibility(View.VISIBLE);
+        binding.projectsHeaderContainer.setVisibility(View.GONE);
+        binding.exploreHeaderContainer.setVisibility(View.VISIBLE);
+        setSupportActionBar(binding.exploreToolbar);
+        Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle(null);
 
         boolean shouldShow = true;
         FragmentManager fm = getSupportFragmentManager();
@@ -462,6 +477,14 @@ public class MainActivity extends BasePermissionAppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (drawerToggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+        int id = item.getItemId();
+        if (id == R.id.action_profile) {
+            ProfileActivity.start(this);
+            return true;
+        } else if (id == R.id.action_login) {
+            LoginActivity.start(this);
             return true;
         } else {
             return super.onOptionsItemSelected(item);

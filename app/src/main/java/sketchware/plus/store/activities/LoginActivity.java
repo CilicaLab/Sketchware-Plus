@@ -43,7 +43,6 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputLayout tilPassword;
     private TextInputEditText etPassword;
     private MaterialButton btnAuthSubmit;
-    private MaterialButton btnGuest;
     private ProgressBar pbAuth;
 
     private boolean isSignUpMode = false;
@@ -73,7 +72,6 @@ public class LoginActivity extends AppCompatActivity {
         tilPassword = findViewById(R.id.til_password);
         etPassword = findViewById(R.id.et_password);
         btnAuthSubmit = findViewById(R.id.btn_auth_submit);
-        btnGuest = findViewById(R.id.btn_guest);
         pbAuth = findViewById(R.id.pb_auth);
     }
 
@@ -118,7 +116,6 @@ public class LoginActivity extends AppCompatActivity {
 
     private void setupListeners() {
         btnAuthSubmit.setOnClickListener(v -> performAuth());
-        btnGuest.setOnClickListener(v -> finish());
     }
 
     private void performAuth() {

@@ -25,29 +25,99 @@
                 android:layout_height="wrap_content"
                 app:layout_scrollFlags="scroll|enterAlways|snap" />
 
-            <com.google.android.material.card.MaterialCardView
+            <!-- Projects Header Container -->
+            <FrameLayout
+                android:id="@+id/projects_header_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
-                app:cardBackgroundColor="?colorSurfaceContainer"
-                app:cardCornerRadius="50dp"
+                app:layout_scrollFlags="scroll|enterAlways|snap">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="8dp"
+                    app:cardBackgroundColor="?colorSurfaceContainer"
+                    app:cardCornerRadius="50dp">
+
+                    <com.google.android.material.appbar.MaterialToolbar
+                        android:id="@+id/toolbar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="4dp"
+                        tools:menu="@menu/projects_fragment_menu">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Search for projects..."
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+                    </com.google.android.material.appbar.MaterialToolbar>
+                </com.google.android.material.card.MaterialCardView>
+            </FrameLayout>
+
+            <!-- Explore Header Container -->
+            <LinearLayout
+                android:id="@+id/explore_header_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
                 app:layout_scrollFlags="scroll|enterAlways|snap">
 
                 <com.google.android.material.appbar.MaterialToolbar
-                    android:id="@+id/toolbar"
+                    android:id="@+id/explore_toolbar"
+                    android:layout_width="match_parent"
+                    android:layout_height="?attr/actionBarSize"
+                    app:title="Blocks &amp; Components Store"
+                    app:titleTextAppearance="?attr/textAppearanceTitleLarge" />
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="4dp"
-                    tools:menu="@menu/projects_fragment_menu">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="8dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Search for projects..."
-                        android:textColor="?attr/colorOnSurfaceVariant" />
-                </com.google.android.material.appbar.MaterialToolbar>
-            </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.tabs.TabLayout
+                        android:id="@+id/explore_tab_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="36dp"
+                        android:background="@android:color/transparent"
+                        app:tabIndicatorColor="@color/color_primary"
+                        app:tabIndicatorHeight="3dp"
+                        app:tabMode="fixed"
+                        app:tabRippleColor="@null"
+                        app:tabSelectedTextColor="@color/color_primary"
+                        app:tabTextColor="?attr/colorOnSurfaceVariant">
+
+                        <com.google.android.material.tabs.TabItem
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="All" />
+
+                        <com.google.android.material.tabs.TabItem
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Blocks" />
+
+                        <com.google.android.material.tabs.TabItem
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Components" />
+
+                    </com.google.android.material.tabs.TabLayout>
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="?attr/colorOutlineVariant" />
+
+            </LinearLayout>
+
         </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.fragment.app.FragmentContainerView
