@@ -125,7 +125,15 @@ public class ExploreFragment extends Fragment {
             }
         };
 
-        requireActivity().addMenuProvider(menuProvider, getViewLifecycleOwner());
+        requireActivity().addMenuProvider(menuProvider);
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (getActivity() != null && menuProvider != null) {
+            requireActivity().removeMenuProvider(menuProvider);
+        }
     }
 
     public void setupMainFab() {
@@ -148,7 +156,10 @@ public class ExploreFragment extends Fragment {
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
         if (getActivity() == null) return;
-        if (!hidden && isAdded()) {
+        if (hidden) {
+            requireActivity().removeMenuProvider(menuProvider);
+        } else {
+            requireActivity().addMenuProvider(menuProvider);
             setupMainFab();
             requireActivity().invalidateOptionsMenu();
         }
