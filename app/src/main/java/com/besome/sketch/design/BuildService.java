@@ -167,7 +167,12 @@ public class BuildService extends Service implements BuildProgressReceiver {
             if (yB.a(projectInfo, "custom_icon")) {
                 q.aa(wq.e() + File.separator + sc_id + File.separator + "mipmaps");
                 if (yB.a(projectInfo, "isIconAdaptive", false)) {
-                    q.createLauncherIconXml("..."); // Simplified for brevity in this initial version, full content should be restored if needed
+                    q.createLauncherIconXml("""
+                            <?xml version="1.0" encoding="utf-8"?>
+                            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android" >
+                            <background android:drawable="@mipmap/ic_launcher_background"/>
+                            <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+                            </adaptive-icon>""");
                 } else {
                     q.a(wq.e() + File.separator + sc_id + File.separator + "icon.png");
                 }

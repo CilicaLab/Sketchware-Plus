@@ -608,8 +608,12 @@ public class ProjectBuilder {
              PrintWriter errWriter = new PrintWriter(errOutputStream)) {
 
             ArrayList<String> args = new ArrayList<>();
-            args.add("-" + build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
-                    BuildSettings.SETTING_JAVA_VERSION_1_7));
+            String javaVersion = build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
+                    BuildSettings.SETTING_JAVA_VERSION_1_7);
+            args.add("-source");
+            args.add(javaVersion);
+            args.add("-target");
+            args.add("1.8");
             args.add("-nowarn");
             if (!build_settings.getValue(BuildSettings.SETTING_NO_WARNINGS,
                     BuildSettings.SETTING_GENERIC_VALUE_TRUE).equals(BuildSettings.SETTING_GENERIC_VALUE_TRUE)) {

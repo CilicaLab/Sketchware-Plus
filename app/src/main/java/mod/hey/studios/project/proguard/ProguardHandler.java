@@ -30,8 +30,7 @@ public class ProguardHandler {
     private static String createAndroidRules() {
         String rulePath = FileUtil.getExternalStorageDir() + "/.sketchware/libs/android-proguard-rules.pro";
 
-        if (!FileUtil.isExistFile(rulePath)) {
-            FileUtil.writeFile(rulePath, """
+        FileUtil.writeFile(rulePath, """
                     -dontusemixedcaseclassnames
                     -dontskipnonpubliclibraryclasses
                     -verbose
@@ -42,6 +41,19 @@ public class ProguardHandler {
                     -keepattributes *Annotation*
                     -keep public class com.google.vending.licensing.ILicensingService
                     -keep public class com.android.vending.licensing.ILicensingService
+                    
+                    -keep public class * extends android.app.Application {
+                        *;
+                    }
+                    -keep public class * extends android.app.Service {
+                        *;
+                    }
+                    -keep public class * extends android.content.BroadcastReceiver {
+                        *;
+                    }
+                    -keep public class * extends android.content.ContentProvider {
+                        *;
+                    }
                     
                     -keepclasseswithmembernames class * {
                         native <methods>;
@@ -101,7 +113,6 @@ public class ProguardHandler {
                     -keep class androidx.arch.** { *; }
                     -keep class androidx.lifecycle.** { *; }
                     """);
-        }
 
         return rulePath;
     }
