@@ -51,6 +51,28 @@ public class ExploreFragment extends Fragment {
     private TabLayout tabLayout;
     private MaterialToolbar toolbar;
     private MenuProvider menuProvider;
+    private boolean isMenuAdded = false;
+
+    private void addMenuProviderSafely() {
+        if (getActivity() != null && menuProvider != null) {
+            try {
+                requireActivity().removeMenuProvider(menuProvider);
+            } catch (Exception ignored) {}
+            try {
+                requireActivity().addMenuProvider(menuProvider);
+                isMenuAdded = true;
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void removeMenuProviderSafely() {
+        if (getActivity() != null && menuProvider != null) {
+            try {
+                requireActivity().removeMenuProvider(menuProvider);
+                isMenuAdded = false;
+            } catch (Exception ignored) {}
+        }
+    }
 
     private String currentType = "ALL";
     private String currentQuery = "";
@@ -125,15 +147,13 @@ public class ExploreFragment extends Fragment {
             }
         };
 
-        requireActivity().addMenuProvider(menuProvider);
+        addMenuProviderSafely();
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (getActivity() != null && menuProvider != null) {
-            requireActivity().removeMenuProvider(menuProvider);
-        }
+        removeMenuProviderSafely();
     }
 
     public void setupMainFab() {
@@ -157,9 +177,9 @@ public class ExploreFragment extends Fragment {
         super.onHiddenChanged(hidden);
         if (getActivity() == null) return;
         if (hidden) {
-            requireActivity().removeMenuProvider(menuProvider);
+            removeMenuProviderSafely();
         } else {
-            requireActivity().addMenuProvider(menuProvider);
+            addMenuProviderSafely();
             setupMainFab();
             requireActivity().invalidateOptionsMenu();
         }

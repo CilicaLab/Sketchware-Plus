@@ -73,6 +73,28 @@ public class ProjectsFragment extends DA {
     private DB preference;
     private SearchView projectsSearchView;
     private MenuProvider menuProvider;
+    private boolean isMenuAdded = false;
+
+    private void addMenuProviderSafely() {
+        if (getActivity() != null && menuProvider != null) {
+            try {
+                requireActivity().removeMenuProvider(menuProvider);
+            } catch (Exception ignored) {}
+            try {
+                requireActivity().addMenuProvider(menuProvider);
+                isMenuAdded = true;
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void removeMenuProviderSafely() {
+        if (getActivity() != null && menuProvider != null) {
+            try {
+                requireActivity().removeMenuProvider(menuProvider);
+                isMenuAdded = false;
+            } catch (Exception ignored) {}
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -135,6 +157,7 @@ public class ProjectsFragment extends DA {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        removeMenuProviderSafely();
         binding = null; // avoid memory leaks
     }
 
@@ -213,7 +236,7 @@ public class ProjectsFragment extends DA {
             }
         };
 
-        requireActivity().addMenuProvider(menuProvider);
+        addMenuProviderSafely();
     }
 
     @Override
@@ -227,9 +250,9 @@ public class ProjectsFragment extends DA {
         super.onHiddenChanged(hidden);
         if (getActivity() == null) return;
         if (hidden) {
-            requireActivity().removeMenuProvider(menuProvider);
+            removeMenuProviderSafely();
         } else {
-            requireActivity().addMenuProvider(menuProvider);
+            addMenuProviderSafely();
             setupFab();
         }
     }

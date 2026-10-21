@@ -430,6 +430,7 @@ public class yq {
                         "import android.util.Log;", imports);
             }
 
+            SecurityGuardInjector.detectAndPersistSigningHash(context, sc_id);
             sketchApplicationFileContent = SecurityGuardInjector.inject(context, sc_id, sketchApplicationFileContent);
 
             fileUtil.b(javaFilesPath + File.separator
