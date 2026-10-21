@@ -1,5 +1,6 @@
 package sketchware.plus.store.activities;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -41,6 +42,9 @@ public class ProfileActivity extends AppCompatActivity {
 
     public static void start(Context context) {
         Intent intent = new Intent(context, ProfileActivity.class);
+        if (!(context instanceof Activity)) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
         context.startActivity(intent);
     }
 
@@ -180,11 +184,40 @@ public class ProfileActivity extends AppCompatActivity {
     private void displayUserHeader(StoreUser user) {
         if (user == null) return;
         tvProfileUsername.setText(user.getUsername() != null ? user.getUsername() : "Guest");
+        tvProfileUsername.setOnClickListener(v -> showEditUsernameDialog(user));
         if (user.isAdmin()) {
             tvProfileAdminBadge.setVisibility(View.VISIBLE);
         } else {
             tvProfileAdminBadge.setVisibility(View.GONE);
         }
+    }
+
+    private void showEditUsernameDialog(StoreUser user) {
+        final TextInputEditText input = new TextInputEditText(this);
+        input.setText(user.getUsername());
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Change Username")
+                .setView(input)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String newUsername = input.getText() != null ? input.getText().toString().trim() : "";
+                    if (!newUsername.isEmpty()) {
+                        repository.updateUsername(newUsername, new RepositoryCallback<Boolean>() {
+                            @Override
+                            public void onSuccess(Boolean result) {
+                                tvProfileUsername.setText(newUsername);
+                                Snackbar.make(rvMyUploads, "Username updated!", Snackbar.LENGTH_SHORT).show();
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                Toast.makeText(ProfileActivity.this, "Failed to update username: " + error, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void loadMyUploads(StoreUser user) {
@@ -230,8 +263,18 @@ public class ProfileActivity extends AppCompatActivity {
                     String newDesc = input.getText() != null ? input.getText().toString().trim() : "";
                     if (!newDesc.isEmpty()) {
                         item.setDescription(newDesc);
-                        uploadsAdapter.notifyDataSetChanged();
-                        Snackbar.make(rvMyUploads, "Description updated!", Snackbar.LENGTH_SHORT).show();
+                        repository.updateItem(item, new RepositoryCallback<Boolean>() {
+                            @Override
+                            public void onSuccess(Boolean result) {
+                                uploadsAdapter.notifyDataSetChanged();
+                                Snackbar.make(rvMyUploads, "Description updated! Pack is now pending review.", Snackbar.LENGTH_LONG).show();
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                Toast.makeText(ProfileActivity.this, "Failed to update: " + error, Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     }
                 })
                 .setNegativeButton("Cancel", null)

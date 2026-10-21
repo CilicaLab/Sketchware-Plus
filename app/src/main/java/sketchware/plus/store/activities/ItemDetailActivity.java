@@ -1,5 +1,6 @@
 package sketchware.plus.store.activities;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -52,6 +53,9 @@ public class ItemDetailActivity extends AppCompatActivity {
     public static void start(Context context, String itemId) {
         Intent intent = new Intent(context, ItemDetailActivity.class);
         intent.putExtra(EXTRA_ITEM_ID, itemId);
+        if (!(context instanceof Activity)) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
         context.startActivity(intent);
     }
 
@@ -59,6 +63,9 @@ public class ItemDetailActivity extends AppCompatActivity {
         Intent intent = new Intent(context, ItemDetailActivity.class);
         intent.putExtra(EXTRA_STORE_ITEM, item);
         intent.putExtra(EXTRA_ITEM_ID, item.getId());
+        if (!(context instanceof Activity)) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
         context.startActivity(intent);
     }
 

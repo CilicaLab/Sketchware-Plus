@@ -144,23 +144,23 @@ public class SupabaseClient {
                 int code = response.code();
 
                 if (code == 401 && !isRetry && !endpoint.contains("auth/v1")) {
-                    try {
-                        String refreshToken = SessionManager.getInstance(context).getRefreshToken();
-                        if (refreshToken != null && !refreshToken.isEmpty()) {
+                    String refreshToken = SessionManager.getInstance(context).getRefreshToken();
+                    if (refreshToken != null && !refreshToken.isEmpty()) {
+                        try {
                             boolean refreshed = performSynchronousRefresh(context, refreshToken);
                             if (refreshed) {
                                 execute(context, method, endpoint, jsonBody, responseClass, true, callback);
                                 return;
                             }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
 
-                    try {
-                        SessionManager.getInstance(context).clearSession();
-                    } catch (Exception ignored) {}
-                    navigateToLogin(context);
+                        try {
+                            SessionManager.getInstance(context).clearSession();
+                        } catch (Exception ignored) {}
+                        navigateToLogin(context);
+                    }
 
                     if (callback != null) {
                         runOnMainThread(() -> callback.onError(StoreError.UNAUTHORIZED.withDetails("Session expired. Please log in again.")));

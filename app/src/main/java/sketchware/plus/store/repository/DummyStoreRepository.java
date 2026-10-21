@@ -232,6 +232,55 @@ public class DummyStoreRepository implements StoreRepository {
     }
 
     @Override
+    public void updateItem(StoreItem item, RepositoryCallback<Boolean> callback) {
+        handler.postDelayed(() -> {
+            for (int i = 0; i < dummyItems.size(); i++) {
+                if (dummyItems.get(i).getId().equals(item.getId())) {
+                    item.setApproved(false); // Resets to pending review
+                    dummyItems.set(i, item);
+                    callback.onSuccess(true);
+                    return;
+                }
+            }
+            callback.onError("Item not found");
+        }, 400);
+    }
+
+    @Override
+    public void updateUsername(String newUsername, RepositoryCallback<Boolean> callback) {
+        handler.postDelayed(() -> {
+            if (currentUser != null) {
+                currentUser = new StoreUser(currentUser.getId(), newUsername, currentUser.isAdmin());
+                callback.onSuccess(true);
+            } else {
+                callback.onError("User not logged in");
+            }
+        }, 300);
+    }
+
+    @Override
+    public void approveItem(String itemId, RepositoryCallback<Boolean> callback) {
+        handler.postDelayed(() -> {
+            for (StoreItem item : dummyItems) {
+                if (item.getId().equals(itemId)) {
+                    item.setApproved(true);
+                    callback.onSuccess(true);
+                    return;
+                }
+            }
+            callback.onError("Item not found");
+        }, 300);
+    }
+
+    @Override
+    public void banUser(String targetUserId, RepositoryCallback<Boolean> callback) {
+        handler.postDelayed(() -> {
+            dummyItems.removeIf(item -> targetUserId.equals(item.getAuthor()));
+            callback.onSuccess(true);
+        }, 300);
+    }
+
+    @Override
     public void reportItem(StoreReport report, RepositoryCallback<Boolean> callback) {
         handler.postDelayed(() -> {
             report.setId("rpt_" + System.currentTimeMillis());
@@ -257,6 +306,17 @@ public class DummyStoreRepository implements StoreRepository {
     public void signup(String username, String email, String password, RepositoryCallback<StoreUser> callback) {
         handler.postDelayed(() -> {
             currentUser = new StoreUser("usr_" + System.currentTimeMillis(), username, false);
+            callback.onSuccess(currentUser);
+        }, 500);
+    }
+
+    @Override
+    public void loginWithGoogle(String idToken, String email, String displayName, RepositoryCallback<StoreUser> callback) {
+        handler.postDelayed(() -> {
+            String username = (displayName != null && !displayName.trim().isEmpty())
+                    ? displayName.trim()
+                    : (email != null && email.contains("@") ? email.split("@")[0] : "GoogleUser");
+            currentUser = new StoreUser("usr_g_" + System.currentTimeMillis(), username, false);
             callback.onSuccess(currentUser);
         }, 500);
     }

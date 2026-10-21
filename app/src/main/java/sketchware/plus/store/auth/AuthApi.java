@@ -13,7 +13,6 @@ public class AuthApi {
     public static void signUp(Context context, String email, String password, String username, ApiCallback<AuthResponse> callback) {
         Map<String, Object> data = new HashMap<>();
         data.put("username", username);
-        data.put("is_admin", false);
 
         AuthRequest request = new AuthRequest(email, password, data);
         SupabaseClient.getInstance().executePost(context, "auth/v1/signup", request, AuthResponse.class, new ApiCallback<AuthResponse>() {

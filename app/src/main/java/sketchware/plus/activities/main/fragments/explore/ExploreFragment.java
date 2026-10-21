@@ -1,7 +1,5 @@
 package sketchware.plus.activities.main.fragments.explore;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.HapticFeedbackConstants;
@@ -11,12 +9,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
@@ -48,9 +43,6 @@ import sketchware.plus.store.widget.StateView;
 
 public class ExploreFragment extends Fragment {
 
-    private static final String PREF_STORE_DEV_MODE = "pref_store_dev_mode";
-    private static final int REQUIRED_TAPS = 16;
-
     private StoreRepository repository;
     private StoreItemAdapter adapter;
     private StateView stateView;
@@ -65,29 +57,9 @@ public class ExploreFragment extends Fragment {
     private String currentSortBy = "newest";
     private StoreUser currentUser;
 
-    // Secret tap counter for developer mode toggle
-    private int tapCount = 0;
-    private long lastTapTime = 0;
-
-    private boolean isDevModeEnabled() {
-        if (getContext() == null) return false;
-        SharedPreferences prefs = requireContext().getSharedPreferences("sketchware_plus_prefs", Context.MODE_PRIVATE);
-        return prefs.getBoolean(PREF_STORE_DEV_MODE, false);
-    }
-
-    private void setDevModeEnabled(boolean enabled) {
-        if (getContext() == null) return;
-        SharedPreferences prefs = requireContext().getSharedPreferences("sketchware_plus_prefs", Context.MODE_PRIVATE);
-        prefs.edit().putBoolean(PREF_STORE_DEV_MODE, enabled).apply();
-    }
-
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        if (!isDevModeEnabled()) {
-            return setupUnderConstructionView(inflater, container);
-        }
-
         View view = inflater.inflate(R.layout.fragment_explore_store, container, false);
 
         repository = RepositoryProvider.getRepository(requireContext());
@@ -102,69 +74,6 @@ public class ExploreFragment extends Fragment {
         loadItems(true);
 
         return view;
-    }
-
-    private View setupUnderConstructionView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
-        View view = inflater.inflate(R.layout.fragment_store_under_construction, container, false);
-
-        MaterialToolbar toolbar = view.findViewById(R.id.toolbar_under_construction);
-        if (toolbar != null) {
-            toolbar.setNavigationIcon(null);
-        }
-
-        ImageView imgConstruction = view.findViewById(R.id.img_under_construction);
-        TextView tvTitle = view.findViewById(R.id.tv_title_under_construction);
-
-        View.OnClickListener tapListener = v -> handleSecretTap();
-
-        if (imgConstruction != null) {
-            imgConstruction.setOnClickListener(tapListener);
-        }
-
-        if (tvTitle != null) {
-            tvTitle.setOnClickListener(tapListener);
-        }
-
-        return view;
-    }
-
-    private void handleSecretTap() {
-        long now = System.currentTimeMillis();
-        if (now - lastTapTime > 2000) {
-            tapCount = 0;
-        }
-        lastTapTime = now;
-        tapCount++;
-
-        if (tapCount >= REQUIRED_TAPS) {
-            tapCount = 0;
-            setDevModeEnabled(true);
-            Toast.makeText(requireContext(), "⚡ Developer Mode Activated! Unlocking Store...", Toast.LENGTH_SHORT).show();
-            reloadFragment();
-        }
-    }
-
-    private void promptDeveloperModeToggle() {
-        if (getContext() == null || !isDevModeEnabled()) return;
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Lock Store")
-                .setMessage("Developer Mode is currently active. Would you like to lock the Store and return to the Under Construction view for regular users?")
-                .setPositiveButton("Lock Store", (dialog, which) -> {
-                    setDevModeEnabled(false);
-                    Toast.makeText(requireContext(), "🔒 Store Locked (Normal User View)", Toast.LENGTH_SHORT).show();
-                    reloadFragment();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void reloadFragment() {
-        if (getActivity() != null && isAdded()) {
-            getParentFragmentManager().beginTransaction()
-                    .detach(this)
-                    .attach(this)
-                    .commitAllowingStateLoss();
-        }
     }
 
     @Override
@@ -223,25 +132,14 @@ public class ExploreFragment extends Fragment {
         if (getActivity() != null) {
             ExtendedFloatingActionButton fab = getActivity().findViewById(R.id.create_new_project);
             if (fab != null) {
-                if (isDevModeEnabled()) {
-                    fab.setText("Upload Pack");
-                    fab.setIconResource(R.drawable.ic_add_white_24dp);
-                    fab.setOnClickListener(v -> {
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                        handleUploadPackClick();
-                    });
-                    fab.show();
-                    fab.extend();
-                } else {
-                    fab.setText("Coming Soon");
-                    fab.setIconResource(R.drawable.ic_mtrl_deployed_code);
-                    fab.setOnClickListener(v -> {
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                        Toast.makeText(requireContext(), "Store feature is coming soon!", Toast.LENGTH_SHORT).show();
-                    });
-                    fab.show();
-                    fab.extend();
-                }
+                fab.setText("Upload Pack");
+                fab.setIconResource(R.drawable.ic_add_white_24dp);
+                fab.setOnClickListener(v -> {
+                    v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    handleUploadPackClick();
+                });
+                fab.show();
+                fab.extend();
             }
         }
     }
@@ -267,12 +165,6 @@ public class ExploreFragment extends Fragment {
     private void setupToolbar() {
         if (toolbar == null) return;
         toolbar.setNavigationIcon(null);
-
-        // Long press on store toolbar title to allow developer to lock store back
-        toolbar.setOnLongClickListener(v -> {
-            promptDeveloperModeToggle();
-            return true;
-        });
     }
 
     private void updateMenuVisibility(Menu menu) {
@@ -355,12 +247,34 @@ public class ExploreFragment extends Fragment {
     }
 
     private void handleUploadPackClick() {
-        if (isLoggedIn()) {
-            UploadActivity.start(requireContext());
-        } else {
-            Toast.makeText(requireContext(), "Please log in or sign up to upload packs", Toast.LENGTH_SHORT).show();
+        if (!isLoggedIn()) {
+            Toast.makeText(requireContext(), "Please log in to upload packs", Toast.LENGTH_SHORT).show();
             LoginActivity.start(requireContext());
+            return;
         }
+
+        if (repository == null) {
+            repository = RepositoryProvider.getRepository(requireContext());
+        }
+
+        repository.getCurrentUser(new RepositoryCallback<StoreUser>() {
+            @Override
+            public void onSuccess(StoreUser user) {
+                if (user == null) {
+                    Toast.makeText(requireContext(), "Please log in to upload packs", Toast.LENGTH_SHORT).show();
+                    LoginActivity.start(requireContext());
+                } else if (user.isBanned()) {
+                    Toast.makeText(requireContext(), "Your account has been suspended by an administrator.", Toast.LENGTH_LONG).show();
+                } else {
+                    UploadActivity.start(requireContext());
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(requireContext(), "Something went wrong, please try again", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private boolean isLoggedIn() {
@@ -371,7 +285,6 @@ public class ExploreFragment extends Fragment {
     }
 
     private void loadCurrentUser() {
-        if (!isDevModeEnabled()) return;
         if (repository == null) {
             repository = RepositoryProvider.getRepository(requireContext());
         }
@@ -397,7 +310,6 @@ public class ExploreFragment extends Fragment {
     }
 
     private void loadItems(boolean showStateLoading) {
-        if (!isDevModeEnabled()) return;
         if (repository == null) {
             repository = RepositoryProvider.getRepository(requireContext());
         }
@@ -438,7 +350,7 @@ public class ExploreFragment extends Fragment {
 
     public void refresh() {
         setupMainFab();
-        if (isDevModeEnabled() && getView() != null && stateView != null) {
+        if (getView() != null && stateView != null) {
             loadCurrentUser();
             loadItems(true);
         }
@@ -448,8 +360,6 @@ public class ExploreFragment extends Fragment {
     public void onResume() {
         super.onResume();
         setupMainFab();
-        if (isDevModeEnabled()) {
-            loadCurrentUser();
-        }
+        loadCurrentUser();
     }
 }

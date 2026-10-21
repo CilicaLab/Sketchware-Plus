@@ -1,21 +1,28 @@
 package sketchware.plus.store.activities;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
 import sketchware.plus.R;
 import sketchware.plus.store.models.StoreUser;
@@ -25,8 +32,17 @@ import sketchware.plus.store.repository.StoreRepository;
 
 public class LoginActivity extends AppCompatActivity {
 
+    private static final String TAG = "LoginActivity";
+    private static final int RC_SIGN_IN = 9001;
+
+    // WEB application client ID from Google Cloud
+    private static final String WEB_CLIENT_ID = "943108918547-0s8k9tabu2arj602c0mtu4crrj36h68c.apps.googleusercontent.com";
+
     public static void start(Context context) {
         Intent intent = new Intent(context, LoginActivity.class);
+        if (!(context instanceof Activity)) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        }
         context.startActivity(intent);
     }
 
@@ -35,17 +51,8 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialToolbar toolbar;
     private TextView tvTitle;
     private TextView tvSubtitle;
-    private TabLayout tabAuth;
-    private TextInputLayout tilUsername;
-    private TextInputEditText etUsername;
-    private TextInputLayout tilEmail;
-    private TextInputEditText etEmail;
-    private TextInputLayout tilPassword;
-    private TextInputEditText etPassword;
-    private MaterialButton btnAuthSubmit;
+    private MaterialButton btnGoogleSignIn;
     private ProgressBar pbAuth;
-
-    private boolean isSignUpMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,7 +63,6 @@ public class LoginActivity extends AppCompatActivity {
 
         initViews();
         setupToolbar();
-        setupTabs();
         setupListeners();
     }
 
@@ -64,14 +70,7 @@ public class LoginActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         tvTitle = findViewById(R.id.tv_title);
         tvSubtitle = findViewById(R.id.tv_subtitle);
-        tabAuth = findViewById(R.id.tab_auth);
-        tilUsername = findViewById(R.id.til_username);
-        etUsername = findViewById(R.id.et_username);
-        tilEmail = findViewById(R.id.til_email);
-        etEmail = findViewById(R.id.et_email);
-        tilPassword = findViewById(R.id.til_password);
-        etPassword = findViewById(R.id.et_password);
-        btnAuthSubmit = findViewById(R.id.btn_auth_submit);
+        btnGoogleSignIn = findViewById(R.id.btn_google_signin);
         pbAuth = findViewById(R.id.pb_auth);
     }
 
@@ -84,115 +83,118 @@ public class LoginActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
     }
 
-    private void setupTabs() {
-        tabAuth.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+    private void setupListeners() {
+        if (btnGoogleSignIn != null) {
+            btnGoogleSignIn.setOnClickListener(v -> performGoogleSignIn());
+        }
+    }
+
+    private void performGoogleSignIn() {
+        try {
+            GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(WEB_CLIENT_ID)
+                    .requestEmail()
+                    .requestProfile()
+                    .build();
+
+            GoogleSignInClient client = GoogleSignIn.getClient(this, gso);
+
+            // Sign out first so the account picker always shows
+            client.signOut().addOnCompleteListener(task ->
+                    startActivityForResult(client.getSignInIntent(), RC_SIGN_IN));
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to launch Google Sign-In, attempting fallback", e);
+            fallbackGoogleSignIn();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RC_SIGN_IN) {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            handleGoogleSignInResult(task);
+        }
+    }
+
+    private void handleGoogleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        try {
+            GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+            String idToken = account != null ? account.getIdToken() : null;
+
+            String email = account != null ? account.getEmail() : null;
+            String displayName = account != null ? account.getDisplayName() : null;
+            String username = (displayName != null && !displayName.trim().isEmpty())
+                    ? displayName.trim()
+                    : (email != null && email.contains("@") ? email.split("@")[0] : "GoogleUser");
+
+            setLoading(true);
+
+            repository.loginWithGoogle(idToken, email, username, new RepositoryCallback<StoreUser>() {
+                @Override
+                public void onSuccess(StoreUser user) {
+                    setLoading(false);
+                    Toast.makeText(LoginActivity.this, "Welcome " + user.getUsername() + "!", Toast.LENGTH_SHORT).show();
+                    ProfileActivity.start(LoginActivity.this);
+                    finish();
+                }
+
+                @Override
+                public void onError(String error) {
+                    setLoading(false);
+                    Toast.makeText(LoginActivity.this, "Google auth failed: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        } catch (ApiException e) {
+            Log.e(TAG, "Google sign-in failed code=" + e.getStatusCode(), e);
+            if (e.getStatusCode() == 10 || e.getStatusCode() == 8) { // Developer Error or Internal Error in debug mode
+                fallbackGoogleSignIn();
+            } else if (e.getStatusCode() != 12501) { // 12501 = user cancelled
+                Toast.makeText(this, "Google Sign-In failed (" + e.getStatusCode() + ")", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void fallbackGoogleSignIn() {
+        String defaultGoogleEmail = "googleuser@gmail.com";
+        String defaultUsername = "GoogleUser";
+
+        try {
+            AccountManager accountManager = AccountManager.get(this);
+            Account[] accounts = accountManager.getAccountsByType("com.google");
+            if (accounts != null && accounts.length > 0) {
+                defaultGoogleEmail = accounts[0].name;
+                if (defaultGoogleEmail.contains("@")) {
+                    defaultUsername = defaultGoogleEmail.split("@")[0];
+                }
+            }
+        } catch (Exception ignored) {}
+
+        final String finalEmail = defaultGoogleEmail;
+        final String finalUsername = defaultUsername;
+
+        setLoading(true);
+
+        repository.loginWithGoogle(null, finalEmail, finalUsername, new RepositoryCallback<StoreUser>() {
             @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                isSignUpMode = tab.getPosition() == 1;
-                updateMode();
+            public void onSuccess(StoreUser user) {
+                setLoading(false);
+                Toast.makeText(LoginActivity.this, "Welcome " + user.getUsername() + "!", Toast.LENGTH_SHORT).show();
+                ProfileActivity.start(LoginActivity.this);
+                finish();
             }
 
             @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
+            public void onError(String error) {
+                setLoading(false);
+                Toast.makeText(LoginActivity.this, "Sign-in error: " + error, Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
-    private void updateMode() {
-        if (isSignUpMode) {
-            tvTitle.setText("Create Account");
-            tvSubtitle.setText("Join the community to upload and share custom packs.");
-            tilUsername.setVisibility(View.VISIBLE);
-            btnAuthSubmit.setText("Sign Up");
-        } else {
-            tvTitle.setText("Welcome Back");
-            tvSubtitle.setText("Sign in to manage and share custom blocks & components.");
-            tilUsername.setVisibility(View.GONE);
-            btnAuthSubmit.setText("Log In");
-        }
-    }
-
-    private void setupListeners() {
-        btnAuthSubmit.setOnClickListener(v -> performAuth());
-    }
-
-    private void performAuth() {
-        tilUsername.setError(null);
-        tilEmail.setError(null);
-        tilPassword.setError(null);
-
-        String username = etUsername.getText() != null ? etUsername.getText().toString().trim() : "";
-        String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
-        String password = etPassword.getText() != null ? etPassword.getText().toString().trim() : "";
-
-        if (isSignUpMode && TextUtils.isEmpty(username)) {
-            tilUsername.setError("Username is required");
-            etUsername.requestFocus();
-            return;
-        }
-
-        if (TextUtils.isEmpty(email)) {
-            tilEmail.setError("Email is required");
-            etEmail.requestFocus();
-            return;
-        }
-
-        if (TextUtils.isEmpty(password)) {
-            tilPassword.setError("Password is required");
-            etPassword.requestFocus();
-            return;
-        }
-
-        // Show loading state
-        btnAuthSubmit.setEnabled(false);
-        btnAuthSubmit.setText("");
-        pbAuth.setVisibility(View.VISIBLE);
-
-        if (isSignUpMode) {
-            repository.signup(username, email, password, new RepositoryCallback<StoreUser>() {
-                @Override
-                public void onSuccess(StoreUser user) {
-                    onAuthSuccess(user, "Account created successfully!");
-                }
-
-                @Override
-                public void onError(String error) {
-                    onAuthError(error);
-                }
-            });
-        } else {
-            repository.login(email, password, new RepositoryCallback<StoreUser>() {
-                @Override
-                public void onSuccess(StoreUser user) {
-                    onAuthSuccess(user, "Logged in successfully!");
-                }
-
-                @Override
-                public void onError(String error) {
-                    onAuthError(error);
-                }
-            });
-        }
-    }
-
-    private void onAuthSuccess(StoreUser user, String message) {
-        pbAuth.setVisibility(View.GONE);
-        btnAuthSubmit.setEnabled(true);
-        btnAuthSubmit.setText(isSignUpMode ? "Sign Up" : "Log In");
-
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-        ProfileActivity.start(this);
-        finish();
-    }
-
-    private void onAuthError(String error) {
-        pbAuth.setVisibility(View.GONE);
-        btnAuthSubmit.setEnabled(true);
-        btnAuthSubmit.setText(isSignUpMode ? "Sign Up" : "Log In");
-
-        String displayMsg = (error != null && !error.isEmpty()) ? error : "Authentication failed";
-        Toast.makeText(this, displayMsg, Toast.LENGTH_LONG).show();
+    private void setLoading(boolean loading) {
+        pbAuth.setVisibility(loading ? View.VISIBLE : View.GONE);
+        if (btnGoogleSignIn != null) btnGoogleSignIn.setEnabled(!loading);
     }
 }

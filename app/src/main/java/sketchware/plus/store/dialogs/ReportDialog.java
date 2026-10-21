@@ -14,6 +14,7 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import sketchware.plus.R;
 import sketchware.plus.store.models.StoreReport;
+import sketchware.plus.store.models.StoreUser;
 import sketchware.plus.store.repository.RepositoryCallback;
 import sketchware.plus.store.repository.RepositoryProvider;
 
@@ -48,27 +49,42 @@ public class ReportDialog {
                     return;
                 }
 
-                StoreReport report = new StoreReport(
-                        null,
-                        itemId,
-                        reason,
-                        note,
-                        "User_" + System.currentTimeMillis() % 1000
-                );
-
-                RepositoryProvider.getRepository(context).reportItem(report, new RepositoryCallback<Boolean>() {
+                RepositoryProvider.getRepository(context).getCurrentUser(new RepositoryCallback<StoreUser>() {
                     @Override
-                    public void onSuccess(Boolean result) {
-                        Toast.makeText(context, "Report submitted. Thank you!", Toast.LENGTH_SHORT).show();
-                        dialog.dismiss();
-                        if (listener != null) {
-                            listener.onSubmitted();
+                    public void onSuccess(StoreUser user) {
+                        if (user == null) {
+                            Toast.makeText(context, "You must be logged in to report items.", Toast.LENGTH_SHORT).show();
+                            return;
                         }
+
+                        StoreReport report = new StoreReport(
+                                null,
+                                itemId,
+                                reason,
+                                note,
+                                user.getUsername()
+                        );
+
+                        RepositoryProvider.getRepository(context).reportItem(report, new RepositoryCallback<Boolean>() {
+                            @Override
+                            public void onSuccess(Boolean result) {
+                                Toast.makeText(context, "Report submitted. Thank you!", Toast.LENGTH_SHORT).show();
+                                dialog.dismiss();
+                                if (listener != null) {
+                                    listener.onSubmitted();
+                                }
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                Toast.makeText(context, "Failed to submit report: " + error, Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     }
 
                     @Override
                     public void onError(String error) {
-                        Toast.makeText(context, "Failed to submit report: " + error, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, "Your account is banned: " + error, Toast.LENGTH_LONG).show();
                     }
                 });
             });

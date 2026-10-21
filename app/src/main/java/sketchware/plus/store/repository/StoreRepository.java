@@ -11,9 +11,14 @@ public interface StoreRepository {
     void getItemDetails(String id, RepositoryCallback<StoreItem> callback);
     void incrementDownloads(String itemId);
     void uploadItem(StoreItem item, RepositoryCallback<Boolean> callback);
+    void updateItem(StoreItem item, RepositoryCallback<Boolean> callback);
+    void updateUsername(String newUsername, RepositoryCallback<Boolean> callback);
+    void approveItem(String itemId, RepositoryCallback<Boolean> callback);
+    void banUser(String targetUserId, RepositoryCallback<Boolean> callback);
     void reportItem(StoreReport report, RepositoryCallback<Boolean> callback);
     void getCurrentUser(RepositoryCallback<StoreUser> callback);
     void login(String email, String password, RepositoryCallback<StoreUser> callback);
     void signup(String username, String email, String password, RepositoryCallback<StoreUser> callback);
+    void loginWithGoogle(String idToken, String email, String displayName, RepositoryCallback<StoreUser> callback);
     void deleteItem(String itemId, RepositoryCallback<Boolean> callback);
 }

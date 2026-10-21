@@ -13,6 +13,9 @@ public class StoreUser implements Serializable {
     @SerializedName("is_admin")
     private boolean isAdmin;
 
+    @SerializedName("banned")
+    private boolean isBanned;
+
     public StoreUser() {
     }
 
@@ -20,6 +23,14 @@ public class StoreUser implements Serializable {
         this.id = id;
         this.username = username;
         this.isAdmin = isAdmin;
+        this.isBanned = false;
+    }
+
+    public StoreUser(String id, String username, boolean isAdmin, boolean isBanned) {
+        this.id = id;
+        this.username = username;
+        this.isAdmin = isAdmin;
+        this.isBanned = isBanned;
     }
 
     public String getId() { return id; }
@@ -30,4 +41,7 @@ public class StoreUser implements Serializable {
 
     public boolean isAdmin() { return isAdmin; }
     public void setAdmin(boolean admin) { isAdmin = admin; }
+
+    public boolean isBanned() { return isBanned; }
+    public void setBanned(boolean banned) { isBanned = banned; }
 }

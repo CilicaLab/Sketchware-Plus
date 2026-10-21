@@ -73,6 +73,17 @@ public class SessionManager implements SupabaseClient.TokenProvider {
         editor.apply();
     }
 
+    public void saveSession(String userId, String username, String email, boolean isAdmin) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(KEY_USER_ID, userId);
+        editor.putString(KEY_USERNAME, username);
+        editor.putBoolean(KEY_IS_ADMIN, isAdmin);
+        if (getAccessToken() == null) {
+            editor.putString(KEY_ACCESS_TOKEN, "token_g_" + System.currentTimeMillis());
+        }
+        editor.apply();
+    }
+
     public void updateTokens(String accessToken, String refreshToken, long expiresIn) {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         if (accessToken != null) editor.putString(KEY_ACCESS_TOKEN, accessToken);

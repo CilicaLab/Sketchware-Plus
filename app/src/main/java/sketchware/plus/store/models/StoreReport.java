@@ -17,7 +17,7 @@ public class StoreReport implements Serializable {
     private String note;
 
     @SerializedName("reporter_id")
-    private String reporter;
+    private String reporterId;
 
     public StoreReport() {
     }
@@ -32,12 +32,12 @@ public class StoreReport implements Serializable {
     public String getItemName() { return itemRef != null ? itemRef.name : null; }
     public String getAuthorId() { return itemRef != null ? itemRef.authorId : null; }
 
-    public StoreReport(String id, String itemId, String reason, String note, String reporter) {
+    public StoreReport(String id, String itemId, String reason, String note, String reporterId) {
         this.id = id;
         this.itemId = itemId;
         this.reason = reason;
         this.note = note;
-        this.reporter = reporter;
+        this.reporterId = reporterId;
     }
 
     public String getId() { return id; }
@@ -52,6 +52,6 @@ public class StoreReport implements Serializable {
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
 
-    public String getReporter() { return reporter; }
-    public void setReporter(String reporter) { this.reporter = reporter; }
+    public String getReporterId() { return reporterId; }
+    public void setReporterId(String reporterId) { this.reporterId = reporterId; }
 }

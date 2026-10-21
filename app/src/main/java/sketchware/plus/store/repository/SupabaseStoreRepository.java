@@ -3,6 +3,7 @@ package sketchware.plus.store.repository;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Toast;
 
 import com.google.gson.reflect.TypeToken;
 
@@ -13,13 +14,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import sketchware.plus.store.activities.LoginActivity;
 import sketchware.plus.store.auth.AuthApi;
 import sketchware.plus.store.auth.AuthResponse;
 import sketchware.plus.store.auth.AuthUser;
 import sketchware.plus.store.auth.SessionManager;
 import sketchware.plus.store.models.ProfileModel;
+import sketchware.plus.store.models.ProfileUpdate;
 import sketchware.plus.store.models.StoreItem;
 import sketchware.plus.store.models.StoreItemInsert;
+import sketchware.plus.store.models.StoreItemUpdate;
 import sketchware.plus.store.models.StoreReport;
 import sketchware.plus.store.models.StoreUser;
 import sketchware.plus.store.network.ApiCallback;
@@ -173,6 +177,100 @@ public class SupabaseStoreRepository implements StoreRepository {
     }
 
     @Override
+    public void updateItem(StoreItem item, RepositoryCallback<Boolean> callback) {
+        String userId = SessionManager.getInstance(context).getUserId();
+        if (userId == null) {
+            handler.post(() -> callback.onError("You need to log in first"));
+            return;
+        }
+
+        StoreItemUpdate updateObj = new StoreItemUpdate();
+        updateObj.name = item.getName();
+        updateObj.description = item.getDescription();
+        updateObj.type = item.getType();
+        updateObj.tags = item.getTags();
+        updateObj.contentNames = item.getContentNames();
+        updateObj.json = item.getJson();
+
+        String endpoint = "rest/v1/store_items?id=eq." + encode(item.getId());
+        String json = SupabaseClient.getInstance().getGson().toJson(updateObj);
+        SupabaseClient.getInstance().execute(context, "PATCH", endpoint, json, Void.class, false, new ApiCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                item.setApproved(false); // Resets to pending review via trigger
+                handler.post(() -> callback.onSuccess(true));
+            }
+
+            @Override
+            public void onError(StoreError error) {
+                handler.post(() -> callback.onError(error.getMessage()));
+            }
+        });
+    }
+
+    @Override
+    public void updateUsername(String newUsername, RepositoryCallback<Boolean> callback) {
+        String userId = SessionManager.getInstance(context).getUserId();
+        if (userId == null) {
+            handler.post(() -> callback.onError("You need to log in first"));
+            return;
+        }
+
+        ProfileUpdate profileUpdate = new ProfileUpdate(newUsername);
+        String endpoint = "rest/v1/profiles?id=eq." + encode(userId);
+        String json = SupabaseClient.getInstance().getGson().toJson(profileUpdate);
+
+        SupabaseClient.getInstance().execute(context, "PATCH", endpoint, json, Void.class, false, new ApiCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                SessionManager.getInstance(context).saveSession(userId, newUsername, "", SessionManager.getInstance(context).isAdmin());
+                handler.post(() -> callback.onSuccess(true));
+            }
+
+            @Override
+            public void onError(StoreError error) {
+                handler.post(() -> callback.onError(error.getMessage()));
+            }
+        });
+    }
+
+    @Override
+    public void approveItem(String itemId, RepositoryCallback<Boolean> callback) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("item_id", itemId);
+
+        SupabaseClient.getInstance().executePost(context, "rest/v1/rpc/approve_item", body, Void.class, new ApiCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                handler.post(() -> callback.onSuccess(true));
+            }
+
+            @Override
+            public void onError(StoreError error) {
+                handler.post(() -> callback.onError(error.getMessage()));
+            }
+        });
+    }
+
+    @Override
+    public void banUser(String targetUserId, RepositoryCallback<Boolean> callback) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("target", targetUserId);
+
+        SupabaseClient.getInstance().executePost(context, "rest/v1/rpc/ban_user", body, Void.class, new ApiCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                handler.post(() -> callback.onSuccess(true));
+            }
+
+            @Override
+            public void onError(StoreError error) {
+                handler.post(() -> callback.onError(error.getMessage()));
+            }
+        });
+    }
+
+    @Override
     public void reportItem(StoreReport report, RepositoryCallback<Boolean> callback) {
         String userId = SessionManager.getInstance(context).getUserId();
         if (userId == null) {
@@ -200,6 +298,14 @@ public class SupabaseStoreRepository implements StoreRepository {
         });
     }
 
+    private void handleUserBannedOrDeleted(String reason) {
+        SessionManager.getInstance(context).clearSession();
+        handler.post(() -> {
+            Toast.makeText(context, reason, Toast.LENGTH_LONG).show();
+            LoginActivity.start(context);
+        });
+    }
+
     @Override
     public void getCurrentUser(RepositoryCallback<StoreUser> callback) {
         SessionManager session = SessionManager.getInstance(context);
@@ -209,8 +315,11 @@ public class SupabaseStoreRepository implements StoreRepository {
         }
 
         String userId = session.getUserId();
-        if (userId == null) {
-            fetchUserFromAuth(session, callback);
+        String username = session.getUsername();
+        boolean isAdmin = session.isAdmin();
+
+        if (userId == null || userId.isEmpty()) {
+            handler.post(() -> callback.onSuccess(null));
             return;
         }
 
@@ -221,17 +330,30 @@ public class SupabaseStoreRepository implements StoreRepository {
                     public void onSuccess(ProfileModel[] profiles) {
                         if (profiles != null && profiles.length > 0 && profiles[0] != null) {
                             ProfileModel profile = profiles[0];
-                            String username = profile.getUsername() != null ? profile.getUsername() : session.getUsername();
-                            StoreUser user = new StoreUser(profile.getId(), username, profile.isAdmin());
+                            String uname = profile.getUsername() != null ? profile.getUsername() : username;
+                            boolean banned = profile.isBanned();
+                            StoreUser user = new StoreUser(profile.getId(), uname, profile.isAdmin(), banned);
+
+                            if (banned) {
+                                handleUserBannedOrDeleted("Your account has been suspended by an administrator.");
+                            }
+
                             handler.post(() -> callback.onSuccess(user));
                         } else {
-                            fetchUserFromAuth(session, callback);
+                            handleUserBannedOrDeleted("Your account no longer exists or has been deleted.");
+                            handler.post(() -> callback.onSuccess(null));
                         }
                     }
 
                     @Override
                     public void onError(StoreError error) {
-                        fetchUserFromAuth(session, callback);
+                        if (error != null && "UNAUTHORIZED".equals(error.name())) {
+                            handleUserBannedOrDeleted("Session invalid or account removed.");
+                            handler.post(() -> callback.onSuccess(null));
+                        } else {
+                            StoreUser localUser = new StoreUser(userId, username, isAdmin, false);
+                            handler.post(() -> callback.onSuccess(localUser));
+                        }
                     }
                 });
     }
@@ -303,6 +425,49 @@ public class SupabaseStoreRepository implements StoreRepository {
                 handler.post(() -> callback.onError(error.getMessage()));
             }
         });
+    }
+
+    @Override
+    public void loginWithGoogle(String idToken, String email, String displayName, RepositoryCallback<StoreUser> callback) {
+        String username = (displayName != null && !displayName.trim().isEmpty())
+                ? displayName.trim()
+                : (email != null && email.contains("@") ? email.split("@")[0] : "GoogleUser");
+
+        SessionManager session = SessionManager.getInstance(context);
+
+        if (idToken != null && !idToken.isEmpty()) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("provider", "google");
+            body.put("id_token", idToken);
+
+            SupabaseClient.getInstance().executePost(context, "auth/v1/token?grant_type=id_token", body, AuthResponse.class, new ApiCallback<AuthResponse>() {
+                @Override
+                public void onSuccess(AuthResponse result) {
+                    if (result != null && result.getUser() != null) {
+                        session.saveSession(result);
+                        AuthUser authUser = result.getUser();
+                        StoreUser user = new StoreUser(authUser.getId(), username, false);
+                        session.saveSession(user.getId(), username, email, false);
+                        handler.post(() -> callback.onSuccess(user));
+                    } else {
+                        StoreUser user = new StoreUser("usr_g_" + System.currentTimeMillis(), username, false);
+                        session.saveSession(user.getId(), username, email, false);
+                        handler.post(() -> callback.onSuccess(user));
+                    }
+                }
+
+                @Override
+                public void onError(StoreError error) {
+                    StoreUser user = new StoreUser("usr_g_" + System.currentTimeMillis(), username, false);
+                    session.saveSession(user.getId(), username, email, false);
+                    handler.post(() -> callback.onSuccess(user));
+                }
+            });
+        } else {
+            StoreUser user = new StoreUser("usr_g_" + System.currentTimeMillis(), username, false);
+            session.saveSession(user.getId(), username, email, false);
+            handler.post(() -> callback.onSuccess(user));
+        }
     }
 
     @Override
