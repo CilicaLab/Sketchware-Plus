@@ -207,14 +207,6 @@ public class MainActivity extends BasePermissionAppCompatActivity {
             }
         });
 
-        boolean hasStorageAccess = isStoragePermissionGranted();
-        if (!hasStorageAccess) {
-            showNoticeNeedStorageAccess();
-        }
-        if (hasStorageAccess) {
-            allFilesAccessCheck();
-        }
-
         if (Intent.ACTION_VIEW.equals(getIntent().getAction())) {
             Uri data = getIntent().getData();
             if (data != null) {
@@ -254,23 +246,27 @@ public class MainActivity extends BasePermissionAppCompatActivity {
             }
         } else if (!ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_CRITICAL_UPDATE_REMINDER)) {
             BottomSheetDialogView bottomSheetDialog = getBottomSheetDialogView();
-            bottomSheetDialog.getPositiveButton().setEnabled(false);
+            bottomSheetDialog.setPositiveButtonText("View changes");
+            bottomSheetDialog.getPositiveButton().setEnabled(true);
 
-            CountDownTimer countDownTimer = new CountDownTimer(10000, 1000) {
-                @Override
-                public void onTick(long millisUntilFinished) {
-                    bottomSheetDialog.setPositiveButtonText(millisUntilFinished / 1000 + "");
+            bottomSheetDialog.setOnDismissListener(dialog -> {
+                boolean hasStorageAccess = isStoragePermissionGranted();
+                if (!hasStorageAccess) {
+                    showNoticeNeedStorageAccess();
+                } else {
+                    allFilesAccessCheck();
                 }
-
-                @Override
-                public void onFinish() {
-                    bottomSheetDialog.setPositiveButtonText("View changes");
-                    bottomSheetDialog.getPositiveButton().setEnabled(true);
-                }
-            };
-            countDownTimer.start();
+            });
 
             if (!isFinishing()) bottomSheetDialog.show();
+        } else {
+            boolean hasStorageAccess = isStoragePermissionGranted();
+            if (!hasStorageAccess) {
+                showNoticeNeedStorageAccess();
+            }
+            if (hasStorageAccess) {
+                allFilesAccessCheck();
+            }
         }
 
         binding.bottomNav.setOnItemSelectedListener(item -> {
@@ -457,12 +453,10 @@ public class MainActivity extends BasePermissionAppCompatActivity {
     @NonNull
     private BottomSheetDialogView getBottomSheetDialogView() {
         BottomSheetDialogView bottomSheetDialog = new BottomSheetDialogView(this);
-        bottomSheetDialog.setTitle("Major changes in v7.0.1");
+        bottomSheetDialog.setTitle("What's New in v7.0.2");
         bottomSheetDialog.setDescription("""
-                There have been major changes since v7.0.0, \
-                and it's very important to know them all if you want your projects to still work.
-                
-                You can view all changes whenever you want at the About Sketchware Plus screen.""");
+                Meet Sketchware Plus v7.0.2!\
+                Featuring SK Assistant AI integration for code generation & bug fixing, modern SDK & Kotlin support, and stability improvements.""");
 
         bottomSheetDialog.setPositiveButton("View changes", (dialog, which) -> {
             ConfigActivity.setSetting(ConfigActivity.SETTING_CRITICAL_UPDATE_REMINDER, true);

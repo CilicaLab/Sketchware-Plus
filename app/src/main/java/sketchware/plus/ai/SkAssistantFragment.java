@@ -1583,7 +1583,7 @@ public class SkAssistantFragment extends Fragment {
                     .scaleX(1.0f)
                     .scaleY(1.0f)
                     .alpha(1.0f)
-                    .setDuration(480)
+                    .setDuration(580)
                     .setInterpolator(new OvershootInterpolator(1.0f))
                     .start();
         }
