@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import a.a.a.eC;
 import a.a.a.jC;
@@ -143,7 +145,8 @@ public class ToolOrchestrator {
         
         // Add dynamic metrics context
         String metricsContext = buildMetricsContext();
-        String finalSystemPrompt = baseSystemPrompt + metricsContext;
+        String projectStateSummary = buildProjectStateSummary(chatHistory);
+        String finalSystemPrompt = baseSystemPrompt + metricsContext + "\n\nPROJECT STATE SUMMARY:\n" + projectStateSummary;
 
         // Prune older large tool outputs in history to remain within rate limits (ITPM / TPM limits)
         pruneHistory(chatHistory);
@@ -244,18 +247,112 @@ public class ToolOrchestrator {
         int len = chatHistory.length();
         if (len <= 6) return;
 
-        // Preserve recent 4 messages, prune older tool output messages if large
         for (int i = 0; i < len - 4; i++) {
             try {
                 JSONObject msg = chatHistory.getJSONObject(i);
-                if ("tool".equals(msg.optString("role"))) {
-                    String content = msg.optString("content", "");
-                    if (content.length() > 800) {
-                        msg.put("content", content.substring(0, 400) + "\n... [Tool output truncated to save context window] ...");
+                String role = msg.optString("role", "");
+                String content = msg.optString("content", "");
+
+                if ("tool".equals(role) && content != null && !content.isEmpty()) {
+                    msg.put("content", compressToolResult(msg.optString("name", "tool"), content));
+                } else if ("assistant".equals(role) && content != null && content.length() > 1500) {
+                    msg.put("content", content.substring(0, 700) + "\n... [assistant reasoning compressed] ...\n" + content.substring(Math.max(0, content.length() - 300)));
+                }
+            } catch (JSONException ignored) {}
+        }
+    }
+
+    private String buildProjectStateSummary(JSONArray chatHistory) {
+        ArrayList<String> recentFiles = new ArrayList<>();
+        ArrayList<String> recentActions = new ArrayList<>();
+        ArrayList<String> contextNotes = new ArrayList<>();
+
+        for (int i = 0; i < chatHistory.length(); i++) {
+            try {
+                JSONObject msg = chatHistory.getJSONObject(i);
+                String content = msg.optString("content", "");
+                String role = msg.optString("role", "");
+                String toolName = msg.optString("name", "");
+
+                if ("tool".equals(role) && !toolName.isEmpty()) {
+                    recentActions.add(toolName);
+                }
+
+                if (content != null && !content.trim().isEmpty()) {
+                    Matcher fileMatcher = Pattern.compile("([A-Za-z0-9_./-]+\\.(?:java|kt|xml|gradle))").matcher(content);
+                    while (fileMatcher.find()) {
+                        String fileName = fileMatcher.group(1);
+                        if (!recentFiles.contains(fileName)) {
+                            recentFiles.add(fileName);
+                        }
+                    }
+
+                    if (content.contains("AndroidManifest") || content.contains("uses-permission") || content.contains("application")) {
+                        contextNotes.add("manifest");
+                    }
+                    if (content.contains("LinearLayout") || content.contains("RelativeLayout") || content.contains("layout") || content.contains("android:")) {
+                        contextNotes.add("layout");
+                    }
+                    if (content.contains("onCreate") || content.contains("method") || content.contains("class")) {
+                        contextNotes.add("code");
                     }
                 }
             } catch (JSONException ignored) {}
         }
+
+        StringBuilder summary = new StringBuilder();
+        summary.append("Recent tool actions: ").append(recentActions.isEmpty() ? "none" : joinLast(recentActions, 6));
+        if (!recentFiles.isEmpty()) {
+            summary.append("\nFiles recently referenced: ").append(joinLast(recentFiles, 8));
+        }
+        if (!contextNotes.isEmpty()) {
+            summary.append("\nCurrent context: ").append(joinLast(contextNotes, 4));
+        }
+        summary.append("\nKeep only the latest relevant facts. Do not re-read large XML or source blobs unless required.");
+        return summary.toString();
+    }
+
+    private String compressToolResult(String toolName, String content) {
+        if (content == null) {
+            return "";
+        }
+
+        String raw = content.trim();
+        if (raw.isEmpty()) {
+            return raw;
+        }
+
+        final int maxChars = 900;
+        if (raw.length() <= maxChars) {
+            return raw;
+        }
+
+        String snippet = raw;
+        String prefix = raw.substring(0, Math.min(350, raw.length()));
+        String suffix = raw.substring(Math.max(0, raw.length() - 220));
+        snippet = prefix + "\n... [compressed tool output; omitted middle section] ...\n" + suffix;
+
+        if (snippet.length() > maxChars) {
+            snippet = snippet.substring(0, maxChars - 80) + "\n... [truncated]";
+        }
+
+        return "Tool output for '" + toolName + "' compressed to a relevant snippet:\n" + snippet;
+    }
+
+    private String joinLast(ArrayList<String> values, int maxCount) {
+        if (values.isEmpty()) {
+            return "none";
+        }
+
+        int start = Math.max(0, values.size() - maxCount);
+        StringBuilder result = new StringBuilder();
+        for (int i = start; i < values.size(); i++) {
+            if (result.length() > 0) {
+                result.append(", ");
+            }
+            result.append(values.get(i));
+        }
+        return result.toString();
     }
 
     private void handleToolCalls(JSONArray toolCalls, String thought, JSONArray chatHistory) {
