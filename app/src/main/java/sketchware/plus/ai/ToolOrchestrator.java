@@ -511,11 +511,18 @@ public class ToolOrchestrator {
                 fragment.setUndoVisible(true);
                 String xml = args.getString("xml");
                 String summary = args.optString("summary", "Modified layout");
-                boolean success = SketchwareXmlBridge.applyAiXmlToSketchware(context, fragment.scId, fragment.projectFile.getXmlName(), xml);
-                if (success) {
-                    fragment.refreshDesigner();
+                final boolean[] success = new boolean[1];
+                runOnMainSync(() -> {
+                    try {
+                        success[0] = SketchwareXmlBridge.applyAiXmlToSketchware(context, fragment.scId, fragment.projectFile.getXmlName(), xml);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                if (success[0]) {
+                    runOnMainSync(() -> fragment.refreshDesigner());
                 }
-                return success ? "Success: " + summary : "Error: Failed to apply XML. Check syntax.";
+                return success[0] ? "Success: " + summary : "Error: Failed to apply XML. Check syntax.";
 
             case "get_manifest_xml":
                 String mSection = args.optString("section", "full");
@@ -626,16 +633,16 @@ public class ToolOrchestrator {
                 String requestedId = args.getString("id");
                 int count = args.optInt("count", 1);
                 
-                final int[] addedCount = new int[1];
+                final List<String> addedIds = new ArrayList<>();
                 runOnMainSync(() -> {
-                    addedCount[0] = fragment.componentSpecialist.applyBatchAddComponent(typeId, requestedId, count);
+                    addedIds.addAll(fragment.componentSpecialist.applyBatchAddComponent(typeId, requestedId, count));
                 });
                 
                 String typeName = ComponentBean.getComponentTypeName(typeId);
-                if (addedCount[0] == 1) {
-                    return "Component '" + requestedId + "' (" + typeName + ") added successfully.";
+                if (addedIds.size() == 1) {
+                    return "Component '" + addedIds.get(0) + "' (" + typeName + ") added successfully.";
                 } else {
-                    return "Successfully added " + addedCount[0] + " " + typeName + " components in batch with base ID '" + requestedId + "'.";
+                    return "Successfully added " + addedIds.size() + " " + typeName + " components in batch: " + addedIds.toString() + ".";
                 }
             }
 

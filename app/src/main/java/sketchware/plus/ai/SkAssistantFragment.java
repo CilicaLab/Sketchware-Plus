@@ -851,7 +851,16 @@ public class SkAssistantFragment extends Fragment {
         if (getActivity() == null) return;
         ActivityTracker.recordActivity(ActivityTracker.DEFAULT_FILE_PATH);
         getActivity().runOnUiThread(() -> {
+            boolean isLayoutResponse = "UI_DESIGNER".equals(categoryFallback) || response.contains("<layout_xml>");
             try {
+                String layoutXml = null;
+                if (response.contains("<layout_xml>")) {
+                    Matcher xmlMatcher = Pattern.compile("<layout_xml>([\\s\\S]*?)</layout_xml>", Pattern.CASE_INSENSITIVE).matcher(response);
+                    if (xmlMatcher.find()) {
+                        layoutXml = xmlMatcher.group(1).trim();
+                    }
+                }
+
                 // Bulletproof JSON extraction via Regex (Finds outermost { })
                 String cleanJson = response;
                 Matcher matcher = Pattern.compile("\\{.*\\}", Pattern.DOTALL).matcher(response);
@@ -859,7 +868,34 @@ public class SkAssistantFragment extends Fragment {
                     cleanJson = matcher.group(0);
                 }
 
-                JSONObject json = new JSONObject(cleanJson);
+                JSONObject json;
+                try {
+                    json = new JSONObject(cleanJson);
+                } catch (Exception e) {
+                    if (layoutXml != null) {
+                        json = new JSONObject();
+                        json.put("category", "UI_DESIGNER");
+                        json.put("summary", "Applied layout XML");
+                        JSONArray actions = new JSONArray();
+                        JSONObject action = new JSONObject();
+                        action.put("type", "UPDATE_LAYOUT_FULL_XML");
+                        action.put("xml", layoutXml);
+                        actions.put(action);
+                        json.put("actions", actions);
+                    } else {
+                        throw e;
+                    }
+                }
+
+                if (layoutXml != null && json.has("actions")) {
+                    JSONArray actions = json.getJSONArray("actions");
+                    for (int i = 0; i < actions.length(); i++) {
+                        JSONObject act = actions.getJSONObject(i);
+                        if ("UPDATE_LAYOUT_FULL_XML".equals(normalizeActionType(act.optString("type"))) && (!act.has("xml") || act.getString("xml").isEmpty())) {
+                            act.put("xml", layoutXml);
+                        }
+                    }
+                }
 
                 // Dynamic category if provided by new prompt
                 String actualCategory = json.optString("category", categoryFallback);
@@ -897,6 +933,14 @@ public class SkAssistantFragment extends Fragment {
 
                 retryCount = 0; // reset retry counter on success
             } catch (Exception e) {
+                if (isLayoutResponse) {
+                    messages.add(new Message("system", "Layout response parse error: " + e.getMessage() + ". Please re-ask request."));
+                    adapter.notifyItemInserted(messages.size() - 1);
+                    scrollToBottom();
+                    setStatus(null);
+                    retryCount = 0;
+                    return;
+                }
                 messages.add(new Message("system", e.getMessage()));
                 adapter.notifyItemInserted(messages.size() - 1);
                 scrollToBottom();
@@ -1253,6 +1297,7 @@ public class SkAssistantFragment extends Fragment {
             activity.runOnUiThread(() -> {
                 da.refreshViewTabAdapter();
                 da.refresh();
+                da.refreshComponents();
             });
         }
     }

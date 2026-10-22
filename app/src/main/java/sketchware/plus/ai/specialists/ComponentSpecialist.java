@@ -16,6 +16,7 @@ import java.util.List;
 
 import a.a.a.eC;
 import a.a.a.jC;
+import com.besome.sketch.design.DesignActivity;
 import sketchware.plus.ai.ProjectSnapshot;
 import sketchware.plus.ai.SkAssistantFragment;
 import mod.hilal.saif.components.ComponentsHandler;
@@ -59,7 +60,7 @@ public class ComponentSpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
-        if ("ADD_COMPONENT".equals(action.optString("type"))) {
+        if ("ADD_COMPONENT".equals(fragment.normalizeActionType(action.optString("type")))) {
             List<String> params = new ArrayList<>();
             JSONArray jParams = action.optJSONArray("params");
             if (jParams != null) {
@@ -100,7 +101,7 @@ public class ComponentSpecialist extends BaseSpecialist {
                     .setMessage(message)
                     .setPositiveButton("Add", (dialog, which) -> {
                         fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-                        applyBatchAddComponent(type, id, actualCount);
+                        applyBatchAddComponent(type, id, actualCount, params);
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
@@ -110,10 +111,15 @@ public class ComponentSpecialist extends BaseSpecialist {
     }
 
     public void applyAddComponent(int type, String id) {
-        applyBatchAddComponent(type, id, 1);
+        applyBatchAddComponent(type, id, 1, null);
     }
 
-    public int applyBatchAddComponent(int type, String baseId, int count) {
+    public List<String> applyBatchAddComponent(int type, String baseId, int count) {
+        return applyBatchAddComponent(type, baseId, count, null);
+    }
+
+    public List<String> applyBatchAddComponent(int type, String baseId, int count, List<String> customParams) {
+        List<String> addedIds = new ArrayList<>();
         try {
             eC dataManager = jC.a(getScId());
             String javaName = getProjectFile().getJavaName();
@@ -121,7 +127,6 @@ public class ComponentSpecialist extends BaseSpecialist {
 
             fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
 
-            List<String> addedIds = new ArrayList<>();
             int actualCount = Math.max(1, Math.min(count, 1000));
 
             for (int i = 0; i < actualCount; i++) {
@@ -129,12 +134,18 @@ public class ComponentSpecialist extends BaseSpecialist {
                 String resolvedId = resolveUniqueComponentId(getScId(), javaName, requestedId);
 
                 List<String> params = new ArrayList<>();
-                if (type == ComponentBean.COMPONENT_TYPE_SHAREDPREF ||
-                        type == ComponentBean.COMPONENT_TYPE_FIREBASE ||
-                        type == ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE) {
-                    params.add(resolvedId);
-                } else if (type == ComponentBean.COMPONENT_TYPE_FILE_PICKER) {
-                    params.add("image/*");
+                if (customParams != null && i < customParams.size() && customParams.get(i) != null && !customParams.get(i).isEmpty()) {
+                    params.add(customParams.get(i));
+                } else if (customParams != null && !customParams.isEmpty() && customParams.get(0) != null && !customParams.get(0).isEmpty()) {
+                    params.add(customParams.get(0));
+                } else {
+                    if (type == ComponentBean.COMPONENT_TYPE_SHAREDPREF ||
+                            type == ComponentBean.COMPONENT_TYPE_FIREBASE ||
+                            type == ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE) {
+                        params.add(resolvedId);
+                    } else if (type == ComponentBean.COMPONENT_TYPE_FILE_PICKER) {
+                        params.add("image/*");
+                    }
                 }
 
                 if (params.isEmpty()) {
@@ -147,17 +158,21 @@ public class ComponentSpecialist extends BaseSpecialist {
 
             dataManager.k();
 
+            Activity activity = fragment.getActivity();
+            if (activity instanceof DesignActivity da) {
+                da.refreshComponents();
+            }
+
             if (actualCount == 1) {
                 fragment.addSystemMessage("Component '" + addedIds.get(0) + "' (" + typeName + ") added.");
             } else {
                 fragment.addSystemMessage("Added " + actualCount + " " + typeName + " components ('" + addedIds.get(0) + "' to '" + addedIds.get(addedIds.size() - 1) + "').");
             }
             fragment.setUndoVisible(true);
-            return actualCount;
         } catch (Exception e) {
             fragment.addSystemMessage("Error adding components: " + e.getMessage());
-            return 0;
         }
+        return addedIds;
     }
 
     public static String resolveUniqueComponentId(String scId, String javaName, String requestedId) {

@@ -26,7 +26,7 @@ public class AiViewTreeManager {
         logPath = path;
     }
 
-    private static void log(String message) {
+    public static void log(String message) {
         if (logPath == null) return;
         try {
             java.io.File file = new java.io.File(logPath);
@@ -51,7 +51,6 @@ public class AiViewTreeManager {
             json.put("type", ViewBean.getViewTypeName(root.type));
             
             JSONObject attrs = new JSONObject();
-            // Basic Layout Attributes
             attrs.put("layout_width", getDimenString(root.layout.width));
             attrs.put("layout_height", getDimenString(root.layout.height));
             
@@ -63,7 +62,6 @@ public class AiViewTreeManager {
                 attrs.put("layout_weight", String.valueOf(root.layout.weight));
             }
 
-            // Text Attributes (if applicable)
             if (root.text != null) {
                 if (root.text.text != null && !root.text.text.isEmpty()) {
                     attrs.put("text", root.text.text);
@@ -76,7 +74,6 @@ public class AiViewTreeManager {
                 }
             }
 
-            // Background & Interaction
             if (root.layout.backgroundResource != null && !root.layout.backgroundResource.isEmpty()) {
                 attrs.put("background", "@drawable/" + root.layout.backgroundResource);
             }
@@ -86,7 +83,6 @@ public class AiViewTreeManager {
 
             json.put("attributes", attrs);
 
-            // Nested Children
             JSONArray childrenArr = new JSONArray();
             for (ViewBean v : views) {
                 if (root.id.equals(v.parent)) {
@@ -119,7 +115,6 @@ public class AiViewTreeManager {
             log("Processing AI action: " + actionJson);
             JSONObject json = new JSONObject(actionJson);
             
-            // Support both single action or list of actions
             if (json.has("actions") && json.optJSONArray("actions") != null) {
                 JSONArray actions = json.getJSONArray("actions");
                 for (int i = 0; i < actions.length(); i++) {
@@ -128,8 +123,9 @@ public class AiViewTreeManager {
             } else if (json.has("action")) {
                 handleSingleAction(json, currentViews);
             }
-        } catch (Exception ignored) {
-            // Silently fail to avoid crashing the main thread
+        } catch (Exception e) {
+            log("Error processing AI action: " + e.getMessage());
+            SketchwareUtil.toastError("Action processing failed: " + e.getMessage());
         }
     }
 
@@ -146,18 +142,16 @@ public class AiViewTreeManager {
                 String parentId = actionObj.optString("parent", "root");
                 int index = actionObj.optInt("index", -1);
                 
-                // Convert string type to Sketchware internal type ID
                 int type = ViewBeanParser.getViewTypeByClassName(typeStr);
                 ViewBean bean = new ViewBean(id, type);
                 bean.parent = parentId;
                 bean.index = index;
                 
-                // Inherit parent type context
                 ViewBean parent = findViewById(views, parentId);
                 if (parent != null) {
                     bean.parentType = parent.type;
                 } else if (!"root".equals(parentId)) {
-                    bean.parent = "root"; // Fallback safety
+                    bean.parent = "root";
                 }
                 
                 applyAttributesWithWhitelist(bean, actionObj.optJSONObject("attributes"));
@@ -181,6 +175,13 @@ public class AiViewTreeManager {
         }
     }
 
+    public static boolean isAppNamespaceAttr(String key) {
+        if (key == null) return false;
+        String clean = key;
+        if (clean.startsWith("app:")) clean = clean.substring(4);
+        return clean.equals("adSize") || clean.equals("adUnitId") || clean.startsWith("card") || clean.startsWith("contentPadding");
+    }
+
     private static void applyAttributesWithWhitelist(ViewBean bean, JSONObject attrs) throws Exception {
         if (attrs == null) return;
         
@@ -191,13 +192,10 @@ public class AiViewTreeManager {
             String originalKey = keys.next();
             String key = originalKey;
             
-            // Strip common hallucinations
             if (key.startsWith("android:")) key = key.substring(8);
             else if (key.startsWith("app:")) key = key.substring(4);
             
-            // Validate against Sketchware whitelist
-            if (AttributeConstants.BUILT_IN_ATTRIBUTES.contains(key) || isRelativeAttr(key)) {
-                // ViewBeanFactory expects namespaced keys for its internal processing
+            if (AttributeConstants.BUILT_IN_ATTRIBUTES.contains(key) || isRelativeAttr(key) || isAppNamespaceAttr(originalKey)) {
                 String finalKey = "android:" + key;
                 if (key.startsWith("ad") || key.startsWith("card") || key.startsWith("contentPadding")) {
                     finalKey = "app:" + key;
@@ -236,7 +234,6 @@ public class AiViewTreeManager {
         }
         
         if (target != null) {
-            // Recursively remove any view that considers this ID as parent
             List<String> children = new ArrayList<>();
             for (ViewBean v : views) {
                 if (id.equals(v.parent)) {

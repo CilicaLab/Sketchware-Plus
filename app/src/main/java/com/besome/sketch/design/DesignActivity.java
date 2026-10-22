@@ -357,6 +357,10 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         }
     }
 
+    public void refreshComponents() {
+        runOnUiThread(this::refreshComponentTabAdapter);
+    }
+
     private void refreshSkAssistant() {
         if (assistantFragment != null && projectFile != null) {
             assistantFragment.setProjectFile(projectFile);

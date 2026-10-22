@@ -18,6 +18,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -50,7 +52,6 @@ public class LayoutSpecialist extends BaseSpecialist {
         if (androidContext == null) return;
 
         jC.projectOperationsExecutor.execute(() -> {
-            try { Thread.sleep(1200); } catch (Exception ignored) {}
             String currentXml = SketchwareXmlBridge.getRawXml(androidContext, getScId(), getProjectFile());
 
             StringBuilder contextBuilder = new StringBuilder();
@@ -73,8 +74,11 @@ public class LayoutSpecialist extends BaseSpecialist {
     You are an expert Android Layout/UI Specialist. Analyze the user's request and update the layout XML strictly following the constraints below.
 
     CRITICAL RULES:
-    1. Output MUST be valid, parseable JSON ONLY. Do not wrap response in markdown code blocks (no ```json).
-    2. Ensure all XML content inside the JSON string is properly escaped (escape double quotes with \\", keep string on valid lines.
+    1. KEEP every existing view, id, text, hint, textSize, colors and attribute exactly as given unless user asked to change.
+    2. Never remove or rename IDs.
+    3. Never output <?xml, comments, or markdown.
+    4. Only change what user asked.
+    5. Output MUST be valid JSON containing <layout_xml>...</layout_xml> or actions. Do not wrap response in markdown code blocks.
     
     LAYOUT RULES:
     """ + getLayoutRules() + """
@@ -87,7 +91,7 @@ public class LayoutSpecialist extends BaseSpecialist {
       "actions": [
         {
           "type": "UPDATE_LAYOUT_FULL_XML",
-          "xml": "<Complete, Android XML and escaped layout properly valid,>"
+          "xml": "<Complete Android XML properly escaped>"
         }
       ]
     }
@@ -130,7 +134,7 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
-        String type = action.optString("type", "").toUpperCase().replace("-", "_").replace(" ", "_");
+        String type = fragment.normalizeActionType(action.optString("type"));
         switch (type) {
             case "MODIFY_VIEW":
                 applyModifyView(action.getString("id"), action.getString("field"), action.getString("value"), false);
@@ -164,9 +168,10 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     private String getLayoutRules() {
         return "LAYOUT ARCHITECTURE:\n" +
+                "- KEEP every existing view, id, text, hint, textSize, colors and attribute exactly as given unless user asked to change.\n" +
+                "- Never remove or rename IDs.\n" +
                 "- The outermost view in the XML is the Activity's Root Container.\n" +
-                "- You CAN change the Root Container type (e.g., from LinearLayout to ScrollView) if the content requires it.\n" +
-                "- Ensure important containers like 'rootlayout' are placed correctly within this hierarchy.\n\n";
+                "- You CAN change the Root Container type if the content requires it.\n\n";
     }
 
     public void applyXml(String xml, String targetXmlName) {
@@ -242,7 +247,9 @@ public class LayoutSpecialist extends BaseSpecialist {
             final String cleanField = tempField;
 
             if (!AttributeConstants.BUILT_IN_ATTRIBUTES.contains(cleanField) &&
-                    !AttributeConstants.RELATIVE_ATTRIBUTES.contains(fieldPath)) {
+                    !AttributeConstants.RELATIVE_ATTRIBUTES.contains(fieldPath) &&
+                    !AttributeConstants.RELATIVE_ATTRIBUTES.contains(cleanField) &&
+                    !AiViewTreeManager.isAppNamespaceAttr(fieldPath)) {
                 fragment.addSystemMessage("Attribute '" + fieldPath + "' is not whitelisted.");
                 return;
             }
@@ -272,7 +279,7 @@ public class LayoutSpecialist extends BaseSpecialist {
             String finalKey = fieldPath;
             if (!fieldPath.contains(":")) {
                 finalKey = "android:" + cleanField;
-                if (cleanField.startsWith("ad") || cleanField.startsWith("card") || cleanField.startsWith("contentPadding")) {
+                if (AiViewTreeManager.isAppNamespaceAttr(fieldPath) || cleanField.startsWith("ad") || cleanField.startsWith("card") || cleanField.startsWith("contentPadding")) {
                     finalKey = "app:" + cleanField;
                 }
             }
@@ -280,11 +287,18 @@ public class LayoutSpecialist extends BaseSpecialist {
             final String finalValue = normalizeValue(cleanField, newValue);
 
             if (!snapshot) {
-                HashMap<String, String> attr = new HashMap<>();
-                attr.put(finalKey, finalValue);
-                new ViewBeanFactory(finalTarget).applyAttributes(attr);
                 if ("root".equals(viewId)) {
-                    rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
+                    InjectRootLayoutManager.Root currentRoot = rootManager.getLayoutByFileName(getProjectFile().getXmlName());
+                    String rootClass = currentRoot != null ? currentRoot.getClassName() : finalTarget.convert;
+                    Map<String, String> rootAttrs = currentRoot != null ? new LinkedHashMap<>(currentRoot.getAttributes()) : new LinkedHashMap<>();
+                    rootAttrs.put(finalKey, finalValue);
+                    finalTarget.convert = rootClass;
+                    new ViewBeanFactory(finalTarget).applyAttributes(rootAttrs);
+                    rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(rootClass, rootAttrs));
+                } else {
+                    HashMap<String, String> attr = new HashMap<>();
+                    attr.put(finalKey, finalValue);
+                    new ViewBeanFactory(finalTarget).applyAttributes(attr);
                 }
                 dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                 fragment.refreshDesigner();
@@ -298,11 +312,18 @@ public class LayoutSpecialist extends BaseSpecialist {
                     .setMessage(summary)
                     .setPositiveButton("Apply", (dialog, which) -> {
                         fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-                        HashMap<String, String> attr = new HashMap<>();
-                        attr.put(finalActionKey, finalValue);
-                        new ViewBeanFactory(finalTarget).applyAttributes(attr);
                         if ("root".equals(viewId)) {
-                            rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(finalTarget.convert, attr));
+                            InjectRootLayoutManager.Root currentRoot = rootManager.getLayoutByFileName(getProjectFile().getXmlName());
+                            String rootClass = currentRoot != null ? currentRoot.getClassName() : finalTarget.convert;
+                            Map<String, String> rootAttrs = currentRoot != null ? new LinkedHashMap<>(currentRoot.getAttributes()) : new LinkedHashMap<>();
+                            rootAttrs.put(finalActionKey, finalValue);
+                            finalTarget.convert = rootClass;
+                            new ViewBeanFactory(finalTarget).applyAttributes(rootAttrs);
+                            rootManager.set(getProjectFile().getXmlName(), new InjectRootLayoutManager.Root(rootClass, rootAttrs));
+                        } else {
+                            HashMap<String, String> attr = new HashMap<>();
+                            attr.put(finalActionKey, finalValue);
+                            new ViewBeanFactory(finalTarget).applyAttributes(attr);
                         }
                         dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
                         fragment.addSystemMessage("View '" + viewId + "' modified.");
@@ -318,6 +339,11 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     public void applyAddView(String type, String parentId, int index, String newId, Map<String, String> attributes, boolean snapshot) {
         try {
+            if (newId == null || !newId.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
+                fragment.addSystemMessage("Invalid view ID: '" + newId + "'. Must be a valid Java identifier with no spaces.");
+                return;
+            }
+
             Map<String, String> normalizedAttrs = new HashMap<>();
             for (String key : attributes.keySet()) {
                 String cleanKey = key;
@@ -325,15 +351,17 @@ public class LayoutSpecialist extends BaseSpecialist {
                 else if (cleanKey.startsWith("app:")) cleanKey = cleanKey.substring(4);
 
                 if (!AttributeConstants.BUILT_IN_ATTRIBUTES.contains(cleanKey) &&
-                        !AttributeConstants.RELATIVE_ATTRIBUTES.contains(key)) {
-                    fragment.addSystemMessage("Attribute '" + key + "' is not whitelisted.");
-                    return;
+                        !AttributeConstants.RELATIVE_ATTRIBUTES.contains(key) &&
+                        !AttributeConstants.RELATIVE_ATTRIBUTES.contains(cleanKey) &&
+                        !AiViewTreeManager.isAppNamespaceAttr(key)) {
+                    fragment.addSystemMessage("Skipped non-whitelisted attribute '" + key + "'.");
+                    continue;
                 }
 
                 String finalKey = key;
                 if (!key.contains(":")) {
                     finalKey = "android:" + cleanKey;
-                    if (cleanKey.startsWith("ad") || cleanKey.startsWith("card") || cleanKey.startsWith("contentPadding")) {
+                    if (AiViewTreeManager.isAppNamespaceAttr(key) || cleanKey.startsWith("ad") || cleanKey.startsWith("card") || cleanKey.startsWith("contentPadding")) {
                         finalKey = "app:" + cleanKey;
                     }
                 }
@@ -350,18 +378,33 @@ public class LayoutSpecialist extends BaseSpecialist {
                 }
             }
 
+            String actualParentId = parentId;
+            if (!"root".equals(actualParentId)) {
+                boolean parentExists = false;
+                for (ViewBean v : views) {
+                    if (actualParentId.equals(v.id)) {
+                        parentExists = true;
+                        break;
+                    }
+                }
+                if (!parentExists) {
+                    fragment.addSystemMessage("Parent '" + parentId + "' not found, falling back to root.");
+                    actualParentId = "root";
+                }
+            }
+
             int viewType = ViewBeanParser.getViewTypeByClassName(type);
             ViewBean bean = new ViewBean(newId, viewType);
-            bean.parent = parentId;
+            bean.parent = actualParentId;
             bean.index = index;
 
-            if ("root".equals(parentId)) {
+            if ("root".equals(actualParentId)) {
                 InjectRootLayoutManager rootManager = new InjectRootLayoutManager(getScId());
                 bean.parentType = ViewBeanParser.getViewTypeByClassName(rootManager.getLayoutByFileName(getProjectFile().getXmlName()).getClassName());
             } else {
                 bean.parentType = ViewBean.VIEW_TYPE_LAYOUT_LINEAR; 
                 for (ViewBean v : views) {
-                    if (parentId.equals(v.id)) {
+                    if (actualParentId.equals(v.id)) {
                         bean.parentType = v.type;
                         break;
                     }
@@ -379,7 +422,7 @@ public class LayoutSpecialist extends BaseSpecialist {
 
             new MaterialAlertDialogBuilder(getContext())
                     .setTitle("Add View")
-                    .setMessage("Add " + type + " '" + newId + "' to " + parentId + "?")
+                    .setMessage("Add " + type + " '" + newId + "' to " + actualParentId + "?")
                     .setPositiveButton("Add", (dialog, which) -> {
                         fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                         dataManager.a(getProjectFile().getXmlName(), bean);
@@ -461,6 +504,12 @@ public class LayoutSpecialist extends BaseSpecialist {
                 return;
             }
 
+            // Check cycle (moving view into itself or descendants)
+            if (isDescendantOrSelf(viewId, newParentId, views)) {
+                SketchwareUtil.toastError("Error: Cannot move view '" + viewId + "' into itself or its descendants.");
+                return;
+            }
+
             if (!"root".equals(newParentId)) {
                 boolean parentExists = false;
                 for (ViewBean v : views) {
@@ -476,31 +525,83 @@ public class LayoutSpecialist extends BaseSpecialist {
             }
 
             ViewBean finalTarget = target;
-            if (!snapshot) {
+            Runnable moveAction = () -> {
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                 finalTarget.parent = newParentId;
-                finalTarget.index = newIndex;
+                if ("root".equals(newParentId)) {
+                    InjectRootLayoutManager rootManager = new InjectRootLayoutManager(getScId());
+                    finalTarget.parentType = ViewBeanParser.getViewTypeByClassName(rootManager.getLayoutByFileName(getProjectFile().getXmlName()).getClassName());
+                } else {
+                    for (ViewBean v : views) {
+                        if (newParentId.equals(v.id)) {
+                            finalTarget.parentType = v.type;
+                            break;
+                        }
+                    }
+                }
+
+                // Re-index siblings in old and new parents so indexes stay contiguous
+                Map<String, List<ViewBean>> group = new HashMap<>();
+                for (ViewBean v : views) {
+                    String pKey = v.parent != null ? v.parent : "root";
+                    group.computeIfAbsent(pKey, k -> new ArrayList<>()).add(v);
+                }
+                for (Map.Entry<String, List<ViewBean>> entry : group.entrySet()) {
+                    List<ViewBean> siblings = entry.getValue();
+                    for (int i = 0; i < siblings.size(); i++) {
+                        siblings.get(i).index = i;
+                    }
+                }
+                if (newIndex >= 0) {
+                    List<ViewBean> newParentSiblings = group.get(newParentId);
+                    if (newParentSiblings != null) {
+                        newParentSiblings.remove(finalTarget);
+                        int idx = Math.min(newIndex, newParentSiblings.size());
+                        newParentSiblings.add(idx, finalTarget);
+                        for (int i = 0; i < newParentSiblings.size(); i++) {
+                            newParentSiblings.get(i).index = i;
+                        }
+                    }
+                }
+
                 dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
+                fragment.addSystemMessage("View '" + viewId + "' moved.");
+                fragment.setUndoVisible(true);
                 fragment.refreshDesigner();
+            };
+
+            if (!snapshot) {
+                moveAction.run();
                 return;
             }
 
             new MaterialAlertDialogBuilder(getContext())
                     .setTitle("Move View")
                     .setMessage("Move '" + viewId + "' to parent '" + newParentId + "' at index " + newIndex + "?")
-                    .setPositiveButton("Move", (dialog, which) -> {
-                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
-                        finalTarget.parent = newParentId;
-                        finalTarget.index = newIndex;
-                        dataManager.n(new yq(getContext(), getScId()).projectMyscPath + "view");
-                        fragment.addSystemMessage("View '" + viewId + "' moved.");
-                        fragment.setUndoVisible(true);
-                        fragment.refreshDesigner();
-                    })
+                    .setPositiveButton("Move", (dialog, which) -> moveAction.run())
                     .setNegativeButton("Cancel", null)
                     .show();
         } catch (Exception e) {
             fragment.addSystemMessage("Error moving view: " + e.getMessage());
         }
+    }
+
+    private boolean isDescendantOrSelf(String targetId, String potentialParentId, ArrayList<ViewBean> views) {
+        if (targetId.equals(potentialParentId)) return true;
+        String currParent = potentialParentId;
+        while (!"root".equals(currParent) && currParent != null) {
+            if (currParent.equals(targetId)) return true;
+            ViewBean pBean = null;
+            for (ViewBean v : views) {
+                if (v.id != null && v.id.equals(currParent)) {
+                    pBean = v;
+                    break;
+                }
+            }
+            if (pBean == null) break;
+            currParent = pBean.parent;
+        }
+        return false;
     }
 
     public void applyCustomView(String name, String initialXml) {

@@ -2,11 +2,14 @@ package sketchware.plus.ai;
 
 import android.content.Context;
 
+import com.besome.sketch.beans.ComponentBean;
 import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ProjectLibraryBean;
 import com.besome.sketch.beans.ViewBean;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import a.a.a.eC;
 import a.a.a.hC;
@@ -24,6 +27,7 @@ public class ProjectSnapshot {
     public ProjectLibraryBean admob;
     public ProjectLibraryBean googleMap;
     public InjectRootLayoutManager.Root rootLayout;
+    public HashMap<String, ArrayList<ComponentBean>> componentsMap;
     public int permissions;
 
     public ProjectSnapshot(String scId, String xmlName) {
@@ -47,6 +51,21 @@ public class ProjectSnapshot {
                     this.googleMap = libraryManager.e().clone();
                     this.rootLayout = rootManager.getLayoutByFileName(xmlName);
                     this.permissions = dataManager.l.q;
+
+                    this.componentsMap = new HashMap<>();
+                    if (dataManager.h != null) {
+                        for (Map.Entry<String, ArrayList<ComponentBean>> entry : dataManager.h.entrySet()) {
+                            ArrayList<ComponentBean> list = new ArrayList<>();
+                            if (entry.getValue() != null) {
+                                for (ComponentBean cb : entry.getValue()) {
+                                    if (cb != null) {
+                                        list.add(new ComponentBean(cb.type, cb.componentId, cb.param1, cb.param2, cb.param3));
+                                    }
+                                }
+                            }
+                            this.componentsMap.put(entry.getKey(), list);
+                        }
+                    }
                 }
             }
         }
@@ -65,8 +84,25 @@ public class ProjectSnapshot {
         libraryManager.b(compat);
         libraryManager.c(firebase);
         libraryManager.d(googleMap);
-        rootManager.set(xmlName, rootLayout);
+        if (rootLayout != null) {
+            rootManager.set(xmlName, rootLayout);
+        }
         dataManager.l.q = permissions;
+
+        if (componentsMap != null) {
+            dataManager.h = new HashMap<>();
+            for (Map.Entry<String, ArrayList<ComponentBean>> entry : componentsMap.entrySet()) {
+                ArrayList<ComponentBean> list = new ArrayList<>();
+                if (entry.getValue() != null) {
+                    for (ComponentBean cb : entry.getValue()) {
+                        if (cb != null) {
+                            list.add(new ComponentBean(cb.type, cb.componentId, cb.param1, cb.param2, cb.param3));
+                        }
+                    }
+                }
+                dataManager.h.put(entry.getKey(), list);
+            }
+        }
 
         yq workspace = new yq(context, scId);
         dataManager.n(workspace.projectMyscPath + "view");
