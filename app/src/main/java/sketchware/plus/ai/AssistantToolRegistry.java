@@ -32,7 +32,7 @@ public class AssistantToolRegistry {
         t.put(createTool("get_layout_xml", "Get current activity XML + view hierarchy",
                 new ParameterBuilder().build()));
 
-        t.put(createTool("apply_layout_xml", "Replace current activity XML layout",
+        t.put(createTool("apply_layout_xml", "REQUIRED tool to create, modify, or update Activity UI layout views. ALWAYS use apply_layout_xml for any view or layout edits (NEVER use add_xml_patch for layouts).",
                 new ParameterBuilder()
                         .addProperty("xml", "string", "full valid layout XML")
                         .addProperty("summary", "string", "what changed")
@@ -86,9 +86,9 @@ public class AssistantToolRegistry {
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("javaName", "reference", "command", "inputCode").build()));
 
-        t.put(createTool("add_xml_patch", "Patch generated XML source code (e.g. AndroidManifest.xml, main.xml, strings.xml) via XML Command Manager",
+        t.put(createTool("add_xml_patch", "Patch AndroidManifest.xml via XML Command Manager. EXCLUSIVELY for AndroidManifest.xml! NEVER use add_xml_patch for layout/view XML files like main.xml or Activity layouts (use apply_layout_xml for layout/view changes).",
                 new ParameterBuilder()
-                        .addProperty("xmlName", "string", "target XML file, e.g. AndroidManifest.xml or main.xml")
+                        .addProperty("xmlName", "string", "MUST BE 'AndroidManifest.xml'. Do NOT use for layout/view XML files.")
                         .addProperty("reference", "string", "EXACT anchor line in XML")
                         .addProperty("command", "string", "insert|add|replace|find-replace|find-replace-first|find-replace-all")
                         .addProperty("inputCode", "string", "new XML code")

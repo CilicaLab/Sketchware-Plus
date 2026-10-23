@@ -230,12 +230,13 @@ public class ToolOrchestrator {
                 "2. Call only tools from the provided list. Never invent tools.\n" +
                 "3. Never web search component IDs. Use list_available_components.\n" +
                 "4. Once you know the action, call the tool immediately. No narration first.\n" +
-                "5. Patching code: For Java files, use add_java_patch. For XML files (like AndroidManifest.xml, main.xml, strings.xml), use add_xml_patch (which writes to the XML Command Manager).\n" +
-                "6. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
+                "5. Modifying layouts and UI views: ALWAYS use apply_layout_xml to modify, add, or update Activity layout views. NEVER use add_xml_patch for layout/view XML files like main.xml or Activity layouts.\n" +
+                "6. Manifest patching: Use add_xml_patch EXCLUSIVELY for AndroidManifest.xml (NEVER use add_xml_patch for layout/view XML).\n" +
+                "7. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
-                "7. No redundant tool calls. Reuse info already retrieved.\n" +
-                "8. Tool arguments must be valid JSON.\n" +
-                "9. When finished, reply with a brief summary of changes and make no tool calls.";
+                "8. No redundant tool calls. Reuse info already retrieved.\n" +
+                "9. Tool arguments must be valid JSON.\n" +
+                "10. When finished, reply with a brief summary of changes and make no tool calls.";
     }
 
     private String buildMetricsContext() {
@@ -584,6 +585,12 @@ public class ToolOrchestrator {
 
             case "add_java_patch":
             case "add_xml_patch":
+                if ("add_xml_patch".equals(name)) {
+                    String targetXml = args.optString("xmlName", "");
+                    if (!"AndroidManifest.xml".equalsIgnoreCase(targetXml)) {
+                        return "Error: 'add_xml_patch' is strictly prohibited for layout/view XML files like '" + targetXml + "'. To modify Activity views and layouts, you MUST use the 'apply_layout_xml' tool.";
+                    }
+                }
                 if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
                     SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
                     String newCode = args.optString("inputCode", args.optString("command", ""));
