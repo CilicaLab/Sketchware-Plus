@@ -113,10 +113,10 @@ public class ViewProperty extends LinearLayout implements Kw {
     }
 
     private void cancelSeeAllAnimations() {
-        if (showAllShower.isRunning()) {
+        if (showAllShower != null && showAllShower.isRunning()) {
             showAllShower.cancel();
         }
-        if (showAllHider.isRunning()) {
+        if (showAllHider != null && showAllHider.isRunning()) {
             showAllHider.cancel();
         }
     }
@@ -255,26 +255,26 @@ public class ViewProperty extends LinearLayout implements Kw {
                     if (showAllVisible) {
                         showAllVisible = false;
                         cancelSeeAllAnimations();
-                        showAllHider.start();
+                        if (showAllHider != null) showAllHider.start();
                     }
                 } else {
                     if (!showAllVisible) {
                         showAllVisible = true;
                         cancelSeeAllAnimations();
-                        showAllShower.start();
+                        if (showAllShower != null) showAllShower.start();
                     }
                 }
             } else if (scrollX >= maxScrollX) {
                 if (showAllVisible) {
                     showAllVisible = false;
                     cancelSeeAllAnimations();
-                    showAllHider.start();
+                    if (showAllHider != null) showAllHider.start();
                 }
             } else {
                 if (!showAllVisible) {
                     showAllVisible = true;
                     cancelSeeAllAnimations();
-                    showAllShower.start();
+                    if (showAllShower != null) showAllShower.start();
                 }
             }
         });

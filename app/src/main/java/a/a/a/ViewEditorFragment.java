@@ -182,9 +182,13 @@ public class ViewEditorFragment extends qA {
         if (!isPropertyViewVisible || !var1) {
             cancelAnimations();
             if (var1) {
-                showPropertyViewAnimator.start();
+                if (showPropertyViewAnimator != null) {
+                    showPropertyViewAnimator.start();
+                }
             } else if (isPropertyViewVisible) {
-                hidePropertyViewAnimator.start();
+                if (hidePropertyViewAnimator != null) {
+                    hidePropertyViewAnimator.start();
+                }
             }
 
             isPropertyViewVisible = var1;
@@ -206,8 +210,12 @@ public class ViewEditorFragment extends qA {
     }
 
     private void cancelAnimations() {
-        if (showPropertyViewAnimator.isRunning()) showPropertyViewAnimator.cancel();
-        if (hidePropertyViewAnimator.isRunning()) hidePropertyViewAnimator.cancel();
+        if (showPropertyViewAnimator != null && showPropertyViewAnimator.isRunning()) {
+            showPropertyViewAnimator.cancel();
+        }
+        if (hidePropertyViewAnimator != null && hidePropertyViewAnimator.isRunning()) {
+            hidePropertyViewAnimator.cancel();
+        }
     }
 
     public void c(ViewBean var1) {
@@ -295,6 +303,8 @@ public class ViewEditorFragment extends qA {
     }
 
     private void startAnimation() {
+        if (getContext() == null || viewProperty == null) return;
+
         if (showPropertyViewAnimator == null) {
             showPropertyViewAnimator = ObjectAnimator.ofFloat(viewProperty, View.TRANSLATION_Y, 0.0F);
             showPropertyViewAnimator.setDuration(700L);
@@ -302,8 +312,7 @@ public class ViewEditorFragment extends qA {
         }
 
         if (hidePropertyViewAnimator == null) {
-            if (getActivity() == null) return;
-            hidePropertyViewAnimator = ObjectAnimator.ofFloat(viewProperty, View.TRANSLATION_Y, wB.a(requireActivity(), (float) viewProperty.getHeight()));
+            hidePropertyViewAnimator = ObjectAnimator.ofFloat(viewProperty, View.TRANSLATION_Y, wB.a(requireContext(), (float) viewProperty.getHeight()));
             hidePropertyViewAnimator.setDuration(300L);
             hidePropertyViewAnimator.setInterpolator(new DecelerateInterpolator());
         }

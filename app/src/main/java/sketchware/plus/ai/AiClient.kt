@@ -218,7 +218,7 @@ object AiClient {
                                 }
                             }
                         }
-                        val content = message.optString("content", null)
+                        val content = if (message.has("content") && !message.isNull("content")) message.getString("content") else null
                         callback.onToolCall(toolCalls, content, promptTokens, completionTokens, totalTokens)
                     } else {
                         val content = message.optString("content", "").trim()
