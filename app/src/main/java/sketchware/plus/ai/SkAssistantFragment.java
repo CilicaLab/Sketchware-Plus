@@ -743,7 +743,7 @@ public class SkAssistantFragment extends Fragment {
 
     public JSONArray getChatHistory() {
         JSONArray chatHistory = new JSONArray();
-        int startIndex = Math.max(0, messages.size() - 4);
+        int startIndex = Math.max(0, messages.size() - 2);
         try {
             for (int i = startIndex; i < messages.size(); i++) {
                 Message msg = messages.get(i);
