@@ -1664,8 +1664,22 @@ public class SkAssistantFragment extends Fragment {
                 String status = messages.get(position).content;
                 
                 OrbState state = OrbState.WORKING;
-                if (status.toLowerCase().contains("searching")) state = OrbState.SEARCHING;
-                else if (status.toLowerCase().contains("mapping") || status.toLowerCase().contains("grasping")) state = OrbState.WEAVING;
+                if (status != null) {
+                    String lower = status.toLowerCase(java.util.Locale.US);
+                    if (lower.contains("error") || lower.contains("fail") || lower.contains("retry") || lower.contains("rate limit")) {
+                        state = OrbState.ERROR;
+                    } else if (lower.contains("searching") || lower.contains("fetching") || lower.contains("browsing") || lower.contains("web")) {
+                        state = OrbState.SEARCHING;
+                    } else if (lower.contains("mapping") || lower.contains("weaving")) {
+                        state = OrbState.WEAVING;
+                    } else if (lower.contains("thinking") || lower.contains("reasoning") || lower.contains("analyzing") || lower.contains("grasping")) {
+                        state = OrbState.THINKING;
+                    } else if (lower.contains("building") || lower.contains("applying") || lower.contains("patching") || lower.contains("injecting") || lower.contains("adding")) {
+                        state = OrbState.BUILDING;
+                    } else if (lower.contains("complete") || lower.contains("success") || lower.contains("done") || lower.contains("finished")) {
+                        state = OrbState.SUCCESS;
+                    }
+                }
 
                 OrbState finalState = state;
                 ThinkingOrbHelper.setStatusContent(statusHolder.composeView, finalState, status);

@@ -30,6 +30,15 @@ object AiClient {
     }
 
     @JvmStatic
+    fun sanitizeToolName(rawName: String?): String {
+        if (rawName.isNullOrEmpty()) return ""
+        var clean = rawName.replace(Regex("<\\|[a-zA-Z0-9_|-]+\\|>[a-zA-Z0-9_]*"), "")
+        clean = clean.replace(Regex("<[^>]+>"), "")
+        clean = clean.replace(Regex("[^a-zA-Z0-9_-]"), "").trim()
+        return if (clean.isNotEmpty()) clean else rawName
+    }
+
+    @JvmStatic
     private external fun getPrefName(): String
     @JvmStatic
     private external fun getApiKeyPrefKey(): String
@@ -47,15 +56,19 @@ object AiClient {
     private external fun buildRequestUrl(endpoint: String): String
 
     private fun resolveApiKey(aiPref: SharedPreferences): String {
-        val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
+        val separateActive = aiPref.getBoolean("P12_SEPARATE_API_KEYS", false)
         val defaultKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
+        if (!separateActive) {
+            return defaultKey
+        }
+        val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
         return when {
             provider.equals("groq", true) || provider.equals("grog", true) -> {
-                val groqKey = aiPref.getString("P12_GROQ_API_KEY", "") ?: ""
+                val groqKey = aiPref.getString("P12_GROQ_API_KEY", "")?.trim() ?: ""
                 if (groqKey.isNotEmpty()) groqKey else defaultKey
             }
             provider.equals("google", true) -> {
-                val geminiKey = aiPref.getString("P12_GEMINI_API_KEY", "") ?: ""
+                val geminiKey = aiPref.getString("P12_GEMINI_API_KEY", "")?.trim() ?: ""
                 if (geminiKey.isNotEmpty()) geminiKey else defaultKey
             }
             else -> defaultKey
@@ -194,8 +207,19 @@ object AiClient {
                     val (promptTokens, completionTokens, totalTokens) = extractTokenUsage(responseObject)
 
                     if (message.has("tool_calls")) {
+                        val toolCalls = message.getJSONArray("tool_calls")
+                        for (i in 0 until toolCalls.length()) {
+                            val tc = toolCalls.getJSONObject(i)
+                            if (tc.has("function")) {
+                                val fn = tc.getJSONObject("function")
+                                val fnName = fn.optString("name", "")
+                                if (fnName.isNotEmpty()) {
+                                    fn.put("name", sanitizeToolName(fnName))
+                                }
+                            }
+                        }
                         val content = message.optString("content", null)
-                        callback.onToolCall(message.getJSONArray("tool_calls"), content, promptTokens, completionTokens, totalTokens)
+                        callback.onToolCall(toolCalls, content, promptTokens, completionTokens, totalTokens)
                     } else {
                         val content = message.optString("content", "").trim()
                         callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
@@ -203,6 +227,11 @@ object AiClient {
                 } else if ((response.code == 429 || response.code == 413 || response.code == 404 || response.code == 503)) {
                     val errorBody = response.body?.string() ?: ""
                     val delayMillis = parseRetryAfter(errorBody)
+
+                    val separateActive = aiPref.getBoolean("P12_SEPARATE_API_KEYS", false)
+                    val groqKey = aiPref.getString("P12_GROQ_API_KEY", "")?.trim() ?: ""
+                    val geminiKey = aiPref.getString("P12_GEMINI_API_KEY", "")?.trim() ?: ""
+                    val canSwitchProviders = separateActive && groqKey.isNotEmpty() && geminiKey.isNotEmpty()
                     
                     val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
                     val currentModel = aiPref.getString(getModelPrefKey(), "") ?: ""
@@ -216,46 +245,111 @@ object AiClient {
                                    endpoint.contains("generativelanguage", ignoreCase = true) ||
                                    currentModel.contains("gemini", ignoreCase = true)
 
-                    if (isGroq) {
-                        val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
-                        val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
-                        
-                        if (currentIndex != -1 && currentIndex < groqModels.size - 1) {
-                            val alternateModel = groqModels[currentIndex + 1]
-                            aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
+                    if (canSwitchProviders) {
+                        if (isGroq) {
+                            val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
+                            val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
+                            
+                            if (currentIndex != -1 && currentIndex < groqModels.size - 1) {
+                                val alternateModel = groqModels[currentIndex + 1]
+                                aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
 
-                            mainHandler.post {
-                                callback.onModelSwitched(alternateModel)
-                                callback.onRetry(retryCount + 1, 500)
+                                mainHandler.post {
+                                    callback.onModelSwitched(alternateModel)
+                                    callback.onRetry(retryCount + 1, 500)
+                                }
+
+                                executor.execute {
+                                    if (!isCanceledByUser) {
+                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                    }
+                                }
+                            } else {
+                                // All Groq models exhausted AND provider switching is enabled -> Fail over to Google Gemini
+                                aiPref.edit()
+                                    .putString("P12_PROVIDER", "google")
+                                    .putString("P12I4", "https://generativelanguage.googleapis.com/v1beta/openai/")
+                                    .putString(getModelPrefKey(), "gemini-3.8-flash")
+                                    .apply()
+
+                                mainHandler.post {
+                                    callback.onModelSwitched("gemini-3.8-flash (Groq exhausted -> Gemini Failover)")
+                                    callback.onRetry(retryCount + 1, 1000)
+                                }
+
+                                executor.execute {
+                                    if (!isCanceledByUser) {
+                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                    }
+                                }
                             }
+                        } else if (isGoogle) {
+                            if (retryCount < 3) {
+                                // Retry Gemini up to 3 times before failing back to Groq
+                                mainHandler.post {
+                                    callback.onRetry(retryCount + 1, delayMillis)
+                                }
 
-                            executor.execute {
-                                if (!isCanceledByUser) {
-                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                executor.execute {
+                                    try {
+                                        var elapsed = 0L
+                                        while (elapsed < delayMillis) {
+                                            if (isCanceledByUser) return@execute
+                                            TimeUnit.MILLISECONDS.sleep(100)
+                                            elapsed += 100
+                                        }
+                                    } catch (ignored: InterruptedException) {
+                                    }
+                                    if (!isCanceledByUser) {
+                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                    }
+                                }
+                            } else {
+                                // Gemini exhausted after 3 retries AND provider switching is enabled -> Fail back to Groq
+                                aiPref.edit()
+                                    .putString("P12_PROVIDER", "groq")
+                                    .putString("P12I4", "https://api.groq.com/openai/v1")
+                                    .putString(getModelPrefKey(), "openai/gpt-oss-20b")
+                                    .apply()
+
+                                mainHandler.post {
+                                    callback.onModelSwitched("openai/gpt-oss-20b (Gemini exhausted after 3 retries -> Groq Failback)")
+                                    callback.onRetry(retryCount + 1, 1000)
+                                }
+
+                                executor.execute {
+                                    if (!isCanceledByUser) {
+                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                    }
                                 }
                             }
                         } else {
-                            // All Groq models exhausted -> Fail over to Google Gemini
-                            aiPref.edit()
-                                .putString("P12_PROVIDER", "google")
-                                .putString("P12I4", "https://generativelanguage.googleapis.com/v1beta/openai/")
-                                .putString(getModelPrefKey(), "gemini-3.8-flash")
-                                .apply()
-
-                            mainHandler.post {
-                                callback.onModelSwitched("gemini-3.8-flash (Groq exhausted -> Gemini Failover)")
-                                callback.onRetry(retryCount + 1, 1000)
-                            }
-
-                            executor.execute {
-                                if (!isCanceledByUser) {
-                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                            if (retryCount < 3) {
+                                mainHandler.post {
+                                    callback.onRetry(retryCount + 1, delayMillis)
                                 }
+
+                                executor.execute {
+                                    try {
+                                        var elapsed = 0L
+                                        while (elapsed < delayMillis) {
+                                            if (isCanceledByUser) return@execute
+                                            TimeUnit.MILLISECONDS.sleep(100)
+                                            elapsed += 100
+                                        }
+                                    } catch (ignored: InterruptedException) {
+                                    }
+                                    if (!isCanceledByUser) {
+                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
+                                    }
+                                }
+                            } else {
+                                callback.onError("API Error (${response.code}): $errorBody")
                             }
                         }
-                    } else if (isGoogle) {
+                    } else {
+                        // Provider switching is disabled (separate API keys setting is OFF or required keys missing)
                         if (retryCount < 3) {
-                            // Retry Gemini up to 3 times before failing back to Groq
                             mainHandler.post {
                                 callback.onRetry(retryCount + 1, delayMillis)
                             }
@@ -275,42 +369,7 @@ object AiClient {
                                 }
                             }
                         } else {
-                            // Gemini exhausted after 3 retries -> Fail back to Groq
-                            aiPref.edit()
-                                .putString("P12_PROVIDER", "groq")
-                                .putString("P12I4", "https://api.groq.com/openai/v1")
-                                .putString(getModelPrefKey(), "openai/gpt-oss-20b")
-                                .apply()
-
-                            mainHandler.post {
-                                callback.onModelSwitched("openai/gpt-oss-20b (Gemini exhausted after 3 retries -> Groq Failback)")
-                                callback.onRetry(retryCount + 1, 1000)
-                            }
-
-                            executor.execute {
-                                if (!isCanceledByUser) {
-                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                }
-                            }
-                        }
-                    } else {
-                        mainHandler.post {
-                            callback.onRetry(retryCount + 1, delayMillis)
-                        }
-
-                        executor.execute {
-                            try {
-                                var elapsed = 0L
-                                while (elapsed < delayMillis) {
-                                    if (isCanceledByUser) return@execute
-                                    TimeUnit.MILLISECONDS.sleep(100)
-                                    elapsed += 100
-                                }
-                            } catch (ignored: InterruptedException) {
-                            }
-                            if (!isCanceledByUser) {
-                                performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                            }
+                            callback.onError("API Error (${response.code}): $errorBody")
                         }
                     }
                 } else if (response.code == 400 && retryCount < 2) {

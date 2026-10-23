@@ -2,8 +2,11 @@ package sketchware.plus.ai.specialists;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.EditText;
 
@@ -124,7 +127,21 @@ public class LayoutSpecialist extends BaseSpecialist {
 
                         @Override
                         public void onRetry(int retryCount, long delayMillis) {
-                            setStatus("Rate limit hit. Retrying in " + String.format(Locale.US, "%.1f", delayMillis / 1000.0) + "s... (Attempt " + retryCount + ")");
+                            SharedPreferences aiPref = getContext() != null ? getContext().getSharedPreferences("P12", Context.MODE_PRIVATE) : null;
+                            String model = aiPref != null ? aiPref.getString("P12I5", "AI") : "AI";
+                            if (model == null || model.isEmpty()) model = "AI";
+
+                            final String finalModel = model;
+                            final long totalSeconds = Math.max(1L, delayMillis / 1000L);
+                            new Handler(Looper.getMainLooper()).post(() -> {
+                                setStatus(finalModel + " is generating... 1s");
+                                for (int sec = 1; sec <= totalSeconds; sec++) {
+                                    final int currentSec = sec;
+                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                        setStatus(finalModel + " is generating... " + currentSec + "s");
+                                    }, currentSec * 1000L);
+                                }
+                            });
                         }
                     });
                 });

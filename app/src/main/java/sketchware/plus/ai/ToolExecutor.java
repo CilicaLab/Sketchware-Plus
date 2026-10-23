@@ -245,7 +245,8 @@ public class ToolExecutor {
     private ToolCallInfo parseToolCall(JSONObject call) throws JSONException {
         String id = call.getString("id");
         JSONObject function = call.getJSONObject("function");
-        String name = function.getString("name");
+        String name = AiClient.sanitizeToolName(function.getString("name"));
+        function.put("name", name);
         
         Object argsRaw = function.get("arguments");
         JSONObject args;

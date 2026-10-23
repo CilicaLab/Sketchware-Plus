@@ -1,6 +1,7 @@
 package sketchware.plus.ai;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -190,7 +191,19 @@ public class ToolOrchestrator {
             @Override
             public void onRetry(int retryCount, long delayMillis) {
                 mainHandler.post(() -> {
-                    fragment.setStatus("Rate limit reached. Retrying in " + String.format("%.1f", delayMillis / 1000.0) + "s... (Attempt " + retryCount + ")");
+                    SharedPreferences aiPref = fragment.getContext() != null ? fragment.getContext().getSharedPreferences("P12", Context.MODE_PRIVATE) : null;
+                    String model = aiPref != null ? aiPref.getString("P12I5", "AI") : "AI";
+                    if (model == null || model.isEmpty()) model = "AI";
+
+                    final String finalModel = model;
+                    final long totalSeconds = Math.max(1L, delayMillis / 1000L);
+                    fragment.setStatus(finalModel + " is generating... 1s");
+                    for (int sec = 1; sec <= totalSeconds; sec++) {
+                        final int currentSec = sec;
+                        mainHandler.postDelayed(() -> {
+                            fragment.setStatus(finalModel + " is generating... " + currentSec + "s");
+                        }, currentSec * 1000L);
+                    }
                 });
             }
 
@@ -367,9 +380,13 @@ public class ToolOrchestrator {
                     JSONObject originalCall = toolCalls.getJSONObject(i);
                     JSONObject sanitizedCall = new JSONObject(originalCall.toString());
                     
-                    // CRITICAL: Ensure 'arguments' is a STRING, even if the model sent an object
                     if (sanitizedCall.has("function")) {
                         JSONObject function = sanitizedCall.getJSONObject("function");
+                        String cleanFnName = AiClient.sanitizeToolName(function.optString("name", ""));
+                        if (!cleanFnName.isEmpty()) {
+                            function.put("name", cleanFnName);
+                        }
+                        // CRITICAL: Ensure 'arguments' is a STRING, even if the model sent an object
                         Object args = function.opt("arguments");
                         if (args != null && !(args instanceof String)) {
                             function.put("arguments", args.toString());
@@ -405,7 +422,7 @@ public class ToolOrchestrator {
                                 JSONObject toolResultMsg = new JSONObject();
                                 toolResultMsg.put("role", "tool");
                                 toolResultMsg.put("tool_call_id", result.toolCallId);
-                                toolResultMsg.put("name", result.toolName);
+                                toolResultMsg.put("name", AiClient.sanitizeToolName(result.toolName));
                                 toolResultMsg.put("content", result.content != null ? result.content : "");
 
                                 // Track metrics

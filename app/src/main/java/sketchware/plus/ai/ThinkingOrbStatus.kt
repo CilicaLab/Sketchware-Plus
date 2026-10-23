@@ -2,7 +2,6 @@ package sketchware.plus.ai
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -18,7 +17,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.*
 
 enum class OrbState {
-    WORKING, SEARCHING, WEAVING
+    WORKING, SEARCHING, WEAVING, THINKING, BUILDING, ERROR, SUCCESS
 }
 
 object ThinkingOrbHelper {
@@ -57,8 +56,15 @@ fun ThinkingOrbStatus(
         label = "shimmer_alpha"
     )
 
-    val isDark = isSystemInDarkTheme()
-    val dotColor = if (isDark) Color.White else Color.Black
+    val effectiveDotColor = when (state) {
+        OrbState.WORKING -> Color(0xFF2C9BA8)   // Electric Cyan
+        OrbState.SEARCHING -> Color(0xFFFFB300) // Golden Amber
+        OrbState.WEAVING -> Color(0xFF7C4DFF)   // Deep Indigo/Violet
+        OrbState.THINKING -> Color(0xFFAB47BC)  // Vibrant Purple
+        OrbState.BUILDING -> Color(0xFF2196F3)  // Electric Blue
+        OrbState.ERROR -> Color(0xFFFF5252)     // Alert Coral Red
+        OrbState.SUCCESS -> Color(0xFF4CAF50)   // Emerald Green
+    }
 
     Row(
         modifier = modifier.padding(vertical = 4.dp),
@@ -69,9 +75,13 @@ fun ThinkingOrbStatus(
             val radius = size.width / 2.2f
 
             when (state) {
-                OrbState.WORKING -> drawWorkingOrb(time, dotColor, center, radius)
-                OrbState.SEARCHING -> drawSearchingOrb(time, dotColor, center, radius)
-                OrbState.WEAVING -> drawWeavingOrb(time, dotColor, center, radius)
+                OrbState.WORKING -> drawWorkingOrb(time, effectiveDotColor, center, radius)
+                OrbState.SEARCHING -> drawSearchingOrb(time, effectiveDotColor, center, radius)
+                OrbState.WEAVING -> drawWeavingOrb(time, effectiveDotColor, center, radius)
+                OrbState.THINKING -> drawThinkingOrb(time, effectiveDotColor, center, radius)
+                OrbState.BUILDING -> drawBuildingOrb(time, effectiveDotColor, center, radius)
+                OrbState.ERROR -> drawErrorOrb(time, effectiveDotColor, center, radius)
+                OrbState.SUCCESS -> drawSuccessOrb(time, effectiveDotColor, center, radius)
             }
         }
 
@@ -79,7 +89,7 @@ fun ThinkingOrbStatus(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = statusText,
-                color = dotColor.copy(alpha = shimmerAlpha),
+                color = effectiveDotColor.copy(alpha = shimmerAlpha),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -163,6 +173,102 @@ private fun DrawScope.drawWeavingOrb(time: Float, color: Color, center: Offset, 
                 color = color.copy(alpha = alpha),
                 radius = 1.2.dp.toPx(),
                 center = center + Offset(finalX, yOffset)
+            )
+        }
+    }
+}
+
+private fun DrawScope.drawThinkingOrb(time: Float, color: Color, center: Offset, radius: Float) {
+    val dots = 16
+    for (i in 0 until dots) {
+        val yNormalized = (i.toFloat() / (dots - 1)) * 2f - 1f
+        val y = yNormalized * radius * 0.8f
+        val phase = time + yNormalized * PI.toFloat() * 1.5f
+        
+        val x1 = radius * 0.8f * cos(phase)
+        val z1 = radius * 0.8f * sin(phase)
+        val alpha1 = (z1 / radius + 1) / 2 * 0.8f + 0.2f
+        
+        val x2 = radius * 0.8f * cos(phase + PI.toFloat())
+        val z2 = radius * 0.8f * sin(phase + PI.toFloat())
+        val alpha2 = (z2 / radius + 1) / 2 * 0.8f + 0.2f
+        
+        drawCircle(
+            color = color.copy(alpha = alpha1),
+            radius = 1.2.dp.toPx(),
+            center = center + Offset(x1, y)
+        )
+        drawCircle(
+            color = color.copy(alpha = alpha2),
+            radius = 1.2.dp.toPx(),
+            center = center + Offset(x2, y)
+        )
+    }
+}
+
+private fun DrawScope.drawBuildingOrb(time: Float, color: Color, center: Offset, radius: Float) {
+    val pulse = (sin(time * 2) + 1) / 2 // 0.0 to 1.0
+    val currentRadius = radius * (0.6f + 0.4f * pulse)
+    val grid = 4
+    
+    for (i in 0 until grid) {
+        for (j in 0 until grid) {
+            val nx = (i.toFloat() / (grid - 1)) * 2f - 1f
+            val ny = (j.toFloat() / (grid - 1)) * 2f - 1f
+            val dist = sqrt(nx * nx + ny * ny)
+            
+            if (dist <= 1.2f) {
+                val x = nx * currentRadius
+                val y = ny * currentRadius
+                val alpha = (1f - (dist / 1.4f)).coerceIn(0.2f, 1f)
+                
+                drawCircle(
+                    color = color.copy(alpha = alpha),
+                    radius = 1.1.dp.toPx(),
+                    center = center + Offset(x, y)
+                )
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawErrorOrb(time: Float, color: Color, center: Offset, radius: Float) {
+    val dots = 12
+    val jitterMagnitude = 2.dp.toPx()
+    for (i in 0 until dots) {
+        val angle = i * 2 * PI / dots + time * 3
+        val jitter = sin(time * 10 + i * 5) * jitterMagnitude
+        val currentRadius = radius * 0.7f + jitter
+        
+        val x = currentRadius * cos(angle).toFloat()
+        val y = currentRadius * sin(angle).toFloat()
+        val alpha = if (i % 2 == 0) (sin(time * 6 + i) * 0.4f + 0.6f) else 0.4f
+        
+        drawCircle(
+            color = color.copy(alpha = alpha.coerceIn(0.2f, 1f)),
+            radius = 1.3.dp.toPx(),
+            center = center + Offset(x, y)
+        )
+    }
+}
+
+private fun DrawScope.drawSuccessOrb(time: Float, color: Color, center: Offset, radius: Float) {
+    val petals = 8
+    val dotsPerPetal = 3
+    val breathe = (sin(time) * 0.15f) + 0.85f
+    
+    for (i in 0 until petals) {
+        val baseAngle = i * 2 * PI / petals
+        for (j in 1..dotsPerPetal) {
+            val dist = (j.toFloat() / dotsPerPetal) * radius * breathe
+            val x = dist * cos(baseAngle).toFloat()
+            val y = dist * sin(baseAngle).toFloat()
+            val alpha = 1f - (j.toFloat() / (dotsPerPetal + 1)) * 0.5f
+            
+            drawCircle(
+                color = color.copy(alpha = alpha),
+                radius = (1.5f - j * 0.2f).dp.toPx().coerceAtLeast(0.8.dp.toPx()),
+                center = center + Offset(x, y)
             )
         }
     }
