@@ -390,8 +390,14 @@ public class yq {
         File targetApplicationFile = new File(javaDir + File.separator +
                 customApplicationClassName.substring(1).replace('.', '/') + ".java");
 
-        if (!targetApplicationFile.exists()) {
-            boolean applyMultiDex = projectSettings.getMinSdkVersion() < 21;
+        if (notUsingCustomApplicationClass) {
+            if (targetApplicationFile.exists()) {
+                boolean ignored = targetApplicationFile.delete();
+            }
+        }
+
+        if (notUsingCustomApplicationClass || !targetApplicationFile.exists()) {
+            boolean applyMultiDex = true;
             String sketchApplicationFileContent = fileUtil.b(
                     context,
                     "debug" + File.separator + "CoreManager.java"
@@ -399,8 +405,12 @@ public class yq {
             sketchApplicationFileContent = PACKAGE_PLACEHOLDER_PATTERN.matcher(sketchApplicationFileContent).replaceAll(packageName);
 
             if (applyMultiDex) {
-                sketchApplicationFileContent = sketchApplicationFileContent.replaceAll(
-                        "Application \\{", "androidx.multidex.MultiDexApplication {");
+                sketchApplicationFileContent = sketchApplicationFileContent.replace(
+                        "import android.app.Application;",
+                        "import android.app.Application;\nimport androidx.multidex.MultiDexApplication;"
+                ).replace(
+                        "extends Application", "extends MultiDexApplication"
+                );
             }
             if (logcatEnabled) {
                 sketchApplicationFileContent = sketchApplicationFileContent.replace(

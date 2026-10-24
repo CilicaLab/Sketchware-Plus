@@ -38,6 +38,7 @@ android {
         minSdk = 26
         versionCode = 153
         versionName = "v7.0.2"
+        multiDexEnabled = true
 
         buildConfigField("String", "GIT_HASH", "\"${gitCommitHash}\"")
 
@@ -128,6 +129,7 @@ dependencies {
     implementation "androidx.cardview:cardview:1.0.0"
     implementation "androidx.viewpager:viewpager:1.1.0"
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
+    implementation "androidx.multidex:multidex:2.0.1"
     implementation "com.google.android.material:material:1.14.0"
     implementation "com.airbnb.android:lottie:6.7.1"
     implementation "com.google.android.flexbox:flexbox:3.0.0"

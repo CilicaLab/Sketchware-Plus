@@ -7,6 +7,7 @@ import android.os.Process;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.multidex.MultiDex;
 
 import com.besome.sketch.tools.CollectErrorActivity;
 
@@ -17,6 +18,12 @@ public class SketchApplication extends Application {
 
     public static Context getContext() {
         return mApplicationContext;
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this);
     }
 
     @Override

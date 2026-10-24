@@ -81,6 +81,7 @@ import proguard.Configuration;
 import proguard.ConfigurationParser;
 import proguard.ParseException;
 import proguard.ProGuard;
+import java.util.LinkedHashSet;
 
 public class ProjectBuilder {
     public static final String TAG = "AppBuilder";
@@ -165,8 +166,8 @@ public class ProjectBuilder {
                 try {
                     long lengthOfFileInAssets = fileUtil.a(SketchApplication.getContext(), fileInAssets);
 
-                    boolean cacheValid = compareToFile.exists() 
-                            && compareToFile.length() > 0 
+                    boolean cacheValid = compareToFile.exists()
+                            && compareToFile.length() > 0
                             && (lengthOfFileInAssets <= 0 || compareToFile.length() == lengthOfFileInAssets);
 
                     if (cacheValid && isZipOrJar(targetFile)) {
@@ -331,6 +332,19 @@ public class ProjectBuilder {
         }
     }
 
+    /**
+     * @return The Java source level passed to ECJ. Always at least 1.8, because ECJ rejects
+     * a source/compliance level lower than the target level (1.8).
+     */
+    private String getJavaSourceLevel() {
+        String javaVersion = build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
+                BuildSettings.SETTING_JAVA_VERSION_1_7);
+        if (javaVersion.equals("1.7") || javaVersion.equals("1.6") || javaVersion.equals("1.5")) {
+            return "1.8";
+        }
+        return javaVersion;
+    }
+
     public String getClasspath() {
         StringBuilder classpath = new StringBuilder();
 
@@ -349,20 +363,14 @@ public class ProjectBuilder {
             classpath.append(":").append(BuiltInLibraries.getLibraryClassesJarPathString(BuiltInLibraries.HTTP_LEGACY_ANDROID));
         }
 
-        /* Include MultiDex library if needed */
-        if (settings.getMinSdkVersion() < 21) {
-            classpath.append(":").append(BuiltInLibraries.getLibraryClassesJarPathString(BuiltInLibraries.ANDROIDX_MULTIDEX));
-        }
+        /* Include MultiDex library */
+        classpath.append(":").append(BuiltInLibraries.getLibraryClassesJarPathString(BuiltInLibraries.ANDROIDX_MULTIDEX));
 
         /*
-         * Add lambda helper classes
-         * Since all versions above java 7 supports lambdas, this should work
+         * Add lambda helper classes.
+         * The source level is always >= 1.8 now (see getJavaSourceLevel()), so lambdas can always be used.
          */
-        if (!build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
-                        BuildSettings.SETTING_JAVA_VERSION_1_7)
-                .equals(BuildSettings.SETTING_JAVA_VERSION_1_7)) {
-            classpath.append(":").append(new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "core-lambda-stubs.jar").getAbsolutePath());
-        }
+        classpath.append(":").append(new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "core-lambda-stubs.jar").getAbsolutePath());
 
         /* Add used built-in libraries to the classpath */
         for (Jp library : builtInLibraryManager.getLibraries()) {
@@ -568,14 +576,26 @@ public class ProjectBuilder {
         return extraPackages + mll.getPackageNameLocalLibrary();
     }
 
+
+
+
     /**
      * Run Eclipse Compiler to compile Java files.
      */
     public void compileJavaCode() throws zy, IOException {
         long savedTimeMillis = System.currentTimeMillis();
 
-        class EclipseOutOutputStream extends OutputStream {
+        /*
+         * Delete the package-less R.java BEFORE collecting source files.
+         * Otherwise it gets added to the compile list, deleted afterwards, and ECJ
+         * fails with "File .../gen/R.java is missing".
+         */
+        File rJavaFileWithoutPackage = new File(yq.rJavaDirectoryPath, "R.java");
+        if (rJavaFileWithoutPackage.exists() && !rJavaFileWithoutPackage.delete()) {
+            LogUtil.w(TAG, "Failed to delete file " + rJavaFileWithoutPackage.getAbsolutePath());
+        }
 
+        class EclipseOutputStream extends OutputStream {
             private final StringBuffer mBuffer = new StringBuffer();
 
             @Override
@@ -588,30 +608,42 @@ public class ProjectBuilder {
             }
         }
 
-        class EclipseErrOutputStream extends OutputStream {
-
-            private final StringBuffer mBuffer = new StringBuffer();
-
-            @Override
-            public void write(int b) {
-                mBuffer.append((char) b);
-            }
-
-            public String getOut() {
-                return mBuffer.toString();
-            }
-        }
-
-        try (EclipseOutOutputStream outOutputStream = new EclipseOutOutputStream();
+        try (EclipseOutputStream outOutputStream = new EclipseOutputStream();
              PrintWriter outWriter = new PrintWriter(outOutputStream);
-             EclipseErrOutputStream errOutputStream = new EclipseErrOutputStream();
+             EclipseOutputStream errOutputStream = new EclipseOutputStream();
              PrintWriter errWriter = new PrintWriter(errOutputStream)) {
 
+            /* Source directories, in order */
+            String pathJava = fpu.getPathJava(yq.sc_id);
+            String pathBroadcast = fpu.getPathBroadcast(yq.sc_id);
+            String pathService = fpu.getPathService(yq.sc_id);
+
+            List<String> sourceDirectories = new ArrayList<>();
+            for (String dir : new String[]{
+                    yq.javaFilesPath,
+                    yq.rJavaDirectoryPath,
+                    pathJava,
+                    pathBroadcast,
+                    pathService
+            }) {
+                if (dir != null && FileUtil.isExistFile(dir)) {
+                    sourceDirectories.add(dir);
+                }
+            }
+
+            /* Collect .java files, skipping duplicates and files that no longer exist */
+            LinkedHashSet<File> javaFilesToCompile = new LinkedHashSet<>();
+            for (String dir : sourceDirectories) {
+                for (File javaFile : FileUtil.listFilesRecursively(new File(dir), ".java")) {
+                    if (javaFile.exists()) {
+                        javaFilesToCompile.add(javaFile);
+                    }
+                }
+            }
+
             ArrayList<String> args = new ArrayList<>();
-            String javaVersion = build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
-                    BuildSettings.SETTING_JAVA_VERSION_1_7);
             args.add("-source");
-            args.add(javaVersion);
+            args.add(getJavaSourceLevel());
             args.add("-target");
             args.add("1.8");
             args.add("-nowarn");
@@ -621,48 +653,70 @@ public class ProjectBuilder {
             }
             args.add("-d");
             args.add(yq.compiledClassesPath);
+
+            args.add("-sourcepath");
+            args.add(TextUtils.join(File.pathSeparator, sourceDirectories));
+
             args.add("-cp");
             args.add(getClasspath());
             args.add("-proc:none");
-            args.add(yq.javaFilesPath);
-            args.add(yq.rJavaDirectoryPath);
-            String pathJava = fpu.getPathJava(yq.sc_id);
-            if (FileUtil.isExistFile(pathJava)) {
-                args.add(pathJava);
-            }
-            String pathBroadcast = fpu.getPathBroadcast(yq.sc_id);
-            if (FileUtil.isExistFile(pathBroadcast)) {
-                args.add(pathBroadcast);
-            }
-            String pathService = fpu.getPathService(yq.sc_id);
-            if (FileUtil.isExistFile(pathService)) {
-                args.add(pathService);
-            }
 
-            /* Avoid "package ;" line in that file causing issues while compiling */
-            File rJavaFileWithoutPackage = new File(yq.rJavaDirectoryPath, "R.java");
-            if (rJavaFileWithoutPackage.exists() && !rJavaFileWithoutPackage.delete()) {
-                LogUtil.w(TAG, "Failed to delete file " + rJavaFileWithoutPackage.getAbsolutePath());
+            for (File javaFile : javaFilesToCompile) {
+                args.add(javaFile.getAbsolutePath());
             }
 
             /* Start compiling */
-            org.eclipse.jdt.internal.compiler.batch.Main main = new org.eclipse.jdt.internal.compiler.batch.Main(outWriter, errWriter, false, null, null);
+            org.eclipse.jdt.internal.compiler.batch.Main main =
+                    new org.eclipse.jdt.internal.compiler.batch.Main(outWriter, errWriter, false, null, null);
             LogUtil.d(TAG, "Running Eclipse compiler with these arguments: " + args);
             main.compile(args.toArray(new String[0]));
+            outWriter.flush();
+            errWriter.flush();
 
-            LogUtil.d(TAG, "System.out of Eclipse compiler: " + outOutputStream.getOut());
-            if (main.globalErrorsCount <= 0) {
-                LogUtil.d(TAG, "System.err of Eclipse compiler: " + errOutputStream.getOut());
-                LogUtil.d(TAG, "Compiling Java files took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
+            String errOut = errOutputStream.getOut();
+            String stdOut = outOutputStream.getOut();
+            LogUtil.d(TAG, "System.out of Eclipse compiler: " + stdOut);
+            if (!errOut.trim().isEmpty()) {
+                LogUtil.e(TAG, "Eclipse compiler stderr:\n" + errOut);
+            }
+
+            /*
+             * ECJ can reject its arguments (e.g. incompatible source/target level) without
+             * reporting any compile errors, so also verify that it actually produced .class files.
+             */
+            File compiledClassesDir = new File(yq.compiledClassesPath);
+            boolean producedNoClasses = !compiledClassesDir.exists()
+                    || FileUtil.listFilesRecursively(compiledClassesDir, ".class").isEmpty();
+
+            if (main.globalErrorsCount > 0
+                    || producedNoClasses
+                    || (!errOut.trim().isEmpty() && errOut.toLowerCase().contains("error"))) {
+                LogUtil.e(TAG, "Failed to compile Java files. Errors count: " + main.globalErrorsCount
+                        + ", produced no classes: " + producedNoClasses);
+                String message;
+                if (!errOut.trim().isEmpty()) {
+                    message = errOut;
+                } else if (producedNoClasses) {
+                    message = "Java compiler produced no .class files. Compiler output:\n" + stdOut;
+                } else {
+                    message = "Java compilation failed with global errors count: " + main.globalErrorsCount;
+                }
+                throw new zy(message);
             } else {
-                LogUtil.e(TAG, "Failed to compile Java files");
-                throw new zy(errOutputStream.getOut());
+                LogUtil.d(TAG, "Compiling Java files took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
             }
         }
     }
 
     public void buildApk() throws By {
-        String firstDexPath = dexesToAddButNotMerge.isEmpty() ? yq.classesDexPath : dexesToAddButNotMerge.remove(0).getAbsolutePath();
+        File projectMainDex = new File(yq.binDirectoryPath + File.separator + "dex" + File.separator + "classes.dex");
+        String firstDexPath;
+        if (projectMainDex.exists()) {
+            firstDexPath = projectMainDex.getAbsolutePath();
+            dexesToAddButNotMerge.removeIf(file -> file.getAbsolutePath().equals(projectMainDex.getAbsolutePath()));
+        } else {
+            firstDexPath = dexesToAddButNotMerge.isEmpty() ? yq.classesDexPath : dexesToAddButNotMerge.remove(0).getAbsolutePath();
+        }
         try {
             ApkBuilder apkBuilder = new ApkBuilder(new File(yq.unsignedUnalignedApkPath), new File(yq.resourcesApkPath), new File(firstDexPath), null, null, System.out);
 
@@ -690,16 +744,19 @@ public class ProjectBuilder {
             if (dexesToAddButNotMerge.isEmpty()) {
                 List<String> dexFiles = FileUtil.listFiles(yq.binDirectoryPath, "dex");
                 for (String dexFile : dexFiles) {
-                    if (!Uri.fromFile(new File(dexFile)).getLastPathSegment().equals("classes.dex")) {
-                        apkBuilder.addFile(new File(dexFile), Uri.parse(dexFile).getLastPathSegment());
+                    File file = new File(dexFile);
+                    if (!file.getAbsolutePath().equals(new File(firstDexPath).getAbsolutePath())) {
+                        apkBuilder.addFile(file, Uri.parse(dexFile).getLastPathSegment());
                     }
                 }
             } else {
                 int dexNumber = 2;
 
                 for (File dexFile : dexesToAddButNotMerge) {
-                    apkBuilder.addFile(dexFile, "classes" + dexNumber + ".dex");
-                    dexNumber++;
+                    if (!dexFile.getAbsolutePath().equals(new File(firstDexPath).getAbsolutePath())) {
+                        apkBuilder.addFile(dexFile, "classes" + dexNumber + ".dex");
+                        dexNumber++;
+                    }
                 }
             }
 
@@ -728,13 +785,12 @@ public class ProjectBuilder {
      * @throws Exception Thrown if merging failed
      */
     public void getDexFilesReady() throws Exception {
+        verifyManifestClassesExist();
         long savedTimeMillis = System.currentTimeMillis();
         ArrayList<File> dexes = new ArrayList<>();
 
-        /* Add AndroidX MultiDex library if needed */
-        if (settings.getMinSdkVersion() < 21) {
-            dexes.add(BuiltInLibraries.getLibraryDexFile(BuiltInLibraries.ANDROIDX_MULTIDEX));
-        }
+        /* Add AndroidX MultiDex library */
+        dexes.add(BuiltInLibraries.getLibraryDexFile(BuiltInLibraries.ANDROIDX_MULTIDEX));
 
         /* Add HTTP legacy files if wanted */
         if (!build_settings.getValue(BuildSettings.SETTING_NO_HTTP_LEGACY, ProjectSettings.SETTING_GENERIC_VALUE_FALSE)
@@ -1072,6 +1128,62 @@ public class ProjectBuilder {
         }
 
         LogUtil.d(TAG, "zipalign took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
+    }
+
+    /**
+     * Fails the build early if a class the manifest points at (application, activity,
+     * service, receiver) was never compiled, instead of shipping an APK that crashes on launch.
+     */
+    public void verifyManifestClassesExist() throws By {
+        File manifestFile = new File(yq.androidManifestPath);
+        if (!manifestFile.exists()) return;
+
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+            org.w3c.dom.Document doc = db.parse(manifestFile);
+            doc.getDocumentElement().normalize();
+
+            String pkg = doc.getDocumentElement().getAttribute("package");
+            if (pkg.isEmpty()) {
+                pkg = yq.packageName;
+            }
+
+            List<String> tagNames = List.of("application", "activity", "service", "receiver");
+            for (String tagName : tagNames) {
+                org.w3c.dom.NodeList nodes = doc.getElementsByTagName(tagName);
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    org.w3c.dom.Element elem = (org.w3c.dom.Element) nodes.item(i);
+                    String androidName = elem.getAttribute("android:name");
+                    if (androidName.isEmpty()) {
+                        androidName = elem.getAttribute("name");
+                    }
+                    if (!androidName.isEmpty()) {
+                        String fqcn;
+                        if (androidName.startsWith(".")) {
+                            fqcn = pkg + androidName;
+                        } else if (!androidName.contains(".")) {
+                            fqcn = pkg + "." + androidName;
+                        } else {
+                            fqcn = androidName;
+                        }
+
+                        /* Only check the project's own classes, not library ones */
+                        if (fqcn.startsWith(pkg) || fqcn.startsWith(yq.packageName)) {
+                            File classFile = new File(yq.compiledClassesPath, fqcn.replace('.', '/') + ".class");
+                            if (!classFile.exists()) {
+                                throw new By("Build failed: Manifest-referenced class '" + fqcn + "' (" + tagName + " name=" + androidName + ") was not found in compiled classes (" + classFile.getAbsolutePath() + "). Check if the source file failed to compile or was excluded.");
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            if (e instanceof By) {
+                throw (By) e;
+            }
+            LogUtil.w(TAG, "Failed to verify manifest classes: " + e.getMessage());
+        }
     }
 
     public void setBuildAppBundle(boolean buildAppBundle) {
