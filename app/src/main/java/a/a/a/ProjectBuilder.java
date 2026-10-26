@@ -48,6 +48,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import mod.agus.jcoderz.dex.ClassDef;
 import mod.agus.jcoderz.dex.Dex;
 import mod.agus.jcoderz.dex.FieldId;
 import mod.agus.jcoderz.dex.MethodId;
@@ -330,6 +331,44 @@ public class ProjectBuilder {
                 throw e;
             }
         }
+
+        /* Check that bin/dex/classes.dex exists and is non-empty */
+        File mainProjectDex = new File(yq.binDirectoryPath + File.separator + "dex" + File.separator + "classes.dex");
+        if (!mainProjectDex.exists() || mainProjectDex.length() == 0) {
+            File dexDirForCheck = new File(yq.binDirectoryPath + File.separator + "dex");
+            File[] filesInBinDex = dexDirForCheck.listFiles();
+            StringBuilder fileListStr = new StringBuilder();
+            if (filesInBinDex != null && filesInBinDex.length > 0) {
+                for (File f : filesInBinDex) {
+                    fileListStr.append("\n - ").append(f.getName()).append(" (").append(f.length()).append(" bytes)");
+                }
+            } else {
+                fileListStr.append(" (directory is empty)");
+            }
+            throw new By("Dexing failed to produce bin/dex/classes.dex or output was 0 bytes. Files in bin/dex:" + fileListStr.toString());
+        }
+
+        /* Log status after dexing */
+        String packagePath = yq.packageName.replace('.', File.separatorChar);
+        File coreManagerClassInPkg = new File(yq.compiledClassesPath + File.separator + packagePath + File.separator + "CoreManager.class");
+        File compiledClassesDir = new File(yq.compiledClassesPath);
+        List<File> classFiles = compiledClassesDir.exists() ? FileUtil.listFilesRecursively(compiledClassesDir, ".class") : java.util.Collections.emptyList();
+
+        File dexDir = new File(yq.binDirectoryPath + File.separator + "dex");
+        File[] dexFiles = dexDir.listFiles((dir, name) -> name.endsWith(".dex"));
+
+        StringBuilder dexLog = new StringBuilder("Dexing output summary:\n");
+        dexLog.append(" - bin/classes/").append(packagePath).append("/CoreManager.class exists: ").append(coreManagerClassInPkg.exists()).append(" (").append(coreManagerClassInPkg.getAbsolutePath()).append(")\n");
+        dexLog.append(" - Total .class count in bin/classes: ").append(classFiles.size()).append("\n");
+        dexLog.append(" - Files in bin/dex:\n");
+        if (dexFiles != null && dexFiles.length > 0) {
+            for (File dexFile : dexFiles) {
+                dexLog.append("   * ").append(dexFile.getName()).append(" (").append(dexFile.length()).append(" bytes)\n");
+            }
+        } else {
+            dexLog.append("   * (none)\n");
+        }
+        LogUtil.d(TAG, dexLog.toString());
     }
 
     /**
@@ -339,10 +378,19 @@ public class ProjectBuilder {
     private String getJavaSourceLevel() {
         String javaVersion = build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
                 BuildSettings.SETTING_JAVA_VERSION_1_7);
+
+        if (!isD8Enabled()) {
+            // Dx can't handle lambdas or Java 8 bytecode, so stay at 1.7
+            return "1.7";
+        }
         if (javaVersion.equals("1.7") || javaVersion.equals("1.6") || javaVersion.equals("1.5")) {
             return "1.8";
         }
         return javaVersion;
+    }
+
+    private String getJavaTargetLevel() {
+        return isD8Enabled() ? "1.8" : "1.7";
     }
 
     public String getClasspath() {
@@ -645,7 +693,7 @@ public class ProjectBuilder {
             args.add("-source");
             args.add(getJavaSourceLevel());
             args.add("-target");
-            args.add("1.8");
+            args.add(getJavaTargetLevel());
             args.add("-nowarn");
             if (!build_settings.getValue(BuildSettings.SETTING_NO_WARNINGS,
                     BuildSettings.SETTING_GENERIC_VALUE_TRUE).equals(BuildSettings.SETTING_GENERIC_VALUE_TRUE)) {
@@ -709,16 +757,41 @@ public class ProjectBuilder {
     }
 
     public void buildApk() throws By {
-        File projectMainDex = new File(yq.binDirectoryPath + File.separator + "dex" + File.separator + "classes.dex");
+        List<File> dexFilesForApk = new ArrayList<>();
         String firstDexPath;
-        if (projectMainDex.exists()) {
-            firstDexPath = projectMainDex.getAbsolutePath();
-            dexesToAddButNotMerge.removeIf(file -> file.getAbsolutePath().equals(projectMainDex.getAbsolutePath()));
+
+        if (!dexesToAddButNotMerge.isEmpty()) {
+            File projectMainDex = new File(yq.binDirectoryPath + File.separator + "dex" + File.separator + "classes.dex");
+            if (projectMainDex.exists() && projectMainDex.length() > 0) {
+                firstDexPath = projectMainDex.getAbsolutePath();
+                dexesToAddButNotMerge.removeIf(file -> file.getAbsolutePath().equals(projectMainDex.getAbsolutePath()));
+            } else {
+                File binDexDir = new File(yq.binDirectoryPath + File.separator + "dex");
+                File[] filesInBinDex = binDexDir.listFiles();
+                StringBuilder binDexList = new StringBuilder();
+                if (filesInBinDex != null && filesInBinDex.length > 0) {
+                    for (File f : filesInBinDex) {
+                        binDexList.append("\n - ").append(f.getName()).append(" (").append(f.length()).append(" bytes)");
+                    }
+                } else {
+                    binDexList.append(" (directory is empty)");
+                }
+                throw new By("Build failed: Main project DEX file (" + projectMainDex.getAbsolutePath()
+                        + ") is missing or 0 bytes. Files in bin/dex:" + binDexList);
+            }
         } else {
-            firstDexPath = dexesToAddButNotMerge.isEmpty() ? yq.classesDexPath : dexesToAddButNotMerge.remove(0).getAbsolutePath();
+            firstDexPath = yq.classesDexPath;
+            File mergedMainDex = new File(firstDexPath);
+            if (!mergedMainDex.exists() || mergedMainDex.length() == 0) {
+                throw new By("Build failed: Merged main DEX file (" + firstDexPath + ") is missing or 0 bytes.");
+            }
         }
+
+        File firstDexFile = new File(firstDexPath);
+        dexFilesForApk.add(firstDexFile);
+
         try {
-            ApkBuilder apkBuilder = new ApkBuilder(new File(yq.unsignedUnalignedApkPath), new File(yq.resourcesApkPath), new File(firstDexPath), null, null, System.out);
+            ApkBuilder apkBuilder = new ApkBuilder(new File(yq.unsignedUnalignedApkPath), new File(yq.resourcesApkPath), firstDexFile, null, null, System.out);
 
             for (Jp library : builtInLibraryManager.getLibraries()) {
                 apkBuilder.addResourcesFromJar(BuiltInLibraries.getLibraryClassesJarPath(library.getName()));
@@ -741,24 +814,28 @@ public class ProjectBuilder {
                 apkBuilder.addNativeLibraries(new File(nativeLibraryDirectory));
             }
 
-            if (dexesToAddButNotMerge.isEmpty()) {
-                List<String> dexFiles = FileUtil.listFiles(yq.binDirectoryPath, "dex");
-                for (String dexFile : dexFiles) {
-                    File file = new File(dexFile);
-                    if (!file.getAbsolutePath().equals(new File(firstDexPath).getAbsolutePath())) {
-                        apkBuilder.addFile(file, Uri.parse(dexFile).getLastPathSegment());
-                    }
-                }
-            } else {
-                int dexNumber = 2;
-
+            int dexNumber = 2;
+            if (!dexesToAddButNotMerge.isEmpty()) {
                 for (File dexFile : dexesToAddButNotMerge) {
-                    if (!dexFile.getAbsolutePath().equals(new File(firstDexPath).getAbsolutePath())) {
+                    if (!dexFile.getAbsolutePath().equals(firstDexFile.getAbsolutePath())) {
                         apkBuilder.addFile(dexFile, "classes" + dexNumber + ".dex");
+                        dexFilesForApk.add(dexFile);
                         dexNumber++;
                     }
                 }
+            } else {
+                while (true) {
+                    File extraDex = new File(yq.binDirectoryPath, "classes" + dexNumber + ".dex");
+                    if (!extraDex.exists()) {
+                        break;
+                    }
+                    apkBuilder.addFile(extraDex, "classes" + dexNumber + ".dex");
+                    dexFilesForApk.add(extraDex);
+                    dexNumber++;
+                }
             }
+
+            verifyManifestClassesInDex(dexFilesForApk);
 
             apkBuilder.setDebugMode(false);
             apkBuilder.sealApk();
@@ -773,6 +850,102 @@ public class ProjectBuilder {
         }
         LogUtil.d(TAG, "Time passed since starting to compile resources until building the unsigned APK: " +
                 (System.currentTimeMillis() - timestampResourceCompilationStarted) + " ms");
+    }
+
+    public void verifyManifestClassesInDex(List<File> dexFiles) throws By {
+        File manifestFile = new File(yq.androidManifestPath);
+        if (!manifestFile.exists()) return;
+
+        List<String> requiredClasses = new ArrayList<>();
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+            org.w3c.dom.Document doc = db.parse(manifestFile);
+            doc.getDocumentElement().normalize();
+
+            String pkg = doc.getDocumentElement().getAttribute("package");
+            if (pkg.isEmpty()) {
+                pkg = yq.packageName;
+            }
+
+            List<String> tagNames = List.of("application", "activity", "service", "receiver");
+            for (String tagName : tagNames) {
+                org.w3c.dom.NodeList nodes = doc.getElementsByTagName(tagName);
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    org.w3c.dom.Element elem = (org.w3c.dom.Element) nodes.item(i);
+                    String androidName = elem.getAttribute("android:name");
+                    if (androidName.isEmpty()) {
+                        androidName = elem.getAttribute("name");
+                    }
+                    if (!androidName.isEmpty()) {
+                        String fqcn;
+                        if (androidName.startsWith(".")) {
+                            fqcn = pkg + androidName;
+                        } else if (!androidName.contains(".")) {
+                            fqcn = pkg + "." + androidName;
+                        } else {
+                            fqcn = androidName;
+                        }
+                        if (!requiredClasses.contains(fqcn)) {
+                            requiredClasses.add(fqcn);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LogUtil.w(TAG, "Failed to parse manifest for DEX validation: " + e.getMessage());
+            return;
+        }
+
+        java.util.Set<String> definedClasses = new java.util.HashSet<>();
+        List<String> dexSummaryList = new ArrayList<>();
+
+        for (File dexFile : dexFiles) {
+            if (!dexFile.exists()) continue;
+            int classCount = 0;
+            try {
+                Dex dex = new Dex(dexFile);
+                List<String> typeNames = dex.typeNames();
+                for (ClassDef classDef : dex.classDefs()) {
+                    classCount++;
+                    int typeIndex = classDef.getTypeIndex();
+                    if (typeIndex >= 0 && typeIndex < typeNames.size()) {
+                        String typeDescriptor = typeNames.get(typeIndex);
+                        if (typeDescriptor.startsWith("L") && typeDescriptor.endsWith(";")) {
+                            String fqcn = typeDescriptor.substring(1, typeDescriptor.length() - 1).replace('/', '.');
+                            definedClasses.add(fqcn);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LogUtil.w(TAG, "Failed to inspect DEX file " + dexFile.getAbsolutePath() + ": " + e.getMessage());
+            }
+
+            dexSummaryList.add(dexFile.getName() + " (path: " + dexFile.getAbsolutePath() + ", size: " + dexFile.length() + " bytes, class count: " + classCount + ")");
+        }
+
+        List<String> missingClasses = new ArrayList<>();
+        for (String reqClass : requiredClasses) {
+            if (!definedClasses.contains(reqClass)) {
+                missingClasses.add(reqClass);
+            }
+        }
+
+        if (!missingClasses.isEmpty()) {
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("Build failed: Manifest-referenced class(es) missing from DEX files in APK:\n");
+            for (String missing : missingClasses) {
+                errorMsg.append(" - ").append(missing).append("\n");
+            }
+            errorMsg.append("DEX files included in APK:\n");
+            for (String summary : dexSummaryList) {
+                errorMsg.append(" - ").append(summary).append("\n");
+            }
+            LogUtil.e(TAG, errorMsg.toString());
+            throw new By(errorMsg.toString());
+        } else {
+            LogUtil.d(TAG, "Manifest classes verified in DEX files successfully. " + requiredClasses.size() + " manifest class(es) checked across " + dexFiles.size() + " DEX file(s).");
+        }
     }
 
     /**
@@ -840,6 +1013,18 @@ public class ProjectBuilder {
                 SketchwareUtil.toastError("Invalid name of enabled Local library #" + i1, Toast.LENGTH_LONG);
             }
         }
+
+        File binDexDir = new File(yq.binDirectoryPath + File.separator + "dex");
+        File[] binDexFiles = binDexDir.listFiles();
+        StringBuilder binDexLog = new StringBuilder("Contents of bin/dex before collecting dexes:\n");
+        if (binDexFiles != null && binDexFiles.length > 0) {
+            for (File binDexFile : binDexFiles) {
+                binDexLog.append(" - ").append(binDexFile.getName()).append(" (").append(binDexFile.length()).append(" bytes)\n");
+            }
+        } else {
+            binDexLog.append(" - (directory is empty or does not exist: ").append(binDexDir.getAbsolutePath()).append(")\n");
+        }
+        LogUtil.d(TAG, binDexLog.toString());
 
         for (String file : FileUtil.listFiles(yq.binDirectoryPath + File.separator + "dex", "dex")) {
             dexes.add(new File(file));

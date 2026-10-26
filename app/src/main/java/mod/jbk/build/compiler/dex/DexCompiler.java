@@ -14,9 +14,12 @@ import java.util.LinkedList;
 
 import a.a.a.ProjectBuilder;
 import mod.hey.studios.project.ProjectSettings;
+import mod.jbk.util.LogUtil;
 import sketchware.plus.utility.FileUtil;
 
 public class DexCompiler {
+    private static final String TAG = "DexCompiler";
+
     public static void compileDexFiles(ProjectBuilder builder) throws CompilationFailedException {
         int minApiLevel;
 
@@ -28,17 +31,40 @@ public class DexCompiler {
         }
 
         Collection<Path> programFiles = new LinkedList<>();
+        File proguardClassesFile = new File(builder.yq.proguardClassesPath);
+
         if (builder.proguard.isShrinkingEnabled()) {
-            programFiles.add(Paths.get(builder.yq.proguardClassesPath));
+            if (!proguardClassesFile.exists() || proguardClassesFile.length() == 0) {
+                throw new CompilationFailedException("ProGuard shrinking is enabled, but ProGuard output file ("
+                        + proguardClassesFile.getAbsolutePath() + ") is missing or empty ("
+                        + (proguardClassesFile.exists() ? proguardClassesFile.length() : 0) + " bytes)");
+            }
+            programFiles.add(proguardClassesFile.toPath());
         } else {
             for (File file : FileUtil.listFilesRecursively(new File(builder.yq.compiledClassesPath), ".class")) {
                 programFiles.add(file.toPath());
             }
         }
 
+        LogUtil.d(TAG, "D8 compilation info: shrinkingEnabled=" + builder.proguard.isShrinkingEnabled()
+                + ", r8Enabled=" + builder.proguard.isR8Enabled()
+                + ", programFilesCount=" + programFiles.size()
+                + ", proguardClassesPath=" + proguardClassesFile.getAbsolutePath()
+                + " (exists=" + proguardClassesFile.exists() + ", size=" + (proguardClassesFile.exists() ? proguardClassesFile.length() : 0) + " bytes)");
+
+        if (programFiles.isEmpty()) {
+            throw new CompilationFailedException("No program files for D8");
+        }
+
         Collection<Path> libraryFiles = new LinkedList<>();
+        Path compiledClassesPath = Paths.get(builder.yq.compiledClassesPath).toAbsolutePath();
         for (String jarPath : builder.getClasspath().split(":")) {
-            libraryFiles.add(Paths.get(jarPath));
+            if (!jarPath.trim().isEmpty()) {
+                Path path = Paths.get(jarPath).toAbsolutePath();
+                if (!path.equals(compiledClassesPath) && !jarPath.equals(builder.yq.compiledClassesPath)) {
+                    libraryFiles.add(path);
+                }
+            }
         }
 
         D8.run(D8Command.builder()
