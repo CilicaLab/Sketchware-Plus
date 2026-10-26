@@ -50,6 +50,8 @@ public class uq {
     public static final String[] GRAVITY_TOAST = {"TOP", "CENTER", "BOTTOM"};
     public static final String[] PATTERNVIEW_MODE = {"CORRECT", "WRONG", "AUTO_DRAW"};
     public static final String[] PROGRESS_STYLE = {"STYLE_HORIZONTAL", "STYLE_SPINNER"};
+    public static final String[] HAPTIC_EFFECTS = {"EFFECT_CLICK", "EFFECT_DOUBLE_CLICK", "EFFECT_HEAVY_CLICK", "EFFECT_TICK"};
+    public static final String[] HAPTIC_FEEDBACK = {"KEYBOARD_TAP", "VIRTUAL_KEY", "LONG_PRESS", "CONFIRM", "REJECT", "CLOCK_TICK"};
     public static final String[] CODEVIEW_THEME = {
             "AGATE",
             "ANDROIDSTUDIO",

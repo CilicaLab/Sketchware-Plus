@@ -49,6 +49,8 @@ public class DefaultExtraMenuBean {
             case "gravity_t" -> "Gravity Toast";
             case "patternviewmode" -> "Pattern Mode";
             case "styleprogress" -> "Progress Style";
+            case "hapticEffect" -> "Haptic Effect";
+            case "hapticFeedback" -> "Haptic Feedback";
             case "cv_theme" -> "Theme";
             case "cv_language" -> "Language";
             case "import" -> "Import";
@@ -199,6 +201,14 @@ public class DefaultExtraMenuBean {
             case "import" -> {
                 title = "Select language";
                 menus.addAll(Arrays.asList(uq.IMPORT_CLASS_PATH));
+            }
+            case "hapticEffect" -> {
+                title = "Select haptic effect";
+                menus.addAll(Arrays.asList(uq.HAPTIC_EFFECTS));
+            }
+            case "hapticFeedback" -> {
+                title = "Select haptic feedback";
+                menus.addAll(Arrays.asList(uq.HAPTIC_FEEDBACK));
             }
             //end
         }

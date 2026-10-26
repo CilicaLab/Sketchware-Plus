@@ -22,6 +22,7 @@ import a.a.a.jC;
 import a.a.a.jq;
 import a.a.a.kq;
 import mod.agus.jcoderz.beans.ViewBeans;
+import mod.hey.studios.editor.manage.block.v2.BlockLoader;
 import mod.hey.studios.editor.view.IdGenerator;
 import mod.hey.studios.moreblock.ReturnMoreblockManager;
 import mod.hilal.saif.activities.tools.ConfigActivity;
@@ -64,6 +65,7 @@ public class ExtraPaletteBlock {
         frc = new FileResConfig(sc_id);
         extraBlocks = new ExtraBlocks(logicEditor);
         clickListener = new LogicClickListener(logicEditor);
+        BlockLoader.refresh();
     }
 
     private boolean isWidgetUsed(String str) {
@@ -538,6 +540,7 @@ public class ExtraPaletteBlock {
                 logicEditor.a(" ", "setCornerRadiusView");
                 logicEditor.a(" ", "setGradientBackground");
                 logicEditor.a(" ", "setRadiusAndStrokeView");
+                logicEditor.a(" ", "viewPerformHapticFeedbacks");
             {
                 boolean editTextUsed = isWidgetUsed("EditText")
                         || extraBlocks.isCustomVarUsed("EditText");
@@ -706,7 +709,13 @@ public class ExtraPaletteBlock {
                             logicEditor.a(" ", "recyclerSetLayoutManagerHorizontal");
                             logicEditor.a(" ", "recyclerSetHasFixedSize");
                             logicEditor.a(" ", "recyclerSmoothScrollToPosition");
+                            logicEditor.a(" ", "recyclerScrollToPosition");
                             logicEditor.a(" ", "recyclerScrollToPositionWithOffset");
+                            logicEditor.a(" ", "recyclerNotifyDataSetChanged");
+                            logicEditor.a(" ", "recyclerNotifyItemChanged");
+                            logicEditor.a(" ", "recyclerNotifyItemInserted");
+                            logicEditor.a(" ", "recyclerNotifyItemRemoved");
+                            logicEditor.a("d", "recyclerGetItemCount");
                         }
 
                         if (gridViewUsed) {
@@ -998,6 +1007,9 @@ public class ExtraPaletteBlock {
                 if (extraBlocks.isComponentUsed(ComponentBean.COMPONENT_TYPE_VIBRATOR)) {
                     logicEditor.a("Vibrator", getTitleBgColor());
                     logicEditor.a(" ", "vibratorAction");
+                    logicEditor.a(" ", "vibratorPerformHapticEffects");
+                    logicEditor.a(" ", "vibratorVibrateWithAmplitudes");
+                    logicEditor.a(" ", "vibratorCancels");
                 }
                 if (extraBlocks.isComponentUsed(ComponentBean.COMPONENT_TYPE_TIMERTASK)
                         || extraBlocks.isCustomVarUsed("Timer")) {
@@ -1099,6 +1111,11 @@ public class ExtraPaletteBlock {
                     logicEditor.a(" ", "firebasestorageUploadFile");
                     logicEditor.a(" ", "firebasestorageDownloadFile");
                     logicEditor.a(" ", "firebasestorageDelete");
+                    logicEditor.a(" ", "firebasestorageCancelUploads");
+                    logicEditor.a("c", "firebasestorageStartUploadTasks");
+                    logicEditor.a("e", "firebasestorageTaskCompletions");
+                    logicEditor.a(" ", "firebasestorageCancelTasks");
+                    logicEditor.a("c", "firebasestorageGetDownloadUrls");
                 }
                 if (extraBlocks.isComponentUsed(ComponentBean.COMPONENT_TYPE_CAMERA)) {
                     logicEditor.a("Camera", getTitleBgColor());

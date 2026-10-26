@@ -616,7 +616,12 @@ public class Jx {
     private String getComponentDeclarationAndAddImports(ComponentBean componentBean) {
         String typeName = mq.a(componentBean.type);
         addImports(mq.getImportsByTypeName(projectDataManager.a, typeName, null));
-        return Lx.a(typeName, componentBean.componentId, Lx.AccessModifier.PRIVATE, componentBean.param1, componentBean.param2, componentBean.param3);
+        String declaration = Lx.a(typeName, componentBean.componentId, Lx.AccessModifier.PRIVATE, componentBean.param1, componentBean.param2, componentBean.param3);
+        if (componentBean.type == ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE) {
+            declaration += "\r\nprivate UploadTask _" + componentBean.componentId + "_upload_task;";
+            addImport("com.google.firebase.storage.UploadTask");
+        }
+        return declaration;
     }
 
     private String getDrawerViewDeclarationAndAddImports(ViewBean viewBean) {

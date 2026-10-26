@@ -1128,8 +1128,11 @@ public class Fx {
                 break;
             case "firebasestorageUploadFile":
                 if (!params.get(1).equals("\"\"") && !params.get(2).equals("\"\"")) {
-                    opcode = String.format("%s.child(%s).putFile(Uri.fromFile(new File(%s))).addOnFailureListener(_%s_failure_listener).addOnProgressListener(_%s_upload_progress_listener).continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {\n@Override\npublic Task<Uri> then(Task<UploadTask.TaskSnapshot> task) throws Exception {\nreturn %s.child(%s).getDownloadUrl();\n}}).addOnCompleteListener(_%s_upload_success_listener);", params.get(0), params.get(2), params.get(1), params.get(0), params.get(0), params.get(0), params.get(2), params.get(0));
+                    opcode = String.format("_%s_upload_task = %s.child(%s).putFile(Uri.fromFile(new File(%s))).addOnFailureListener(_%s_failure_listener).addOnProgressListener(_%s_upload_progress_listener).continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {\n@Override\npublic Task<Uri> then(Task<UploadTask.TaskSnapshot> task) throws Exception {\nreturn %s.child(%s).getDownloadUrl();\n}}).addOnCompleteListener(_%s_upload_success_listener);", params.get(0), params.get(0), params.get(2), params.get(1), params.get(0), params.get(0), params.get(0), params.get(2), params.get(0));
                 }
+                break;
+            case "firebasestorageCancelUpload":
+                opcode = String.format("if (_%s_upload_task != null) { _%s_upload_task.cancel(); }", params.get(0), params.get(0));
                 break;
             case "firebasestorageDownloadFile":
                 if (!params.get(1).equals("\"\"") && !params.get(2).equals("\"\"")) {

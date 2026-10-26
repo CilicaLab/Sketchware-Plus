@@ -359,6 +359,9 @@ public class mq {
             case "Vibrator":
                 importList.add("android.content.Context");
                 importList.add("android.os.Vibrator");
+                importList.add("android.os.VibrationEffect");
+                importList.add("android.os.Build");
+                importList.add("android.view.HapticFeedbackConstants");
                 return importList;
 
             case "Timer":
