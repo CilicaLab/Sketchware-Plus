@@ -112,7 +112,7 @@ public class BuiltInLibraries {
     public static String JETBRAINS_ANNOTATIONS = "annotations-23.0.0";
     public static String JETBRAINS_KOTLINX_COROUTINES_ANDROID = "kotlinx-coroutines-android-1.8.1";
     public static String JETBRAINS_KOTLINX_COROUTINES_CORE_JVM = "kotlinx-coroutines-core-jvm-1.8.1";
-    public static String JETBRAINS_KOTLIN_STDLIB = "kotlin-stdlib-2.1.21";
+    public static String JETBRAINS_KOTLIN_STDLIB = "kotlin-stdlib-2.2.0";
     public static String JSPECIFY = "jspecify-1.0.0";
     public static String LOTTIE = "lottie-6.6.10";
     public static String MATERIAL = "material-1.13.0";
