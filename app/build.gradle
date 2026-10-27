@@ -206,7 +206,7 @@ dependencies {
     implementation "org.eclipse.jdt:ecj:3.36.0"
     implementation 'javax.xml.stream:stax-api:1.0-2'
 
-    implementation 'com.github.CilicaLab:kotlinc-for-sketchware:2.2.0'
+    implementation 'com.github.CilicaLab:kotlinc-for-sketchware:2.2.1'
     compileOnly "org.jetbrains.kotlin:kotlin-compiler:2.2.0"
     implementation 'io.github.itsaky:nb-javac-android:17.0.0.3'
     implementation 'com.fasterxml.woodstox:woodstox-core:7.1.1'
