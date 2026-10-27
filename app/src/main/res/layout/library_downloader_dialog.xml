@@ -2,7 +2,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="?attr/colorSurface"
+    android:paddingBottom="16dp">
 
     <com.google.android.material.bottomsheet.BottomSheetDragHandleView
         android:layout_width="match_parent"
@@ -12,10 +14,10 @@
         android:id="@+id/title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="20dp"
-        android:layout_marginStart="20dp"
-        android:text="Download a dependency"
-        android:textAppearance="?attr/textAppearanceTitleLarge" />
+        android:layout_marginHorizontal="20dp"
+        android:text="@string/lib_downloader_title"
+        android:textAppearance="?attr/textAppearanceTitleLarge"
+        android:textColor="?attr/colorOnSurface" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/dependency_input_layout"
@@ -23,7 +25,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="16dp"
-        android:hint="Enter a dependency"
+        android:hint="@string/lib_downloader_hint"
         android:importantForAutofill="noExcludeDescendants"
         app:placeholderText="@string/local_library_manager_dependency_example">
 
@@ -32,8 +34,86 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:imeOptions="actionDone"
-            android:singleLine="true" />
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurface" />
     </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Progress & Status Container -->
+    <LinearLayout
+        android:id="@+id/progress_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="16dp">
+
+        <!-- Overall Artifact Count Label -->
+        <TextView
+            android:id="@+id/tv_overall_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorPrimary"
+            android:visibility="gone" />
+
+        <!-- Download Section -->
+        <TextView
+            android:id="@+id/tv_download_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tv_download_details"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <TextView
+                android:id="@+id/tv_download_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+        </LinearLayout>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/download_progress_indicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:indeterminate="true" />
+
+        <!-- Dexing Section -->
+        <TextView
+            android:id="@+id/tv_dexing_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/dexing_progress_indicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:indeterminate="true"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/dependency_info"
@@ -41,11 +121,11 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="16dp"
-        android:maxLines="8"
+        android:maxLines="6"
         android:scrollbars="vertical"
         android:text="@string/local_library_manager_dependency_info"
-        android:textColor="?attr/colorOnSurface"
-        android:textAppearance="?attr/textAppearanceBodyMedium" />
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
     <CheckBox
         android:id="@+id/cb_skip_subdependencies"
@@ -55,7 +135,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:paddingStart="8dp"
-        android:text="@string/local_library_manager_skip_downloading_dependencies" />
+        android:text="@string/local_library_manager_skip_downloading_dependencies"
+        android:textColor="?attr/colorOnSurface" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -74,8 +155,26 @@
             android:layout_weight="1"
             android:text="@string/common_word_cancel" />
 
-        <!-- Somehow `?attr/materialButtonStyle` doesn't work, I mean it works, but
-             it's shows TextButton style somehow, currently using style directly, until we fix it -->
+        <Button
+            android:id="@+id/btn_retry"
+            style="@style/Widget.Material3Expressive.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:layout_weight="1"
+            android:text="@string/lib_downloader_retry"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btn_close"
+            style="@style/Widget.Material3Expressive.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:layout_weight="1"
+            android:text="@string/lib_downloader_close"
+            android:visibility="gone" />
+
         <Button
             android:id="@+id/btn_download"
             style="@style/Widget.Material3Expressive.Button"
