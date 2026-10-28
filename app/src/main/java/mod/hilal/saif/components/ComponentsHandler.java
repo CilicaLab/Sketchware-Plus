@@ -13,9 +13,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import a.a.a.Lx;
 import mod.hey.studios.util.Helper;
@@ -35,6 +37,69 @@ import sketchware.plus.utility.SketchwareUtil;
 public class ComponentsHandler {
 
     private static ArrayList<HashMap<String, Object>> cachedCustomComponents = readCustomComponents();
+
+    public static final int BUILTIN_MAX_ID = Math.max(ComponentBean.COMPONENT_TYPE_FIREBASE_CRASHLYTICS, 36);
+
+    public static int parseId(Object obj) {
+        if (obj == null) {
+            return -1;
+        }
+        if (obj instanceof Number) {
+            return ((Number) obj).intValue();
+        }
+        if (obj instanceof String) {
+            try {
+                return Integer.parseInt((String) obj);
+            } catch (NumberFormatException e) {
+                return -1;
+            }
+        }
+        try {
+            return Integer.parseInt(obj.toString());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    public static synchronized int nextFreeId() {
+        List<HashMap<String, Object>> components = readCustomComponents();
+        Set<Integer> usedIds = new HashSet<>();
+        usedIds.add(36); // AsyncTask
+        for (HashMap<String, Object> comp : components) {
+            if (comp != null) {
+                int id = parseId(comp.get("id"));
+                if (id != -1) {
+                    usedIds.add(id);
+                }
+            }
+        }
+        int candidate = BUILTIN_MAX_ID + 1;
+        while (usedIds.contains(candidate)) {
+            candidate++;
+        }
+        return candidate;
+    }
+
+    public static synchronized void ensureUniqueId(HashMap<String, Object> comp) {
+        if (comp == null) return;
+        int id = parseId(comp.get("id"));
+        List<HashMap<String, Object>> components = readCustomComponents();
+        boolean exists = false;
+        for (HashMap<String, Object> other : components) {
+            if (other != comp && other != null) {
+                int otherId = parseId(other.get("id"));
+                if (otherId != -1 && otherId == id) {
+                    exists = true;
+                    break;
+                }
+            }
+        }
+        if (id <= BUILTIN_MAX_ID || id == 36 || exists) {
+            comp.put("id", String.valueOf(nextFreeId()));
+        } else {
+            comp.put("id", String.valueOf(id));
+        }
+    }
 
     /**
      * This is a utility class, don't instantiate it
@@ -573,6 +638,31 @@ public class ComponentsHandler {
             }
         } else {
             data = new ArrayList<>();
+        }
+
+        boolean modified = false;
+        Set<Integer> seenIds = new HashSet<>();
+        seenIds.add(36); // AsyncTask
+
+        for (HashMap<String, Object> comp : data) {
+            if (comp != null) {
+                int id = parseId(comp.get("id"));
+                if (id <= BUILTIN_MAX_ID || seenIds.contains(id)) {
+                    int newId = BUILTIN_MAX_ID + 1;
+                    while (seenIds.contains(newId)) {
+                        newId++;
+                    }
+                    comp.put("id", String.valueOf(newId));
+                    seenIds.add(newId);
+                    modified = true;
+                } else {
+                    seenIds.add(id);
+                }
+            }
+        }
+
+        if (modified && FileUtil.isExistFile(getPath())) {
+            FileUtil.writeFile(getPath(), new Gson().toJson(data));
         }
 
         return data;

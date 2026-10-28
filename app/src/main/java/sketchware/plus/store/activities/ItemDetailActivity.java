@@ -410,6 +410,9 @@ public class ItemDetailActivity extends AppCompatActivity {
 
                     List<Map<String, Object>> newComps = SupabaseClient.getInstance().getGson().fromJson(obj.getAsJsonArray("components"), new TypeToken<List<Map<String, Object>>>(){}.getType());
                     if (newComps != null && !newComps.isEmpty()) {
+                        for (Map<String, Object> comp : newComps) {
+                            ComponentsHandler.ensureUniqueId((HashMap<String, Object>) comp);
+                        }
                         if (statusMessage.contains("replaced")) {
                             List<String> newCompNames = new ArrayList<>();
                             for (Map<String, Object> c : newComps) {

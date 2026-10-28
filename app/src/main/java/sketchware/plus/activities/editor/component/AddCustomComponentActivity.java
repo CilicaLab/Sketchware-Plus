@@ -204,10 +204,12 @@ public class AddCustomComponentActivity extends BaseAppCompatActivity implements
         map.put("additionalVar", Helper.getText(binding.componentAddVar));
         map.put("defineAdditionalVar", Helper.getText(binding.componentDefAddVar));
         map.put("imports", Helper.getText(binding.componentImports));
+        ComponentsHandler.ensureUniqueId(map);
         if (!isEditMode) {
             list.add(map);
         }
         FileUtil.writeFile(path, getGson().toJson(list));
+        ComponentsHandler.refreshCachedCustomComponents();
         SketchwareUtil.toast(Helper.getResString(R.string.common_word_saved));
         finish();
     }
@@ -255,6 +257,7 @@ public class AddCustomComponentActivity extends BaseAppCompatActivity implements
                 int position = choiceToImport.get();
                 var component = components.get(position);
                 if (position != -1 && ComponentsHandler.isValidComponent(component)) {
+                    ComponentsHandler.ensureUniqueId(component);
                     setupViews(component);
                 } else {
                     SketchwareUtil.toastError(Helper.getResString(R.string.invalid_component));
@@ -266,6 +269,7 @@ public class AddCustomComponentActivity extends BaseAppCompatActivity implements
         } else {
             var component = components.get(0);
             if (ComponentsHandler.isValidComponent(component)) {
+                ComponentsHandler.ensureUniqueId(component);
                 setupViews(component);
             } else {
                 SketchwareUtil.toastError(Helper.getResString(R.string.invalid_component));

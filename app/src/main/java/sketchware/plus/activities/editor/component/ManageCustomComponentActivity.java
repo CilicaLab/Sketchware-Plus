@@ -226,12 +226,14 @@ public class ManageCustomComponentActivity extends BaseAppCompatActivity {
                 for (int position : selectedPositions) {
                     var component = components.get(position);
                     if (position != -1 && ComponentsHandler.isValidComponent(component)) {
+                        ComponentsHandler.ensureUniqueId(component);
                         componentsList.add(component);
                     } else {
                         SketchwareUtil.toastError(Helper.getResString(R.string.invalid_component));
                     }
                 }
                 FileUtil.writeFile(COMPONENT_DIR, getGson().toJson(componentsList));
+                ComponentsHandler.refreshCachedCustomComponents();
                 readSettings();
                 v.dismiss();
             });
@@ -240,8 +242,10 @@ public class ManageCustomComponentActivity extends BaseAppCompatActivity {
         } else {
             var component = components.get(0);
             if (ComponentsHandler.isValidComponent(component)) {
+                ComponentsHandler.ensureUniqueId(component);
                 componentsList.add(component);
                 FileUtil.writeFile(COMPONENT_DIR, getGson().toJson(componentsList));
+                ComponentsHandler.refreshCachedCustomComponents();
                 readSettings();
             } else {
                 SketchwareUtil.toastError(Helper.getResString(R.string.invalid_component));
