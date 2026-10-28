@@ -36,9 +36,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import a.a.a.wq;
 import dev.aldi.sayuti.block.ExtraBlockFile;
+import com.besome.sketch.lib.ui.LoadingDialog;
 import sketchware.plus.R;
+import sketchware.plus.ai.AiClient;
 import sketchware.plus.store.adapters.LocalItemsAdapter;
 import sketchware.plus.store.models.LocalItem;
 import sketchware.plus.store.models.StoreItem;
@@ -50,6 +55,8 @@ import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
 
 public class UploadActivity extends AppCompatActivity {
+
+    private LoadingDialog loadingDialog;
 
     public static void start(Context context) {
         Intent intent = new Intent(context, UploadActivity.class);
@@ -114,6 +121,15 @@ public class UploadActivity extends AppCompatActivity {
         tvPreviewSelected = findViewById(R.id.tv_preview_selected);
         btnSubmit = findViewById(R.id.btn_submit);
         pbSubmit = findViewById(R.id.pb_submit);
+
+        if (AiClient.isAiEnabled(this)) {
+            tilDescription.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
+            tilDescription.setEndIconDrawable(R.drawable.ic_mtrl_bulb);
+            tilDescription.setEndIconContentDescription("Generate description with AI");
+            tilDescription.setEndIconOnClickListener(v -> generateAiDescription());
+        } else {
+            tilDescription.setEndIconMode(TextInputLayout.END_ICON_NONE);
+        }
 
         etName.addTextChangedListener(new TextWatcher() {
             @Override
@@ -348,6 +364,54 @@ public class UploadActivity extends AppCompatActivity {
 
         String author = currentUser != null ? currentUser.getUsername() : "SketchwareDev";
 
+        String exportedJson = getExportedJsonForSelectedItems(selectedLocalItems);
+
+        StoreItem newItem = new StoreItem(
+                null,
+                name,
+                author,
+                description,
+                selectedType,
+                tags,
+                0,
+                System.currentTimeMillis(),
+                false, // pending approval
+                exportedJson,
+                contentNames
+        );
+
+        // Show progress state
+        btnSubmit.setEnabled(false);
+        btnSubmit.setText("");
+        pbSubmit.setVisibility(View.VISIBLE);
+
+        repository.uploadItem(newItem, new RepositoryCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean result) {
+                pbSubmit.setVisibility(View.GONE);
+                btnSubmit.setEnabled(true);
+                btnSubmit.setText("Submit Pack for Approval");
+
+                // Pending approval success state
+                new MaterialAlertDialogBuilder(UploadActivity.this)
+                        .setTitle("Pending Approval")
+                        .setMessage("Your " + selectedType.toLowerCase() + " pack '" + name + "' has been submitted successfully!\n\nIt is now pending administrator review before it will be visible in the public store.")
+                        .setPositiveButton("OK", (dialog, which) -> finish())
+                        .setCancelable(false)
+                        .show();
+            }
+
+            @Override
+            public void onError(String error) {
+                pbSubmit.setVisibility(View.GONE);
+                btnSubmit.setEnabled(true);
+                btnSubmit.setText("Submit Pack for Approval");
+                Toast.makeText(UploadActivity.this, "Failed to upload: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private String getExportedJsonForSelectedItems(List<LocalItem> selectedLocalItems) {
         String exportedJson = "{\"blocks\":[],\"components\":[]}";
         try {
             if (StoreItem.TYPE_BLOCK.equals(selectedType)) {
@@ -429,49 +493,117 @@ public class UploadActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return exportedJson;
+    }
 
-        StoreItem newItem = new StoreItem(
-                null,
-                name,
-                author,
-                description,
-                selectedType,
-                tags,
-                0,
-                System.currentTimeMillis(),
-                false, // pending approval
-                exportedJson,
-                contentNames
-        );
+    private void generateAiDescription() {
+        List<LocalItem> selectedLocalItems = localItemsAdapter.getSelectedItems();
+        if (selectedLocalItems.isEmpty()) {
+            Toast.makeText(this, "Please select at least one local item first so assistant can analyze its code", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // Show progress state
-        btnSubmit.setEnabled(false);
-        btnSubmit.setText("");
-        pbSubmit.setVisibility(View.VISIBLE);
+        String packName = etName.getText() != null ? etName.getText().toString().trim() : "";
+        List<String> contentNames = new ArrayList<>();
+        for (LocalItem item : selectedLocalItems) {
+            contentNames.add(item.getName());
+        }
 
-        repository.uploadItem(newItem, new RepositoryCallback<Boolean>() {
-            @Override
-            public void onSuccess(Boolean result) {
-                pbSubmit.setVisibility(View.GONE);
-                btnSubmit.setEnabled(true);
-                btnSubmit.setText("Submit Pack for Approval");
+        if (loadingDialog == null) {
+            loadingDialog = new LoadingDialog(this);
+        }
+        loadingDialog.show();
 
-                // Pending approval success state
-                new MaterialAlertDialogBuilder(UploadActivity.this)
-                        .setTitle("Pending Approval")
-                        .setMessage("Your " + selectedType.toLowerCase() + " pack '" + name + "' has been submitted successfully!\n\nIt is now pending administrator review before it will be visible in the public store.")
-                        .setPositiveButton("OK", (dialog, which) -> finish())
-                        .setCancelable(false)
-                        .show();
-            }
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String exportedJson = getExportedJsonForSelectedItems(selectedLocalItems);
 
-            @Override
-            public void onError(String error) {
-                pbSubmit.setVisibility(View.GONE);
-                btnSubmit.setEnabled(true);
-                btnSubmit.setText("Submit Pack for Approval");
-                Toast.makeText(UploadActivity.this, "Failed to upload: " + error, Toast.LENGTH_SHORT).show();
-            }
+            String systemPrompt = "You are an expert Sketchware Plus developer assistant. Analyze the provided custom blocks or component code/JSON and generate:\n" +
+                    "1. A SHORT, concise, 1-2 sentence store pack description summarizing what it does and how to use it.\n" +
+                    "2. At least 3 relevant hashtags (starting with #) related to what is being uploaded.\n\n" +
+                    "Respond with a JSON object ONLY, with no markdown code fences:\n" +
+                    "{\n" +
+                    "  \"description\": \"...\",\n" +
+                    "  \"tags\": [\"#tag1\", \"#tag2\", \"#tag3\"]\n" +
+                    "}";
+
+            String userPrompt = "Pack Name: " + (TextUtils.isEmpty(packName) ? "Unnamed" : packName) +
+                    "\nPack Type: " + selectedType +
+                    "\nSelected Items: " + TextUtils.join(", ", contentNames) +
+                    "\n\nCode / JSON:\n" + exportedJson;
+
+            AiClient.askAi(this, systemPrompt, userPrompt, AiClient.AiTemperatureType.CODE_GENERATION, new AiClient.AiCallback() {
+                @Override
+                public void onSuccess(String response) {
+                    runOnUiThread(() -> {
+                        if (loadingDialog != null && loadingDialog.isShowing()) {
+                            loadingDialog.dismiss();
+                        }
+                        try {
+                            String cleanJson = response != null ? response.trim() : "";
+                            if (cleanJson.startsWith("```")) {
+                                cleanJson = cleanJson.replaceAll("^```[a-zA-Z]*\n?", "").replaceAll("\n?```$", "").trim();
+                            }
+                            JSONObject json = new JSONObject(cleanJson);
+                            String desc = json.optString("description", "").trim();
+                            JSONArray tagsArray = json.optJSONArray("tags");
+
+                            if (!TextUtils.isEmpty(desc)) {
+                                etDescription.setText(desc);
+                                Editable editable = etDescription.getText();
+                                if (editable != null) {
+                                    etDescription.setSelection(editable.length());
+                                }
+                                tilDescription.setError(null);
+                            }
+
+                            if (tagsArray != null && tagsArray.length() > 0) {
+                                List<String> tagList = new ArrayList<>();
+                                for (int i = 0; i < tagsArray.length(); i++) {
+                                    String tag = tagsArray.optString(i, "").trim();
+                                    if (!tag.isEmpty()) {
+                                        if (!tag.startsWith("#")) {
+                                            tag = "#" + tag;
+                                        }
+                                        tagList.add(tag);
+                                    }
+                                }
+                                if (!tagList.isEmpty()) {
+                                    String joinedTags = TextUtils.join(", ", tagList);
+                                    etTags.setText(joinedTags);
+                                    Editable tagsEditable = etTags.getText();
+                                    if (tagsEditable != null) {
+                                        etTags.setSelection(tagsEditable.length());
+                                    }
+                                }
+                            }
+
+                            Toast.makeText(UploadActivity.this, "Description & tags generated by assistant!", Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            String desc = response != null ? response.trim() : "";
+                            if (desc.startsWith("```")) {
+                                desc = desc.replaceAll("^```[a-zA-Z]*\n?", "").replaceAll("\n?```$", "").trim();
+                            }
+                            etDescription.setText(desc);
+                            Editable editable = etDescription.getText();
+                            if (editable != null) {
+                                etDescription.setSelection(editable.length());
+                            }
+                            tilDescription.setError(null);
+                            Toast.makeText(UploadActivity.this, "Description generated by assistant!", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        if (loadingDialog != null && loadingDialog.isShowing()) {
+                            loadingDialog.dismiss();
+                        }
+                        Toast.makeText(UploadActivity.this, "Failed to generate description: " + error, Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
         });
     }
 }
