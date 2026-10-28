@@ -102,6 +102,10 @@ public class ProjectBuilder {
     private boolean buildAppBundle = false;
     private ArrayList<File> dexesToAddButNotMerge = new ArrayList<>();
 
+    private static final String DX_HINT =
+            "\n\nDx can't dex Java 8+ bytecode (lambdas, invokedynamic, interface default/static methods)."
+                    + "\nFix: switch the dexer to D8 in the project's Build Settings.";
+
     /**
      * Timestamp keeping track of when compiling the project's resources started, needed for stats of how long compiling took.
      */
@@ -315,8 +319,14 @@ public class ProjectBuilder {
                     proguard.isShrinkingEnabled() ? yq.proguardClassesPath : yq.compiledClassesPath
             );
 
+            java.io.PrintStream oldErr = System.err;
+            java.io.ByteArrayOutputStream errBuf = new java.io.ByteArrayOutputStream();
+            String dxErr;
+            int result;
+
             try {
                 LogUtil.d(TAG, "Running Dx with these arguments: " + args);
+                System.setErr(new java.io.PrintStream(errBuf, true));
 
                 Main.clearInternTables();
                 Main.Arguments arguments = new Main.Arguments();
@@ -324,12 +334,20 @@ public class ProjectBuilder {
                 parseMethod.setAccessible(true);
                 parseMethod.invoke(arguments, (Object) args.toArray(new String[0]));
 
-                Main.run(arguments);
-                LogUtil.d(TAG, "Dx took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
+                result = Main.run(arguments);
             } catch (Exception e) {
                 LogUtil.e(TAG, "Dx failed to process .class files", e);
-                throw e;
+                throw new By("Dx crashed: " + e + DX_HINT);
+            } finally {
+                System.setErr(oldErr);
+                dxErr = errBuf.toString();
             }
+
+            if (result != 0) {
+                LogUtil.e(TAG, "Dx returned " + result + ":\n" + dxErr);
+                throw new By("Dx failed (code " + result + "):\n" + dxErr + DX_HINT);
+            }
+            LogUtil.d(TAG, "Dx took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
         }
 
         /* Check that bin/dex/classes.dex exists and is non-empty */
@@ -345,7 +363,8 @@ public class ProjectBuilder {
             } else {
                 fileListStr.append(" (directory is empty)");
             }
-            throw new By("Dexing failed to produce bin/dex/classes.dex or output was 0 bytes. Files in bin/dex:" + fileListStr.toString());
+            throw new By("Dexing failed to produce bin/dex/classes.dex or output was 0 bytes. Files in bin/dex:"
+                    + fileListStr + (isD8Enabled() ? "" : DX_HINT));
         }
 
         /* Log status after dexing */
