@@ -212,7 +212,7 @@ dependencies {
     implementation 'com.fasterxml.woodstox:woodstox-core:7.1.1'
 
     implementation "com.github.Cosmic-Ide:DependencyResolver:05ec26af0b"
-    implementation "com.github.PranavPurwar:filepicker:74526bea66"
+
 
     implementation 'com.guardsquare:proguard-base:7.9.1'
 

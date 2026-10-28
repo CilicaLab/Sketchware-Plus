@@ -29,9 +29,9 @@ import java.util.List;
 import java.util.Objects;
 
 import a.a.a.qA;
-import dev.pranav.filepicker.FilePickerCallback;
-import dev.pranav.filepicker.FilePickerDialogFragment;
-import dev.pranav.filepicker.FilePickerOptions;
+import sketchware.plus.filepicker.FilePickerCallback;
+import sketchware.plus.filepicker.FilePickerDialogFragment;
+import sketchware.plus.filepicker.FilePickerOptions;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
 import sketchware.plus.databinding.DialogBlockConfigurationBinding;

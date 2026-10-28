@@ -14,15 +14,16 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.jetbrains.annotations.NotNull;
 
+import androidx.annotation.NonNull;
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.List;
 
 import a.a.a.lC;
-import dev.pranav.filepicker.FilePickerCallback;
-import dev.pranav.filepicker.FilePickerDialogFragment;
-import dev.pranav.filepicker.FilePickerOptions;
+import sketchware.plus.filepicker.FilePickerCallback;
+import sketchware.plus.filepicker.FilePickerDialogFragment;
+import sketchware.plus.filepicker.FilePickerOptions;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
 import sketchware.plus.activities.main.fragments.projects.ProjectsFragment;
@@ -131,13 +132,13 @@ public class BackupRestoreManager {
 
     public void restore() {
         FilePickerOptions options = new FilePickerOptions();
-        options.setMultipleSelection(true);
+        options.setMultipleSelection(false);
         options.setExtensions(new String[]{BackupFactory.EXTENSION});
-        options.setTitle("Select backups to restore (" + BackupFactory.EXTENSION + ")");
+        options.setTitle("Select backup to restore (" + BackupFactory.EXTENSION + ")");
 
         FilePickerCallback callback = new FilePickerCallback() {
             @Override
-            public void onFilesSelected(@NotNull List<? extends File> files) {
+            public void onFilesSelected(@NonNull List<? extends File> files) {
                 for (int i = 0; i < files.size(); i++) {
                     String backupFilePath = files.get(i).getAbsolutePath();
 
@@ -157,6 +158,11 @@ public class BackupRestoreManager {
                         doRestore(backupFilePath, false);
                     }
                 }
+            }
+
+            @Override
+            public void onFileSelected(@NonNull File file) {
+                // Not used
             }
         };
 

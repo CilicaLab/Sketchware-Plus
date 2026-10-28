@@ -24,15 +24,16 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.io.File;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import a.a.a.DB;
 import a.a.a.GB;
 import a.a.a.bB;
-import dev.pranav.filepicker.FilePickerCallback;
-import dev.pranav.filepicker.FilePickerDialogFragment;
-import dev.pranav.filepicker.FilePickerOptions;
+import sketchware.plus.filepicker.FilePickerCallback;
+import sketchware.plus.filepicker.FilePickerDialogFragment;
+import sketchware.plus.filepicker.FilePickerOptions;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
 import sketchware.plus.utility.FileUtil;
@@ -276,16 +277,13 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
 
         FilePickerCallback callback = new FilePickerCallback() {
             @Override
-            public void onFileSelected(File file) {
-                // Handle file selection
-                String filePath = file.getAbsolutePath();
-                String fileContent = FileUtil.readFile(filePath);
-                parseDataFromGoogleServicesJson(fileContent);
-            }
-
-            @Override
-            public boolean onFileSelectionCancelled() {
-                return true;
+            public void onFilesSelected(@NonNull List<? extends File> files) {
+                if (!files.isEmpty()) {
+                    File file = files.get(0);
+                    String filePath = file.getAbsolutePath();
+                    String fileContent = FileUtil.readFile(filePath);
+                    parseDataFromGoogleServicesJson(fileContent);
+                }
             }
         };
 
