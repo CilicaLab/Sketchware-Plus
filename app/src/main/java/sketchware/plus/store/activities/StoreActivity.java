@@ -59,6 +59,11 @@ public class StoreActivity extends AppCompatActivity {
     private String currentSortBy = "newest"; // "newest" or "most_downloaded"
     private StoreUser currentUser;
 
+    private final android.os.Handler searchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable searchRunnable;
+    private static final long SEARCH_DEBOUNCE_DELAY_MS = 300L;
+    private long currentRequestId = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -200,6 +205,8 @@ public class StoreActivity extends AppCompatActivity {
     }
 
     private void loadItems(boolean showStateLoading) {
+        final long requestId = ++currentRequestId;
+
         if (showStateLoading) {
             stateView.showLoading("Fetching store items...");
         } else {
@@ -215,6 +222,10 @@ public class StoreActivity extends AppCompatActivity {
         repository.getItems(currentType, currentQuery, currentSortBy, new RepositoryCallback<List<StoreItem>>() {
             @Override
             public void onSuccess(List<StoreItem> items) {
+                if (requestId != currentRequestId) {
+                    // Outdated response, ignore
+                    return;
+                }
                 swipeRefresh.setRefreshing(false);
                 List<StoreItem> safeItems = items != null ? items : new ArrayList<>();
                 adapter.setItems(safeItems);
@@ -238,6 +249,10 @@ public class StoreActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
+                if (requestId != currentRequestId) {
+                    // Outdated response, ignore
+                    return;
+                }
                 swipeRefresh.setRefreshing(false);
                 stateView.showError(error, v -> loadItems(true));
                 if (fabUpload != null) {
@@ -261,6 +276,9 @@ public class StoreActivity extends AppCompatActivity {
                 searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
                     @Override
                     public boolean onQueryTextSubmit(String query) {
+                        if (searchRunnable != null) {
+                            searchHandler.removeCallbacks(searchRunnable);
+                        }
                         currentQuery = query;
                         loadItems(true);
                         return true;
@@ -268,8 +286,14 @@ public class StoreActivity extends AppCompatActivity {
 
                     @Override
                     public boolean onQueryTextChange(String newText) {
-                        currentQuery = newText;
-                        loadItems(false);
+                        if (searchRunnable != null) {
+                            searchHandler.removeCallbacks(searchRunnable);
+                        }
+                        searchRunnable = () -> {
+                            currentQuery = newText;
+                            loadItems(false);
+                        };
+                        searchHandler.postDelayed(searchRunnable, SEARCH_DEBOUNCE_DELAY_MS);
                         return true;
                     }
                 });
@@ -278,6 +302,14 @@ public class StoreActivity extends AppCompatActivity {
 
         updateMenuVisibility(menu);
         return true;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (searchRunnable != null) {
+            searchHandler.removeCallbacks(searchRunnable);
+        }
     }
 
     private void updateMenuVisibility(Menu menu) {
