@@ -1520,7 +1520,7 @@ public class BlocksHandler {
         hashMap.put("type", " ");
         hashMap.put("typeName", "");
         hashMap.put("code", "if (_%1$s_upload_task != null) { _%1$s_upload_task.cancel(); }");
-        hashMap.put("color", "#FF4FC3F7");
+        hashMap.put("color", "#2CA5E2");
         hashMap.put("palette", "-1");
         hashMap.put("spec", "%m.firebasestorage cancel upload");
         arrayList.add(hashMap);
@@ -1530,7 +1530,7 @@ public class BlocksHandler {
         hashMap.put("type", "c");
         hashMap.put("typeName", "firebase");
         hashMap.put("code", "// Start the upload\r\nUploadTask %2$s = %1$s.child(%4$s).putFile(Uri.fromFile(new File(%3$s)));\r\n\r\n// Set up listeners\r\n%2$s.addOnFailureListener(_%1$s_failure_listener)\r\n    .addOnProgressListener(_%1$s_upload_progress_listener)\r\n    .continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {\r\n        @Override\r\n        public Task<Uri> then(Task<UploadTask.TaskSnapshot> task) throws Exception {\r\n            return %1$s.child(%4$s).getDownloadUrl();\r\n        }\r\n    })\r\n%5$s");
-        hashMap.put("color", "#FF4FC3F7");
+        hashMap.put("color", "#2CA5E2");
         hashMap.put("palette", "-1");
         hashMap.put("spec", "%m.firebasestorage upload task %s path %s name as %s");
         arrayList.add(hashMap);
@@ -1540,7 +1540,7 @@ public class BlocksHandler {
         hashMap.put("type", "e");
         hashMap.put("typeName", "uploading");
         hashMap.put("code", ".addOnCompleteListener(task -> {\r\n    if (!task.isSuccessful()) {\r\n%1$s\r\n        Exception exception = task.getException();\r\n        Toast.makeText(getApplicationContext(), \"Upload failed: \" + (exception != null ? exception.getMessage() : \"\"), Toast.LENGTH_SHORT).show();\r\n    } else {\r\n%2$s\r\n    }\r\n});");
-        hashMap.put("color", "#FF4FC3F7");
+        hashMap.put("color", "#2CA5E2");
         hashMap.put("palette", "-1");
         hashMap.put("spec", "if task failed");
         hashMap.put("spec2", "else if task succeeded");
@@ -1551,7 +1551,7 @@ public class BlocksHandler {
         hashMap.put("type", " ");
         hashMap.put("typeName", "cancele");
         hashMap.put("code", "%1$s.cancel();");
-        hashMap.put("color", "#FF4FC3F7");
+        hashMap.put("color", "#2CA5E2");
         hashMap.put("palette", "-1");
         hashMap.put("spec", "cancel upload task %s");
         arrayList.add(hashMap);
@@ -1561,7 +1561,7 @@ public class BlocksHandler {
         hashMap.put("type", "c");
         hashMap.put("typeName", "urls");
         hashMap.put("code", "Object result = task.getResult();\r\nif (result instanceof Uri) {\r\n    Uri downloadUri = (Uri) result;\r\n    %1$s = downloadUri.toString();\r\n%2$s\r\n}");
-        hashMap.put("color", "#FF4FC3F7");
+        hashMap.put("color", "#2CA5E2");
         hashMap.put("palette", "-1");
         hashMap.put("spec", "get download url to %m.varStr");
         arrayList.add(hashMap);

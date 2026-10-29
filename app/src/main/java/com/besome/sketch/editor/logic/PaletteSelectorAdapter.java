@@ -54,12 +54,21 @@ public class PaletteSelectorAdapter extends RecyclerView.Adapter<PaletteSelector
         return new PaletteSelectorViewHolder(binding);
     }
 
+    private static int safeHarmonize(Context context, int color) {
+        if (context == null) return color;
+        try {
+            return harmonizeWithPrimary(context, color);
+        } catch (Throwable ignored) {
+            return color;
+        }
+    }
+
     @Override
     public void onBindViewHolder(@NonNull PaletteSelectorViewHolder holder, int position) {
         paletteSelectorRecord item = paletteList.get(position);
         int id = item.index();
         String title = item.text();
-        int color = harmonizeWithPrimary(context, item.color());
+        int color = safeHarmonize(context, item.color());
 
         holder.binding.tvCategory.setText(title);
         holder.binding.bg.setBackgroundColor(color);

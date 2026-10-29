@@ -149,7 +149,11 @@ public class ShowMoreBlockCollectionActivity extends BaseAppCompatActivity imple
 
         moreBlockName = getIntent().getStringExtra("block_name");
         binding.editor.setScrollEnabled(true);
+        binding.editor.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         pane = binding.editor.getBlockPane();
+        if (pane != null) {
+            pane.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
 
         moreBlockNameEditorText = binding.edInput.getEditText();
         moreBlockNameEditorText.setPrivateImeOptions("defaultInputmode=english;");

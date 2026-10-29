@@ -10,49 +10,58 @@ import sketchware.plus.SketchApplication;
 import sketchware.plus.menu.DefaultExtraMenuBean;
 
 public class kq {
+    private static int safeHarmonize(Context context, int color) {
+        if (context == null) return color;
+        try {
+            return harmonizeWithPrimary(context, color);
+        } catch (Throwable ignored) {
+            return color;
+        }
+    }
+
     public static int a(String opcode, String blockType) {
         Context context = new ContextThemeWrapper(SketchApplication.getContext(), R.style.Theme_SketchwarePro);
         return a(context, opcode, blockType);
     }
 
     public static int a(Context context, String opcode, String blockType) {
-        int viewType = harmonizeWithPrimary(context, 0xff4a6cd4);
+        int viewType = safeHarmonize(context, 0xff4a6cd4);
 
         if (blockType.equals("h")) {
-            return harmonizeWithPrimary(context, 0xffc88330);
+            return safeHarmonize(context, 0xffc88330);
         }
 
         return switch (opcode) {
-            case "getResStr" -> harmonizeWithPrimary(context, 0xff7c83db);
+            case "getResStr" -> safeHarmonize(context, 0xff7c83db);
             case "getVar" -> switch (blockType) {
                 case "v" -> viewType;
-                case "p" -> harmonizeWithPrimary(context, 0xff2ca5e2);
-                case "l" -> harmonizeWithPrimary(context, 0xffcc5b22);
-                default -> harmonizeWithPrimary(context, 0xffee7d16);
+                case "p" -> safeHarmonize(context, 0xff2ca5e2);
+                case "l" -> safeHarmonize(context, 0xffcc5b22);
+                default -> safeHarmonize(context, 0xffee7d16);
             };
             case "addListInt", "insertListInt", "deleteList", "getAtListInt", "indexListInt",
                  "lengthList", "containListInt", "clearList", "addListStr", "insertListStr",
                  "getAtListStr", "indexListStr", "containListStr", "addListMap", "insertListMap",
                  "getAtListMap", "setListMap", "containListMap", "addMapToList", "insertMapToList",
-                 "getMapInList" -> harmonizeWithPrimary(context, 0xffcc5b22);
+                 "getMapInList" -> safeHarmonize(context, 0xffcc5b22);
             case "setVarBoolean", "setVarInt", "increaseInt", "decreaseInt", "setVarString",
                  "mapCreateNew", "mapPut", "mapGet", "mapContainKey", "mapRemoveKey", "mapSize",
                  "mapIsEmpty", "mapClear", "mapGetAllKeys" ->
-                    harmonizeWithPrimary(context, 0xffee7d16);
+                    safeHarmonize(context, 0xffee7d16);
             case "repeat", "forever", "break", "if", "ifElse" ->
-                    harmonizeWithPrimary(context, 0xffe1a92a);
+                    safeHarmonize(context, 0xffe1a92a);
             case "true", "false", "<", "=", ">", "&&", "||", "not", "+", "-", "*", "/", "%",
                  "random", "stringLength", "stringJoin", "stringIndex", "stringLastIndex",
                  "stringSub", "stringEquals", "stringContains", "stringReplace",
                  "stringReplaceFirst", "stringReplaceAll", "toNumber", "trim", "toUpperCase",
                  "toLowerCase", "toString", "toStringWithDecimal", "toStringFormat",
                  "addSourceDirectly", "strToMap", "mapToStr", "strToListMap", "listMapToStr" ->
-                    harmonizeWithPrimary(context, 0xff5cb722);
+                    safeHarmonize(context, 0xff5cb722);
             case "mathGetDip", "mathGetDisplayWidth", "mathGetDisplayHeight", "mathPi", "mathE",
                  "mathPow", "mathMin", "mathMax", "mathSqrt", "mathAbs", "mathRound", "mathCeil",
                  "mathFloor", "mathSin", "mathCos", "mathTan", "mathAsin", "mathAcos", "mathAtan",
                  "mathExp", "mathLog", "mathLog10", "mathToRadian", "mathToDegree" ->
-                    harmonizeWithPrimary(context, 0xff23b9a9);
+                    safeHarmonize(context, 0xff23b9a9);
             case "viewOnClick", "isDrawerOpen", "openDrawer", "closeDrawer", "setEnable",
                  "getEnable", "setVisible", "setClickable", "setText", "setTypeface", "getText",
                  "setBgColor", "setBgResource", "setTextColor", "setImage", "setColorFilter",
@@ -112,7 +121,7 @@ public class kq {
                  "bluetoothConnectIsBluetoothEnabled", "bluetoothConnectIsBluetoothActivated",
                  "bluetoothConnectActivateBluetooth", "bluetoothConnectGetPairedDevices",
                  "bluetoothConnectGetRandomUuid", "locationManagerRequestLocationUpdates",
-                 "locationManagerRemoveUpdates" -> harmonizeWithPrimary(context, 0xff2ca5e2);
+                 "locationManagerRemoveUpdates" -> safeHarmonize(context, 0xff2ca5e2);
             case "fileutildelete", "fileutilcopy", "fileutilwrite", "fileutilread", "fileutilmove",
                  "fileutilisexist", "fileutilmakedir", "fileutillistdir", "fileutilisdir",
                  "fileutilisfile", "fileutillength", "fileutilStartsWith", "fileutilEndsWith",
@@ -122,7 +131,7 @@ public class kq {
                  "cropBitmapFileFromCenter", "rotateBitmapFile", "scaleBitmapFile",
                  "skewBitmapFile", "setBitmapFileColorFilter", "setBitmapFileBrightness",
                  "setBitmapFileContrast", "getJpegRotate" ->
-                    harmonizeWithPrimary(context, 0xffa1887f);
+                    safeHarmonize(context, 0xffa1887f);
             default -> 0xff8a55d7;
         };
     }

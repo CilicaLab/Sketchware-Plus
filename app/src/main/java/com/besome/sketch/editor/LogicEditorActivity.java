@@ -108,6 +108,9 @@ import a.a.a.Ss;
 import a.a.a.Ts;
 import a.a.a.Us;
 import a.a.a.Vs;
+import mod.hey.studios.editor.manage.block.ExtraBlockInfo;
+import mod.hey.studios.editor.manage.block.v2.BlockLoader;
+import mod.jbk.util.LogUtil;
 import a.a.a.ZB;
 import a.a.a.bC;
 import a.a.a.eC;
@@ -1273,7 +1276,16 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
     }
 
     public Rs b(BlockBean blockBean) {
-        return new Rs(this, Integer.parseInt(blockBean.id), blockBean.spec, blockBean.type, blockBean.typeName, blockBean.opCode);
+        String spec = blockBean.spec;
+        if (spec == null || spec.trim().isEmpty()) {
+            ExtraBlockInfo info = BlockLoader.getBlockInfo(blockBean.opCode);
+            if (info != null && !info.isMissing && info.getSpec() != null && !info.getSpec().trim().isEmpty()) {
+                spec = info.getSpec();
+            } else {
+                spec = "";
+            }
+        }
+        return new Rs(this, Integer.parseInt(blockBean.id), spec, blockBean.type, blockBean.typeName, blockBean.opCode);
     }
 
     private RadioButton getFontRadioButton(String fontName) {
@@ -1991,7 +2003,13 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
         m = findViewById(R.id.palette_block);
         dummy = findViewById(R.id.dummy);
         viewLogicEditor = findViewById(R.id.editor);
-        o = viewLogicEditor.getBlockPane();
+        if (viewLogicEditor != null) {
+            viewLogicEditor.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
+        o = viewLogicEditor != null ? viewLogicEditor.getBlockPane() : null;
+        if (o != null) {
+            o.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
         J = findViewById(R.id.layout_palette);
         K = findViewById(R.id.area_palette);
         openBlocksMenuButton = findViewById(R.id.fab_toggle_palette);

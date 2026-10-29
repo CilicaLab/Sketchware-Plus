@@ -5,7 +5,6 @@ import static com.google.android.material.color.MaterialColors.harmonizeWithPrim
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Environment;
-import android.view.ContextThemeWrapper;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -135,8 +134,16 @@ public class BlockLoader {
 
                 if (color instanceof String) {
                     try {
-                        Context context = new ContextThemeWrapper(SketchApplication.getContext(), R.style.Theme_SketchwarePro);
-                        int harmonizedColor = harmonizeWithPrimary(context, Color.parseColor((String) color));
+                        int parsedColor = Color.parseColor((String) color);
+                        int harmonizedColor = parsedColor;
+                        try {
+                            Context context = SketchApplication.getContext();
+                            if (context != null) {
+                                harmonizedColor = harmonizeWithPrimary(context, parsedColor);
+                            }
+                        } catch (Throwable ignored) {
+                            // Fallback to parsedColor if harmonize fails
+                        }
                         info.setColor(harmonizedColor);
                     } catch (IllegalArgumentException e) {
                         SketchwareUtil.toastError("Invalid color in Custom Block #" + (i + 1));
