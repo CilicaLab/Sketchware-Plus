@@ -26,6 +26,7 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -339,6 +340,103 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
         }
     }
 
+    private void showLibraryIssueDialog(LocalLibrary library) {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle("Library Issue: " + library.getName())
+                .setMessage(library.getIssuesDescription())
+                .setNegativeButton(Helper.getResString(R.string.common_word_ok), (dialog, which) -> dialog.dismiss());
+
+        if (!library.hasConfig()) {
+            builder.setPositiveButton("Fix Config", (dialog, which) -> showFixConfigDialog(library));
+            if (!library.hasDex() && library.hasJar()) {
+                builder.setNeutralButton("Build DEX", (dialog, which) -> buildDexFromJar(library));
+            }
+        } else if (!library.hasDex() && library.hasJar()) {
+            builder.setPositiveButton("Build DEX", (dialog, which) -> buildDexFromJar(library));
+        }
+
+        builder.show();
+    }
+
+    private void showFixConfigDialog(LocalLibrary library) {
+        com.google.android.material.textfield.TextInputLayout inputLayout = new com.google.android.material.textfield.TextInputLayout(this);
+        inputLayout.setPadding(40, 20, 40, 0);
+
+        com.google.android.material.textfield.TextInputEditText editText = new com.google.android.material.textfield.TextInputEditText(this);
+        editText.setHint("Package Name (e.g. com.example.lib)");
+
+        LocalLibrary.DetectionResult result = library.getDetectedPackageInfo();
+        if (!result.packageName.isEmpty()) {
+            editText.setText(result.packageName);
+        }
+        inputLayout.addView(editText);
+
+        String dialogMessage;
+        if (!result.packageName.isEmpty()) {
+            dialogMessage = "Auto-detected package name from " + result.source + ". Confirm or edit below:";
+        } else {
+            dialogMessage = "Could not auto-detect package name. Enter the package name for this library:";
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Fix Config: " + library.getName())
+                .setMessage(dialogMessage)
+                .setView(inputLayout)
+                .setPositiveButton(Helper.getResString(R.string.common_word_save), (dialog, which) -> {
+                    String pkg = editText.getText() != null ? editText.getText().toString().trim() : "";
+                    if (!pkg.isEmpty()) {
+                        File configFile = new File(library.getLibraryDir(), "config");
+                        sketchware.plus.utility.FileUtil.writeFile(configFile.getAbsolutePath(), pkg);
+                        SketchwareUtil.toast("Saved config for " + library.getName());
+                        loadLibraries();
+                    } else {
+                        SketchwareUtil.toastError("Package name cannot be empty");
+                    }
+                })
+                .setNegativeButton(Helper.getResString(R.string.common_word_cancel), null)
+                .show();
+    }
+
+    private void buildDexFromJar(LocalLibrary library) {
+        File jarFile = new File(library.getLibraryDir(), "classes.jar");
+        if (!jarFile.exists()) {
+            SketchwareUtil.toastError("No classes.jar found to build classes.dex");
+            return;
+        }
+
+        android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
+        progressDialog.setMessage("Building classes.dex for " + library.getName() + "...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            boolean success = false;
+            String errorMessage = "";
+            try {
+                com.android.tools.r8.D8.run(com.android.tools.r8.D8Command.builder()
+                        .setMinApiLevel(21)
+                        .setOutput(library.getLibraryDir().toPath(), com.android.tools.r8.OutputMode.DexIndexed)
+                        .addProgramFiles(jarFile.toPath())
+                        .build());
+                success = true;
+            } catch (Exception e) {
+                errorMessage = e.getMessage() != null ? e.getMessage() : e.toString();
+            }
+
+            boolean finalSuccess = success;
+            String finalError = errorMessage;
+            runOnUiThread(() -> {
+                progressDialog.dismiss();
+                if (finalSuccess) {
+                    SketchwareUtil.toast("Successfully generated classes.dex!");
+                    loadLibraries();
+                } else {
+                    SketchwareUtil.toastError("Failed to generate DEX: " + finalError);
+                }
+            });
+        });
+    }
+
     public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHolder> {
         private final List<LocalLibrary> localLibraries = new ArrayList<>();
         public boolean isSelectionModeEnabled;
@@ -359,6 +457,13 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
             binding.librarySize.setText(library.getSize());
             binding.libraryName.setSelected(true);
             bindSelectedState(binding.card, library);
+
+            if (library.hasIssues()) {
+                binding.warningIcon.setVisibility(View.VISIBLE);
+                binding.warningIcon.setOnClickListener(v -> showLibraryIssueDialog(library));
+            } else {
+                binding.warningIcon.setVisibility(View.GONE);
+            }
 
             binding.card.setOnClickListener(v -> {
                 if (isSelectionModeEnabled) {
@@ -496,6 +601,13 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
             binding.libraryName.setText(library.getName());
             binding.librarySize.setText(library.getSize());
             binding.libraryName.setSelected(true);
+
+            if (library.hasIssues()) {
+                binding.warningIcon.setVisibility(View.VISIBLE);
+                binding.warningIcon.setOnClickListener(v -> showLibraryIssueDialog(library));
+            } else {
+                binding.warningIcon.setVisibility(View.GONE);
+            }
 
             binding.materialSwitch.setChecked(false);
             if (!notAssociatedWithProject) {

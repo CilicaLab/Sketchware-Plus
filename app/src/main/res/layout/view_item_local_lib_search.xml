@@ -19,7 +19,7 @@
         android:textAppearance="?attr/textAppearanceBodyLarge"
         android:textColor="?attr/colorOnSurface"
         app:layout_constraintVertical_chainStyle="packed"
-        app:layout_constraintEnd_toStartOf="@id/material_switch"
+        app:layout_constraintEnd_toStartOf="@id/warning_icon"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toTopOf="@id/library_size"
         app:layout_constraintTop_toTopOf="@id/material_switch"
@@ -33,10 +33,28 @@
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:textColor="?attr/colorOnSurfaceVariant"
         app:layout_constraintBottom_toBottomOf="@id/material_switch"
-        app:layout_constraintEnd_toStartOf="@id/material_switch"
+        app:layout_constraintEnd_toStartOf="@id/warning_icon"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/library_name"
         tools:text="3.4 KB" />
+
+    <ImageView
+        android:id="@+id/warning_icon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:padding="6dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="Library issues warning"
+        android:src="@drawable/ic_mtrl_warning"
+        android:visibility="gone"
+        app:tint="?attr/colorError"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/material_switch"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
 
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/material_switch"
