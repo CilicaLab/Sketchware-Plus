@@ -33,7 +33,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -83,7 +85,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -133,7 +137,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -183,7 +189,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -244,7 +252,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -294,7 +304,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -344,7 +356,9 @@
             android:checkable="true"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -404,7 +418,9 @@
             android:layout_marginTop="4dp"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout
@@ -455,7 +471,9 @@
             android:layout_marginTop="8dp"
             android:clickable="true"
             android:focusable="true"
-            app:cardBackgroundColor="?attr/colorSurfaceContainer"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:shapeAppearanceOverlay="?attr/shapeAppearanceCornerLarge">
 
             <LinearLayout

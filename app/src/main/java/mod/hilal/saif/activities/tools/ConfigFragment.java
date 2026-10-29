@@ -45,6 +45,7 @@ public class ConfigFragment extends qA {
         super.onViewCreated(view, savedInstanceState);
         initializeSettings();
         setupClickListeners();
+        applySegmentedStyle();
     }
 
     private void initializeSettings() {
@@ -211,6 +212,31 @@ public class ConfigFragment extends qA {
             dialogBinding.inputText.requestFocus();
         });
         dialog.show();
+    }
+
+    private void applySegmentedStyle() {
+        if (!isAdded() || binding == null) return;
+
+        // Section 1: Block Settings
+        sketchware.plus.utility.SegmentedListHelper.applySegmentedGroup(requireContext(),
+                binding.cardBuiltInBlocks,
+                binding.cardAlwaysShowBlocks,
+                binding.cardShowEverySingleBlock,
+                binding.cardUseAsdHighlighter
+        );
+
+        // Section 2: Advanced Settings
+        sketchware.plus.utility.SegmentedListHelper.applySegmentedGroup(requireContext(),
+                binding.cardRootAutoInstall,
+                binding.cardRootAutoOpen,
+                binding.cardUseNewVersionControl
+        );
+
+        // Section 3: Backup Settings
+        sketchware.plus.utility.SegmentedListHelper.applySegmentedGroup(requireContext(),
+                binding.cardBackupDir,
+                binding.cardBackupFilename
+        );
     }
 
     @Override

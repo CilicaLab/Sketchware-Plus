@@ -54,6 +54,7 @@ public class SystemSettingFragment extends qA {
         checkAndMigratePreferences();
         initializeSettings();
         setupClickListeners();
+        applySegmentedStyle();
     }
 
     private SharedPreferences getPrefs() {
@@ -673,6 +674,37 @@ public class SystemSettingFragment extends qA {
                 .show();
     }
 
+    private void applySegmentedStyle() {
+        if (!isAdded() || binding == null) return;
+
+        // Section 1: General Settings
+        sketchware.plus.utility.SegmentedListHelper.applySegmentedGroup(requireContext(),
+                binding.cardVibration,
+                binding.cardAutoSave,
+                binding.cardBuildDetails
+        );
+
+        // Section 2: AI Settings
+        sketchware.plus.utility.SegmentedListHelper.applySegmentedGroup(requireContext(),
+                binding.cardAiMarkdown,
+                binding.cardAiProvider,
+                binding.cardSeparateApiKeys,
+                binding.cardGroqApiKey,
+                binding.cardGeminiApiKey,
+                binding.cardAiApiKey,
+                binding.cardAiEndpointUrl,
+                binding.cardAiModelName,
+                binding.cardAiFetchModels
+        );
+
+        // Section 3: AI Temperature Settings
+        sketchware.plus.utility.SegmentedListHelper.applySegmentedGroup(requireContext(),
+                binding.cardAiErrorExplanationTemp,
+                binding.cardAiCodeGenerationTemp,
+                binding.cardAiAssistantModeTemp
+        );
+    }
+
     private void updateSeparateApiKeysVisibility(boolean show) {
         int separateVisibility = show ? View.VISIBLE : View.GONE;
         int defaultVisibility = show ? View.GONE : View.VISIBLE;
@@ -682,6 +714,7 @@ public class SystemSettingFragment extends qA {
             binding.cardAiApiKey.setVisibility(defaultVisibility);
             binding.cardAiEndpointUrl.setVisibility(defaultVisibility);
             binding.cardAiFetchModels.setVisibility(defaultVisibility);
+            applySegmentedStyle();
         }
     }
 
