@@ -242,7 +242,9 @@ public class ProjectsFragment extends DA {
     @Override
     public void onResume() {
         super.onResume();
-        setupFab();
+        if (!isHidden()) {
+            setupFab();
+        }
     }
 
     @Override
