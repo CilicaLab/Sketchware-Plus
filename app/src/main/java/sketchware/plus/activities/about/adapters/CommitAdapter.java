@@ -84,12 +84,14 @@ public class CommitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             rippleRound(itemHolder.binding.tvStatus, activeBackgroundColor, activeBackgroundColor, 100);
             itemHolder.binding.tvStatus.setTextColor(activeBackgroundTextColor);
 
-            if (shaPosition > position || shaPosition == -1) {
+            int effectiveShaPos = (shaPosition == -1) ? 0 : shaPosition;
+
+            if (effectiveShaPos > position) {
                 itemHolder.binding.updateStatus.setText("New Update");
                 activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
                 activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
                 advancedCorners(itemHolder.binding.viewLeftline, MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen));
-            } else if (shaPosition < position) {
+            } else if (effectiveShaPos < position) {
                 itemHolder.binding.updateStatus.setText("Old Version");
                 activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
                 activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);

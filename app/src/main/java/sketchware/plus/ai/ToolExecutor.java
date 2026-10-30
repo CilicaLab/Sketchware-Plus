@@ -216,6 +216,13 @@ public class ToolExecutor {
                 break; // Stop remaining operations in batch on failure
             }
         }
+
+        if (!toolCalls.isEmpty()) {
+            SkAssistantFragment fragment = orchestrator.getFragment();
+            if (fragment != null && fragment.getActivity() != null) {
+                fragment.getActivity().runOnUiThread(fragment::refreshDesigner);
+            }
+        }
     }
     
     /**

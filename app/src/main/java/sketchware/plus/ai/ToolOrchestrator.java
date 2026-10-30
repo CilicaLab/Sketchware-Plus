@@ -579,6 +579,7 @@ public class ToolOrchestrator {
                 String[] pArray = new String[pkgs.length()];
                 for(int i=0; i<pkgs.length(); i++) pArray[i] = pkgs.getString(i);
                 boolean injected = AssistantImportInjector.injectImports(fragment.scId, targetJavaName, pArray, fragment.getActivity());
+                if (injected) runOnMainSync(() -> fragment.refreshDesigner());
                 return injected ? "Imports injected successfully." : "Imports already exist or injection failed.";
 
             case "add_source_directly":
@@ -588,6 +589,7 @@ public class ToolOrchestrator {
                 String codeToAdd = args.getString("code");
                 String targetJava = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
                 boolean added = AssistantImportInjector.injectOnCreateSource(fragment.scId, targetJava, codeToAdd, fragment.getActivity());
+                if (added) runOnMainSync(() -> fragment.refreshDesigner());
                 return added ? "Code successfully added to onCreate via 'Add source directly'." : "Failed to add code to onCreate.";
 
             case "list_methods":
@@ -652,6 +654,7 @@ public class ToolOrchestrator {
                     args.optInt("front", 0), args.optInt("back", 0),
                     args.getString("command"), args.getString("inputCode")
                 );
+                runOnMainSync(() -> fragment.refreshDesigner());
                 return patch.toString();
 
             case "manage_local_library":
@@ -662,6 +665,7 @@ public class ToolOrchestrator {
                 runOnMainSync(() -> {
                     if (libEnabled) fragment.librarySpecialist.applyLocalLibrary(libName);
                     else fragment.librarySpecialist.disableLocalLibrary(libName);
+                    fragment.refreshDesigner();
                 });
                 return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' completed.";
 
@@ -669,7 +673,10 @@ public class ToolOrchestrator {
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
                 String perm = args.getString("permission");
-                runOnMainSync(() -> fragment.manifestSpecialist.applyPermission(perm));
+                runOnMainSync(() -> {
+                    fragment.manifestSpecialist.applyPermission(perm);
+                    fragment.refreshDesigner();
+                });
                 return "Permission " + perm + " added successfully.";
 
             case "add_component": {
@@ -682,6 +689,7 @@ public class ToolOrchestrator {
                 final List<String> addedIds = new ArrayList<>();
                 runOnMainSync(() -> {
                     addedIds.addAll(fragment.componentSpecialist.applyBatchAddComponent(typeId, requestedId, count));
+                    fragment.refreshDesigner();
                 });
                 
                 String typeName = ComponentBean.getComponentTypeName(typeId);
@@ -722,7 +730,10 @@ public class ToolOrchestrator {
             case "apply_custom_view":
                 String cvName = args.getString("name");
                 String cvXml = args.getString("xml");
-                runOnMainSync(() -> fragment.layoutSpecialist.applyCustomView(cvName, cvXml));
+                runOnMainSync(() -> {
+                    fragment.layoutSpecialist.applyCustomView(cvName, cvXml);
+                    fragment.refreshDesigner();
+                });
                 return "Applied custom view: " + cvName;
 
             default:

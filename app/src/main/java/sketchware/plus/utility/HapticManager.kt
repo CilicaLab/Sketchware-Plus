@@ -116,14 +116,33 @@ object HapticManager {
         playEffect(VibrationEffect.EFFECT_DOUBLE_CLICK, 40)
     }
 
-    /** Assistant done: SEGMENT_TICK (API 34+), fallback EFFECT_TICK. */
+    /** Assistant done: Unique distinct double-pulse success haptic pattern. */
     @JvmStatic
     fun vibrateAssistantDone() {
         if (!isHapticsEnabled()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-            viewHaptic(null, HapticFeedbackConstants.SEGMENT_TICK)
-        ) return
-        playEffect(VibrationEffect.EFFECT_TICK, 20)
+        val vib = getVibrator(SketchApplication.getContext()) ?: return
+        if (!vib.hasVibrator()) return
+
+        try {
+            val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Unique success pattern: [pause, pulse 1, pause, pulse 2]
+                VibrationEffect.createWaveform(longArrayOf(0, 35, 45, 60), intArrayOf(0, 160, 0, 255), -1)
+            } else {
+                VibrationEffect.createOneShot(60, VibrationEffect.DEFAULT_AMPLITUDE)
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val attrs = accessibilityAttrs ?: VibrationAttributes.Builder()
+                    .setUsage(VibrationAttributes.USAGE_ACCESSIBILITY)
+                    .build()
+                    .also { accessibilityAttrs = it }
+                vib.vibrate(effect, attrs)
+            } else {
+                vib.vibrate(effect)
+            }
+        } catch (_: RuntimeException) {
+            playEffect(VibrationEffect.EFFECT_CLICK, 40)
+        }
     }
 
     /** Tool call execution feedback. */
