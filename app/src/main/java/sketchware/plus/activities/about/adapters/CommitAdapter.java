@@ -84,26 +84,44 @@ public class CommitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             rippleRound(itemHolder.binding.tvStatus, activeBackgroundColor, activeBackgroundColor, 100);
             itemHolder.binding.tvStatus.setTextColor(activeBackgroundTextColor);
 
-            int effectiveShaPos = (shaPosition == -1) ? 0 : shaPosition;
+            String statusText;
+            int indicatorColor;
 
-            if (effectiveShaPos > position) {
-                itemHolder.binding.updateStatus.setText("New Update");
-                activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
-                activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
-                advancedCorners(itemHolder.binding.viewLeftline, MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen));
-            } else if (effectiveShaPos < position) {
-                itemHolder.binding.updateStatus.setText("Old Version");
-                activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
-                activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);
-                advancedCorners(itemHolder.binding.viewLeftline, MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorViolet));
+            if (shaPosition == -1) {
+                if (position == 0) {
+                    statusText = "New Update";
+                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
+                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
+                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen);
+                } else {
+                    statusText = "Old Version";
+                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
+                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);
+                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorViolet);
+                }
             } else {
-                itemHolder.binding.updateStatus.setText("Current Version");
-                activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorAmberContainer);
-                activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnAmberContainer);
-                advancedCorners(itemHolder.binding.viewLeftline, MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorAmber));
+                if (position < shaPosition) {
+                    statusText = "New Update";
+                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
+                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
+                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen);
+                } else if (position > shaPosition) {
+                    statusText = "Old Version";
+                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
+                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);
+                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorViolet);
+                } else {
+                    statusText = "Current Version";
+                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorAmberContainer);
+                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnAmberContainer);
+                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorAmber);
+                }
             }
+
+            itemHolder.binding.updateStatus.setText(statusText);
             rippleRound(itemHolder.binding.updateStatus, activeBackgroundColor, activeBackgroundColor, 100);
             itemHolder.binding.updateStatus.setTextColor(activeBackgroundTextColor);
+            advancedCorners(itemHolder.binding.viewLeftline, indicatorColor);
         }
     }
 
