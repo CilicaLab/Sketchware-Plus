@@ -383,11 +383,15 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             pendingRefresh = true;
             return;
         }
-        refreshFileSelector();
-        refreshViewTabAdapter();
+
         if (viewPager != null) {
-            if (viewPager.getCurrentItem() == 1) {
+            if (viewPager.getCurrentItem() == 0) {
+                refreshFileSelector();
+                refreshViewTabAdapter();
                 refreshEventTabAdapter();
+            } else if (viewPager.getCurrentItem() == 1) {
+                refreshEventTabAdapter();
+                refreshComponentTabAdapter();
             } else if (viewPager.getCurrentItem() == 2) {
                 refreshComponentTabAdapter();
             } else if (viewPager.getCurrentItem() == 3) {
