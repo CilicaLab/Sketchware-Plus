@@ -128,6 +128,14 @@ public class AssistantToolRegistry {
                         .addProperty("category", "string", "optional category filter: all|time|hardware|display|battery|memory")
                         .build()));
 
+        t.put(createTool("search_chat_history", "Search through past messages and full conversation chat history by keyword, role, or range. Use this to recall prior user instructions, context, code snippets, or previous actions.",
+                new ParameterBuilder()
+                        .addProperty("query", "string", "Optional keyword or phrase to search for in message content")
+                        .addProperty("role", "string", "Optional role filter: user|assistant|system|all (default 'all')")
+                        .addProperty("limit", "integer", "Optional maximum number of messages to return (default 15, max 50)")
+                        .addProperty("startIndex", "integer", "Optional 0-based index to start search from, or negative for counting from recent history (e.g. -15)")
+                        .build()));
+
         return t;
     }
 

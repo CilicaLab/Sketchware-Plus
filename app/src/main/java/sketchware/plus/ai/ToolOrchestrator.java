@@ -252,7 +252,7 @@ public class ToolOrchestrator {
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
                 "1. Inspect before acting. Use get_layout_xml, get_class_outline, list_methods, " +
-                "list_project_files, search_project_files, search_in_code, list_available_components.\n" +
+                "list_project_files, search_project_files, search_in_code, search_chat_history, list_available_components.\n" +
                 "2. Call only tools from the provided list. Never invent tools.\n" +
                 "3. Never web search component IDs. Use list_available_components.\n" +
                 "4. Once you know the action, call the tool immediately. No narration first.\n" +
@@ -736,9 +736,89 @@ public class ToolOrchestrator {
                 });
                 return "Applied custom view: " + cvName;
 
+            case "search_chat_history":
+            case "search_conversation":
+            case "get_chat_history":
+                return searchChatHistory(args);
+
             default:
                 return "Error: Unknown tool '" + name + "'";
         }
+    }
+
+    private String searchChatHistory(JSONObject args) throws JSONException {
+        if (fragment == null || fragment.messages == null) {
+            JSONObject emptyRes = new JSONObject();
+            emptyRes.put("total_messages", 0);
+            emptyRes.put("matches_found", 0);
+            emptyRes.put("results", new JSONArray());
+            return emptyRes.toString();
+        }
+
+        String query = args.optString("query", "").trim().toLowerCase();
+        String roleFilter = args.optString("role", "all").toLowerCase();
+        int limit = Math.min(Math.max(1, args.optInt("limit", 15)), 50);
+        int startIndex = args.optInt("startIndex", 0);
+
+        List<SkAssistantFragment.Message> messageList;
+        synchronized (fragment.messages) {
+            messageList = new ArrayList<>(fragment.messages);
+        }
+
+        int totalMessages = messageList.size();
+        if (startIndex < 0) {
+            startIndex = Math.max(0, totalMessages + startIndex);
+        } else if (startIndex >= totalMessages && totalMessages > 0) {
+            startIndex = Math.max(0, totalMessages - limit);
+        }
+
+        JSONArray results = new JSONArray();
+
+        for (int i = startIndex; i < totalMessages; i++) {
+            if (results.length() >= limit) {
+                break;
+            }
+
+            SkAssistantFragment.Message msg = messageList.get(i);
+            if (msg == null || msg.role == null || msg.content == null) continue;
+
+            String msgRole = msg.role.toLowerCase();
+
+            // Filter status messages unless explicitly requested
+            if ("status".equals(msgRole) && !"status".equals(roleFilter)) {
+                continue;
+            }
+
+            // Role filtering
+            if (!"all".equals(roleFilter) && !msgRole.equals(roleFilter)) {
+                continue;
+            }
+
+            String content = msg.content;
+            if (!query.isEmpty() && !content.toLowerCase().contains(query)) {
+                continue;
+            }
+
+            JSONObject matchObj = new JSONObject();
+            matchObj.put("index", i);
+            matchObj.put("role", msg.role);
+
+            // Truncate extremely long messages to prevent prompt token overflow
+            if (content.length() > 2000) {
+                matchObj.put("content", content.substring(0, 1000) + "\n... [content truncated, total length: " + content.length() + " chars] ...\n" + content.substring(content.length() - 500));
+            } else {
+                matchObj.put("content", content);
+            }
+
+            results.put(matchObj);
+        }
+
+        JSONObject resultObj = new JSONObject();
+        resultObj.put("total_messages", totalMessages);
+        resultObj.put("matches_found", results.length());
+        resultObj.put("results", results);
+
+        return resultObj.toString();
     }
 
     private void runOnMainSync(Runnable runnable) {
