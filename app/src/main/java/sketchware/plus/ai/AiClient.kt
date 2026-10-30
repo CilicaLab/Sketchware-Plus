@@ -2,28 +2,106 @@ package sketchware.plus.ai
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.regex.Pattern
-import android.os.Handler
-import android.os.Looper
 
 object AiClient {
+
+    // ------------------------------------------------------------------
+    // Rotation configuration
+    // ------------------------------------------------------------------
+
+    /** Groq models, in rotation order. After the last one the rotation wraps to the first. */
+    private val GROQ_MODELS = listOf(
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b"
+    )
+
+    /** Only part of the chain when "separate Groq and Gemini settings" is on and both keys are set. */
+    private const val GEMINI_MODEL = "gemini-3.8-flash"
+
+    private const val GROQ_ENDPOINT = "https://api.groq.com/openai/v1"
+    private const val GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+    /** A rate-limit wait longer than this switches to the next model instead of waiting. */
+    private const val SWITCH_THRESHOLD_MS = 10_000L
+
+    /** Short waits (<= threshold) are retried on the same model this many times before switching. */
+    private const val MAX_SAME_MODEL_RETRIES = 3
+
+    /** If every model is cooling down, wait for the soonest one only if it is within this time. */
+    private const val MAX_FULL_CYCLE_WAIT_MS = 60_000L
+
+    /** Hard safety cap so a bad situation can never loop forever. */
+    private const val MAX_TOTAL_ATTEMPTS = 15
+
+    private const val DEFAULT_RETRY_MS = 5_000L
+    private const val RETRY_BUFFER_MS = 500L
+    private const val SWITCH_DELAY_MS = 500L
+    private const val NOT_FOUND_COOLDOWN_MS = 5 * 60_000L
+
+    // ------------------------------------------------------------------
+    // Internals
+    // ------------------------------------------------------------------
+
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    @Volatile
     private var currentCall: Call? = null
+
+    @Volatile
+    private var isCanceledByUser = false
+
+    /** target id -> epoch millis until which that model is considered rate limited. */
+    private val cooldowns = ConcurrentHashMap<String, Long>()
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
+
+    private enum class Kind { GROQ, GOOGLE, OTHER }
+
+    private data class Target(
+        val kind: Kind,
+        val provider: String,
+        val endpoint: String,
+        val model: String
+    ) {
+        val id: String get() = kind.name + "|" + model.lowercase()
+    }
+
+    private data class HttpResult(
+        val successful: Boolean,
+        val code: Int,
+        val body: String,
+        val retryAfterHeader: String?
+    )
+
+    private val RETRY_TEXT_PATTERN: Pattern = Pattern.compile(
+        "(?:try again|retry) in\\s+((?:\\d+(?:\\.\\d+)?\\s*(?:ms|h|m|s)(?![a-zA-Z])\\s*)+)",
+        Pattern.CASE_INSENSITIVE
+    )
+    private val DURATION_PART_PATTERN: Pattern = Pattern.compile(
+        "(\\d+(?:\\.\\d+)?)\\s*(ms|h|m|s)(?![a-zA-Z])",
+        Pattern.CASE_INSENSITIVE
+    )
+    private val RETRY_DELAY_JSON_PATTERN: Pattern = Pattern.compile(
+        "\"retryDelay\"\\s*:\\s*\"([0-9.]+)s\""
+    )
 
     init {
         System.loadLibrary("aiclient")
@@ -55,13 +133,33 @@ object AiClient {
     @JvmStatic
     private external fun buildRequestUrl(endpoint: String): String
 
-    private fun resolveApiKey(aiPref: SharedPreferences): String {
+    // ------------------------------------------------------------------
+    // Provider / key helpers
+    // ------------------------------------------------------------------
+
+    private fun kindOf(provider: String, endpoint: String): Kind = when {
+        provider.equals("groq", true) ||
+                provider.equals("grog", true) ||
+                endpoint.contains("groq", true) -> Kind.GROQ
+        provider.equals("google", true) ||
+                endpoint.contains("generativelanguage", true) -> Kind.GOOGLE
+        else -> Kind.OTHER
+    }
+
+    private fun makeTarget(provider: String, endpoint: String, model: String): Target =
+        Target(kindOf(provider, endpoint), provider, endpoint, model)
+
+    /**
+     * Resolves the API key. [providerOverride] lets the rotation ask for the key of a specific
+     * provider without having to change the saved provider setting first.
+     */
+    private fun resolveApiKey(aiPref: SharedPreferences, providerOverride: String? = null): String {
         val separateActive = aiPref.getBoolean("P12_SEPARATE_API_KEYS", false)
         val defaultKey = aiPref.getString(getApiKeyPrefKey(), "") ?: ""
         if (!separateActive) {
             return defaultKey
         }
-        val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
+        val provider = providerOverride ?: (aiPref.getString("P12_PROVIDER", "custom") ?: "custom")
         return when {
             provider.equals("groq", true) || provider.equals("grog", true) -> {
                 val groqKey = aiPref.getString("P12_GROQ_API_KEY", "")?.trim() ?: ""
@@ -104,6 +202,10 @@ object AiClient {
         fun onModelSwitched(newModel: String) {}
     }
 
+    // ------------------------------------------------------------------
+    // Public API
+    // ------------------------------------------------------------------
+
     @JvmStatic
     @JvmOverloads
     fun askAi(context: Context, systemPrompt: String, userPrompt: String, temperature: Float, tools: JSONArray? = null, modelOverride: String? = null, callback: AiCallback) {
@@ -143,262 +245,408 @@ object AiClient {
         }
 
         isCanceledByUser = false
-        executor.execute { performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, 0) }
+        executor.execute {
+            performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback)
+        }
     }
 
-    private fun performAiRequest(context: Context, systemPrompt: String, chatHistory: JSONArray, temperature: Float, tools: JSONArray?, modelOverride: String?, callback: AiCallback, retryCount: Int) {
-        if (isCanceledByUser) {
-            callback.onError("Canceled")
-            return
-        }
+    @JvmStatic
+    fun cancelCurrentRequest() {
+        isCanceledByUser = true
+        currentCall?.cancel()
+    }
 
+    // ------------------------------------------------------------------
+    // Request loop
+    // ------------------------------------------------------------------
+
+    private fun performAiRequest(
+        context: Context,
+        systemPrompt: String,
+        chatHistory: JSONArray,
+        temperature: Float,
+        tools: JSONArray?,
+        modelOverride: String?,
+        callback: AiCallback
+    ) {
         val aiPref = context.getSharedPreferences(getPrefName(), Context.MODE_PRIVATE)
-        val apiKey = resolveApiKey(aiPref)
-        val endpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
-        val model = if (!modelOverride.isNullOrEmpty()) modelOverride else (aiPref.getString(getModelPrefKey(), "") ?: "")
 
-        if (apiKey.isEmpty() || endpoint.isEmpty() || model.isEmpty()) {
+        val configuredProvider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
+        val configuredEndpoint = aiPref.getString(getEndpointPrefKey(), "") ?: ""
+        val configuredModel = if (!modelOverride.isNullOrEmpty()) modelOverride
+        else (aiPref.getString(getModelPrefKey(), "") ?: "")
+
+        var target = makeTarget(configuredProvider, configuredEndpoint, configuredModel)
+
+        if (resolveApiKey(aiPref, target.provider).isEmpty() ||
+            target.endpoint.isEmpty() ||
+            target.model.isEmpty()
+        ) {
             callback.onError("Please set your API Key, Endpoint, and Model Name in System Settings")
             return
         }
 
+        // Gemini only joins the chain when separate keys are on and BOTH keys exist.
+        val separateActive = aiPref.getBoolean("P12_SEPARATE_API_KEYS", false)
+        val groqKey = aiPref.getString("P12_GROQ_API_KEY", "")?.trim() ?: ""
+        val geminiKey = aiPref.getString("P12_GEMINI_API_KEY", "")?.trim() ?: ""
+        val geminiInChain = separateActive && groqKey.isNotEmpty() && geminiKey.isNotEmpty()
+
+        val chain = buildChain(target, geminiInChain)
+
+        // A request that uses an explicit model override must not overwrite the user's saved model.
+        val persistSwitches = modelOverride.isNullOrEmpty()
+
+        var currentTemp = temperature
+        var sameModelRetries = 0
+        var retryNumber = 0
+        var parseRetries = 0
+        var attempts = 0
+
         try {
-            val jsonBody = JSONObject().apply {
-                put("model", model)
-                val effectiveTemp = if (tools != null && tools.length() > 0) {
-                    temperature.coerceAtMost(0.1f)
-                } else {
-                    temperature
+            while (true) {
+                if (isCanceledByUser) {
+                    callback.onError("Canceled")
+                    return
                 }
-                put("temperature", effectiveTemp.toDouble())
-                if (tools != null && tools.length() > 0) {
-                    put("tools", tools)
-                    put("tool_choice", "auto")
+                attempts++
+
+                val apiKey = resolveApiKey(aiPref, target.provider)
+                val jsonBody = buildRequestBody(target.model, systemPrompt, chatHistory, currentTemp, tools)
+
+                val request = Request.Builder()
+                    .url(buildRequestUrl(target.endpoint))
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
+                    .build()
+
+                val call = client.newCall(request)
+                currentCall = call
+
+                val result = call.execute().use { response ->
+                    HttpResult(
+                        response.isSuccessful,
+                        response.code,
+                        response.body?.string() ?: "",
+                        response.header("retry-after")
+                    )
                 }
-                val messages = JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", systemPrompt)
-                    })
-                    for (i in 0 until chatHistory.length()) {
-                        put(chatHistory.getJSONObject(i))
+
+                // ---------------- success ----------------
+                if (result.successful) {
+                    deliverSuccess(result.body, callback)
+                    return
+                }
+
+                val code = result.code
+
+                // ---------------- rate limit / unavailable ----------------
+                if (code == 429 || code == 413 || code == 404 || code == 503) {
+                    val hintedMs = parseRetryDelayMillis(result.retryAfterHeader, result.body)
+                    val waitMs = hintedMs ?: DEFAULT_RETRY_MS
+                    val modelGone = code == 404
+                    val tooLong = modelGone || waitMs > SWITCH_THRESHOLD_MS
+
+                    if (attempts >= MAX_TOTAL_ATTEMPTS) {
+                        callback.onError("API Error ($code): ${result.body.ifEmpty { "Too many retries" }}")
+                        return
                     }
-                }
-                put("messages", messages)
-            }
 
-            val body = jsonBody.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url(buildRequestUrl(endpoint))
-                .addHeader("Authorization", "Bearer $apiKey")
-                .post(body)
-                .build()
+                    val rotationAvailable = chain.any { it.id != target.id }
+                    val shouldSwitch = rotationAvailable &&
+                            (tooLong || sameModelRetries >= MAX_SAME_MODEL_RETRIES)
 
-            val call = client.newCall(request)
-            currentCall = call
-            
-            call.execute().use { response ->
-                if (response.isSuccessful && response.body != null) {
-                    val responseData = response.body!!.string()
-                    val responseObject = JSONObject(responseData)
-                    val choice = responseObject.getJSONArray("choices").getJSONObject(0)
-                    val message = choice.getJSONObject("message")
-                    
-                    val (promptTokens, completionTokens, totalTokens) = extractTokenUsage(responseObject)
-
-                    if (message.has("tool_calls")) {
-                        val toolCalls = message.getJSONArray("tool_calls")
-                        for (i in 0 until toolCalls.length()) {
-                            val tc = toolCalls.getJSONObject(i)
-                            if (tc.has("function")) {
-                                val fn = tc.getJSONObject("function")
-                                val fnName = fn.optString("name", "")
-                                if (fnName.isNotEmpty()) {
-                                    fn.put("name", sanitizeToolName(fnName))
-                                }
+                    if (!shouldSwitch) {
+                        // Short wait (or no other model to go to): wait and retry the same model.
+                        if (!modelGone && sameModelRetries < MAX_SAME_MODEL_RETRIES) {
+                            sameModelRetries++
+                            retryNumber++
+                            val pause = waitMs + RETRY_BUFFER_MS
+                            postRetry(callback, retryNumber, pause)
+                            if (!sleepInterruptibly(pause)) {
+                                callback.onError("Canceled")
+                                return
                             }
+                            continue
                         }
-                        val content = if (message.has("content") && !message.isNull("content")) message.getString("content") else null
-                        callback.onToolCall(toolCalls, content, promptTokens, completionTokens, totalTokens)
-                    } else {
-                        val content = message.optString("content", "").trim()
-                        callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
+                        callback.onError("API Error ($code): ${result.body.ifEmpty { "Unknown error" }}")
+                        return
                     }
-                } else if ((response.code == 429 || response.code == 413 || response.code == 404 || response.code == 503)) {
-                    val errorBody = response.body?.string() ?: ""
-                    val delayMillis = parseRetryAfter(errorBody)
 
-                    val separateActive = aiPref.getBoolean("P12_SEPARATE_API_KEYS", false)
-                    val groqKey = aiPref.getString("P12_GROQ_API_KEY", "")?.trim() ?: ""
-                    val geminiKey = aiPref.getString("P12_GEMINI_API_KEY", "")?.trim() ?: ""
-                    val canSwitchProviders = separateActive && groqKey.isNotEmpty() && geminiKey.isNotEmpty()
-                    
-                    val provider = aiPref.getString("P12_PROVIDER", "custom") ?: "custom"
-                    val currentModel = aiPref.getString(getModelPrefKey(), "") ?: ""
-                    val isGroq = "groq".equals(provider, ignoreCase = true) || 
-                                 endpoint.contains("groq", ignoreCase = true) ||
-                                 currentModel.contains("gpt-oss", ignoreCase = true) ||
-                                 currentModel.contains("qwen", ignoreCase = true) ||
-                                 currentModel.contains("llama", ignoreCase = true)
+                    // ---- switch to the next model in the chain ----
+                    val blockMs = if (modelGone) NOT_FOUND_COOLDOWN_MS else waitMs + RETRY_BUFFER_MS
+                    cooldowns[target.id] = System.currentTimeMillis() + blockMs
 
-                    val isGoogle = "google".equals(provider, ignoreCase = true) ||
-                                   endpoint.contains("generativelanguage", ignoreCase = true) ||
-                                   currentModel.contains("gemini", ignoreCase = true)
+                    var next = pickNext(chain, target)
+                    var pause = SWITCH_DELAY_MS
 
-                    if (canSwitchProviders) {
-                        if (isGroq) {
-                            val groqModels = listOf("openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b")
-                            val currentIndex = groqModels.indexOfFirst { it.equals(currentModel, ignoreCase = true) }
-                            
-                            if (currentIndex != -1 && currentIndex < groqModels.size - 1) {
-                                val alternateModel = groqModels[currentIndex + 1]
-                                aiPref.edit().putString(getModelPrefKey(), alternateModel).apply()
-
-                                mainHandler.post {
-                                    callback.onModelSwitched(alternateModel)
-                                    callback.onRetry(retryCount + 1, 500)
-                                }
-
-                                executor.execute {
-                                    if (!isCanceledByUser) {
-                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                    }
-                                }
-                            } else {
-                                // All Groq models exhausted AND provider switching is enabled -> Fail over to Google Gemini
-                                aiPref.edit()
-                                    .putString("P12_PROVIDER", "google")
-                                    .putString("P12I4", "https://generativelanguage.googleapis.com/v1beta/openai/")
-                                    .putString(getModelPrefKey(), "gemini-3.8-flash")
-                                    .apply()
-
-                                mainHandler.post {
-                                    callback.onModelSwitched("gemini-3.8-flash (Groq exhausted -> Gemini Failover)")
-                                    callback.onRetry(retryCount + 1, 1000)
-                                }
-
-                                executor.execute {
-                                    if (!isCanceledByUser) {
-                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                    }
-                                }
-                            }
-                        } else if (isGoogle) {
-                            if (retryCount < 3) {
-                                // Retry Gemini up to 3 times before failing back to Groq
-                                mainHandler.post {
-                                    callback.onRetry(retryCount + 1, delayMillis)
-                                }
-
-                                executor.execute {
-                                    try {
-                                        var elapsed = 0L
-                                        while (elapsed < delayMillis) {
-                                            if (isCanceledByUser) return@execute
-                                            TimeUnit.MILLISECONDS.sleep(100)
-                                            elapsed += 100
-                                        }
-                                    } catch (ignored: InterruptedException) {
-                                    }
-                                    if (!isCanceledByUser) {
-                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                    }
-                                }
-                            } else {
-                                // Gemini exhausted after 3 retries AND provider switching is enabled -> Fail back to Groq
-                                aiPref.edit()
-                                    .putString("P12_PROVIDER", "groq")
-                                    .putString("P12I4", "https://api.groq.com/openai/v1")
-                                    .putString(getModelPrefKey(), "openai/gpt-oss-20b")
-                                    .apply()
-
-                                mainHandler.post {
-                                    callback.onModelSwitched("openai/gpt-oss-20b (Gemini exhausted after 3 retries -> Groq Failback)")
-                                    callback.onRetry(retryCount + 1, 1000)
-                                }
-
-                                executor.execute {
-                                    if (!isCanceledByUser) {
-                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                    }
-                                }
-                            }
+                    if (next == null) {
+                        // Every model is cooling down. Wait for the soonest one if it is close enough.
+                        val soonest = soonestAvailable(chain)
+                        if (soonest != null && soonest.second <= MAX_FULL_CYCLE_WAIT_MS) {
+                            next = soonest.first
+                            pause = soonest.second + RETRY_BUFFER_MS
                         } else {
-                            if (retryCount < 3) {
-                                mainHandler.post {
-                                    callback.onRetry(retryCount + 1, delayMillis)
-                                }
-
-                                executor.execute {
-                                    try {
-                                        var elapsed = 0L
-                                        while (elapsed < delayMillis) {
-                                            if (isCanceledByUser) return@execute
-                                            TimeUnit.MILLISECONDS.sleep(100)
-                                            elapsed += 100
-                                        }
-                                    } catch (ignored: InterruptedException) {
-                                    }
-                                    if (!isCanceledByUser) {
-                                        performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                    }
-                                }
-                            } else {
-                                callback.onError("API Error (${response.code}): $errorBody")
-                            }
-                        }
-                    } else {
-                        // Provider switching is disabled (separate API keys setting is OFF or required keys missing)
-                        if (retryCount < 3) {
-                            mainHandler.post {
-                                callback.onRetry(retryCount + 1, delayMillis)
-                            }
-
-                            executor.execute {
-                                try {
-                                    var elapsed = 0L
-                                    while (elapsed < delayMillis) {
-                                        if (isCanceledByUser) return@execute
-                                        TimeUnit.MILLISECONDS.sleep(100)
-                                        elapsed += 100
-                                    }
-                                } catch (ignored: InterruptedException) {
-                                }
-                                if (!isCanceledByUser) {
-                                    performAiRequest(context, systemPrompt, chatHistory, temperature, tools, modelOverride, callback, retryCount + 1)
-                                }
-                            }
-                        } else {
-                            callback.onError("API Error (${response.code}): $errorBody")
+                            val secs = (soonest?.second ?: waitMs) / 1000
+                            callback.onError(
+                                "All models are rate limited (HTTP $code). Try again in about ${secs}s.\n" +
+                                        result.body.ifEmpty { "Unknown error" }
+                            )
+                            return
                         }
                     }
-                } else if (response.code == 400 && retryCount < 2) {
-                    val errorMsg = response.body?.string() ?: ""
-                    if (errorMsg.contains("output_parse_failed")) {
-                        mainHandler.post {
-                            callback.onRetry(retryCount + 1, 300)
-                        }
-                        executor.execute {
-                            if (!isCanceledByUser) {
-                                performAiRequest(context, systemPrompt, chatHistory, 0.0f, tools, modelOverride, callback, retryCount + 1)
-                            }
-                        }
+
+                    val previous = target
+                    target = next
+                    sameModelRetries = 0
+                    retryNumber++
+
+                    if (target.id != previous.id) {
+                        if (persistSwitches) persistSwitch(aiPref, previous, target)
+                        postSwitch(callback, describeSwitch(previous, target), retryNumber, pause)
                     } else {
-                        callback.onError("API Error (${response.code}): $errorMsg")
+                        postRetry(callback, retryNumber, pause)
                     }
-                } else {
-                    val errorMsg = response.body?.string() ?: "Unknown error"
-                    callback.onError("API Error (${response.code}): $errorMsg")
+
+                    if (!sleepInterruptibly(pause)) {
+                        callback.onError("Canceled")
+                        return
+                    }
+                    continue
                 }
+
+                // ---------------- 400 output_parse_failed: retry once or twice at temperature 0 ----------------
+                if (code == 400 && parseRetries < 2 && result.body.contains("output_parse_failed")) {
+                    parseRetries++
+                    retryNumber++
+                    currentTemp = 0.0f
+                    postRetry(callback, retryNumber, 300)
+                    if (!sleepInterruptibly(300)) {
+                        callback.onError("Canceled")
+                        return
+                    }
+                    continue
+                }
+
+                // ---------------- anything else ----------------
+                callback.onError("API Error ($code): ${result.body.ifEmpty { "Unknown error" }}")
+                return
             }
         } catch (e: Exception) {
-            if (currentCall?.isCanceled() == true) {
+            if (currentCall?.isCanceled() == true || isCanceledByUser) {
                 callback.onError("Canceled")
             } else {
                 callback.onError("AI Request Failed: ${e.message}")
             }
         } finally {
             currentCall = null
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Rotation helpers
+    // ------------------------------------------------------------------
+
+    /**
+     * Builds the rotation order once per request:
+     *   Groq model 1 -> Groq model 2 -> Groq model 3 -> (Gemini, if enabled) -> back to Groq model 1 ...
+     * Returns an empty list when rotation does not apply (other providers, or Gemini without
+     * the separate-keys setup).
+     */
+    private fun buildChain(current: Target, includeGemini: Boolean): List<Target> {
+        if (current.kind == Kind.OTHER) return emptyList()
+        if (current.kind == Kind.GOOGLE && !includeGemini) return emptyList()
+
+        val groqProvider = if (current.kind == Kind.GROQ) current.provider else "groq"
+        val groqEndpoint = if (current.kind == Kind.GROQ) current.endpoint else GROQ_ENDPOINT
+
+        val groqTargets = GROQ_MODELS.map { makeTarget(groqProvider, groqEndpoint, it) }
+        return if (includeGemini) {
+            groqTargets + makeTarget("google", GEMINI_ENDPOINT, GEMINI_MODEL)
+        } else {
+            groqTargets
+        }
+    }
+
+    /** Next model after [current] (wrapping around) that is not still cooling down, or null. */
+    private fun pickNext(chain: List<Target>, current: Target): Target? {
+        if (chain.isEmpty()) return null
+        val now = System.currentTimeMillis()
+        val idx = chain.indexOfFirst { it.id == current.id }
+        val start = if (idx == -1) 0 else idx + 1
+        val count = if (idx == -1) chain.size else chain.size - 1
+        for (i in 0 until count) {
+            val candidate = chain[(start + i) % chain.size]
+            val blockedUntil = cooldowns[candidate.id] ?: 0L
+            if (blockedUntil <= now) return candidate
+        }
+        return null
+    }
+
+    /** The chain entry that becomes available first, with the remaining wait in millis. */
+    private fun soonestAvailable(chain: List<Target>): Pair<Target, Long>? {
+        val now = System.currentTimeMillis()
+        return chain
+            .map { it to maxOf(0L, (cooldowns[it.id] ?: 0L) - now) }
+            .minByOrNull { it.second }
+    }
+
+    private fun persistSwitch(aiPref: SharedPreferences, from: Target, to: Target) {
+        val editor = aiPref.edit().putString(getModelPrefKey(), to.model)
+        if (from.kind != to.kind) {
+            editor.putString("P12_PROVIDER", if (to.kind == Kind.GOOGLE) "google" else "groq")
+            editor.putString(getEndpointPrefKey(), to.endpoint)
+        }
+        editor.apply()
+    }
+
+    private fun describeSwitch(from: Target, to: Target): String {
+        return when {
+            from.kind == Kind.GROQ && to.kind == Kind.GOOGLE ->
+                "${to.model} (Groq exhausted -> Gemini failover)"
+            from.kind == Kind.GOOGLE && to.kind == Kind.GROQ ->
+                "${to.model} (Gemini rate limited -> Groq failback)"
+            else -> to.model
+        }
+    }
+
+    private fun postRetry(callback: AiCallback, retryNumber: Int, delayMillis: Long) {
+        mainHandler.post { callback.onRetry(retryNumber, delayMillis) }
+    }
+
+    private fun postSwitch(callback: AiCallback, label: String, retryNumber: Int, delayMillis: Long) {
+        mainHandler.post {
+            callback.onModelSwitched(label)
+            callback.onRetry(retryNumber, delayMillis)
+        }
+    }
+
+    /** Sleeps in small steps so cancel works. Returns false if canceled or interrupted. */
+    private fun sleepInterruptibly(millis: Long): Boolean {
+        var elapsed = 0L
+        try {
+            while (elapsed < millis) {
+                if (isCanceledByUser) return false
+                val step = minOf(100L, millis - elapsed)
+                TimeUnit.MILLISECONDS.sleep(step)
+                elapsed += step
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return false
+        }
+        return !isCanceledByUser
+    }
+
+    // ------------------------------------------------------------------
+    // Retry delay parsing
+    // ------------------------------------------------------------------
+
+    /**
+     * Reads how long the API wants us to wait. Understands:
+     *  - the Retry-After header (seconds)
+     *  - Groq style text: "try again in 5.4s", "7m12.288s", "230ms", "1h2m3s"
+     *  - Gemini style: "retry in 33s" and "retryDelay": "33s"
+     * If several hints are present, the longest wins. Returns null when nothing was found.
+     */
+    private fun parseRetryDelayMillis(headerValue: String?, errorBody: String): Long? {
+        val candidates = mutableListOf<Long>()
+
+        headerValue?.trim()?.toDoubleOrNull()?.let {
+            if (it >= 0) candidates.add((it * 1000).toLong())
+        }
+
+        val textMatcher = RETRY_TEXT_PATTERN.matcher(errorBody)
+        if (textMatcher.find()) {
+            parseDurationMillis(textMatcher.group(1) ?: "")?.let { candidates.add(it) }
+        }
+
+        val jsonMatcher = RETRY_DELAY_JSON_PATTERN.matcher(errorBody)
+        if (jsonMatcher.find()) {
+            jsonMatcher.group(1)?.toDoubleOrNull()?.let { candidates.add((it * 1000).toLong()) }
+        }
+
+        return candidates.maxOrNull()
+    }
+
+    private fun parseDurationMillis(text: String): Long? {
+        val m = DURATION_PART_PATTERN.matcher(text)
+        var total = 0.0
+        var found = false
+        while (m.find()) {
+            val value = m.group(1)?.toDoubleOrNull() ?: continue
+            found = true
+            total += when (m.group(2)?.lowercase()) {
+                "ms" -> value
+                "s" -> value * 1000.0
+                "m" -> value * 60_000.0
+                "h" -> value * 3_600_000.0
+                else -> 0.0
+            }
+        }
+        return if (found) total.toLong() else null
+    }
+
+    // ------------------------------------------------------------------
+    // Request / response helpers
+    // ------------------------------------------------------------------
+
+    private fun buildRequestBody(
+        model: String,
+        systemPrompt: String,
+        chatHistory: JSONArray,
+        temperature: Float,
+        tools: JSONArray?
+    ): JSONObject {
+        return JSONObject().apply {
+            put("model", model)
+            val effectiveTemp = if (tools != null && tools.length() > 0) {
+                temperature.coerceAtMost(0.1f)
+            } else {
+                temperature
+            }
+            put("temperature", effectiveTemp.toDouble())
+            if (tools != null && tools.length() > 0) {
+                put("tools", tools)
+                put("tool_choice", "auto")
+            }
+            val messages = JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "system")
+                    put("content", systemPrompt)
+                })
+                for (i in 0 until chatHistory.length()) {
+                    put(chatHistory.getJSONObject(i))
+                }
+            }
+            put("messages", messages)
+        }
+    }
+
+    private fun deliverSuccess(responseData: String, callback: AiCallback) {
+        val responseObject = JSONObject(responseData)
+        val choice = responseObject.getJSONArray("choices").getJSONObject(0)
+        val message = choice.getJSONObject("message")
+
+        val (promptTokens, completionTokens, totalTokens) = extractTokenUsage(responseObject)
+
+        if (message.has("tool_calls")) {
+            val toolCalls = message.getJSONArray("tool_calls")
+            for (i in 0 until toolCalls.length()) {
+                val tc = toolCalls.getJSONObject(i)
+                if (tc.has("function")) {
+                    val fn = tc.getJSONObject("function")
+                    val fnName = fn.optString("name", "")
+                    if (fnName.isNotEmpty()) {
+                        fn.put("name", sanitizeToolName(fnName))
+                    }
+                }
+            }
+            val content = if (message.has("content") && !message.isNull("content")) message.getString("content") else null
+            callback.onToolCall(toolCalls, content, promptTokens, completionTokens, totalTokens)
+        } else {
+            val content = message.optString("content", "").trim()
+            callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
         }
     }
 
@@ -435,31 +683,6 @@ object AiClient {
 
         return Triple(promptTokens, completionTokens, totalTokens)
     }
-
-    @Volatile
-    private var isCanceledByUser = false
-
-    @JvmStatic
-    fun cancelCurrentRequest() {
-        isCanceledByUser = true
-        currentCall?.cancel()
-    }
-
-    private fun parseRetryAfter(errorBody: String): Long {
-        try {
-            val m = Pattern.compile("try again in ([0-9.]+)\\s?s").matcher(errorBody)
-            if (m.find()) {
-                val seconds = m.group(1)
-                if (seconds != null) {
-                    return (seconds.toDouble() * 1000).toLong() + 500
-                }
-            }
-        } catch (ignored: Exception) {
-        }
-        return 5000
-    }
-
-
 
     private fun wrapUserPrompt(userPrompt: String): JSONArray {
         return JSONArray().apply {

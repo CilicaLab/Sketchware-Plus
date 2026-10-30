@@ -24,6 +24,7 @@ import a.a.a.eC;
 import a.a.a.jC;
 import a.a.a.yq;
 import mod.hilal.saif.components.ComponentsHandler;
+import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.SketchwareUtil;
 
 /**
@@ -428,6 +429,7 @@ public class ToolOrchestrator {
                     public void onToolStart(String toolName) {
                         mainHandler.post(() -> {
                             fragment.setStatus("Executing: " + toolName + "...");
+                            HapticManager.vibrateToolCall();
                         });
                     }
 

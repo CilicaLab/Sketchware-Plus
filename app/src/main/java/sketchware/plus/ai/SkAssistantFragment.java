@@ -361,7 +361,7 @@ public class SkAssistantFragment extends Fragment {
 
         btnSend.setOnClickListener(v -> {
             HapticManager.vibrateRun(v);
-            if (isReasoningActive()) {
+            if (isSendButtonThinking || isReasoningActive()) {
                 cancelCurrentRequest();
             } else {
                 String prompt = etInput.getText().toString().trim();
@@ -588,6 +588,7 @@ public class SkAssistantFragment extends Fragment {
             toolOrchestrator.cancel();
         }
         AiClient.cancelCurrentRequest();
+        updateSendButtonState(false);
         setStatus(null);
 
         messages.add(new Message("system", "AI response has been stopped."));

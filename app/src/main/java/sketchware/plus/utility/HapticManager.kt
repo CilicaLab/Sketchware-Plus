@@ -126,6 +126,16 @@ object HapticManager {
         playEffect(VibrationEffect.EFFECT_TICK, 20)
     }
 
+    /** Tool call execution feedback. */
+    @JvmStatic
+    fun vibrateToolCall() {
+        if (!isHapticsEnabled()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            viewHaptic(null, HapticFeedbackConstants.CONFIRM)
+        ) return
+        playEffect(VibrationEffect.EFFECT_CLICK, 25)
+    }
+
     /** Switch: TOGGLE_ON / TOGGLE_OFF (API 34+), fallback EFFECT_CLICK / EFFECT_TICK. */
     @JvmStatic
     @JvmOverloads
