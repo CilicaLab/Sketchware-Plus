@@ -63,4 +63,22 @@ public class SkAssistantDialog extends DialogFragment {
         }
         return view;
     }
+
+    @Override
+    public void onDismiss(@NonNull android.content.DialogInterface dialog) {
+        super.onDismiss(dialog);
+        androidx.fragment.app.Fragment child = getChildFragmentManager().findFragmentById(R.id.fragment_container);
+        if (child instanceof SkAssistantFragment) {
+            ((SkAssistantFragment) child).cancelCurrentRequest();
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        androidx.fragment.app.Fragment child = getChildFragmentManager().findFragmentById(R.id.fragment_container);
+        if (child instanceof SkAssistantFragment) {
+            ((SkAssistantFragment) child).cancelCurrentRequest();
+        }
+        super.onDestroyView();
+    }
 }

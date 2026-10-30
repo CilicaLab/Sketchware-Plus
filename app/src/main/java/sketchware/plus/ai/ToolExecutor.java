@@ -120,13 +120,56 @@ public class ToolExecutor {
     
     /**
      * Execute write tools sequentially to prevent race conditions and data corruption.
+     * Includes automatic transactional rollback and pre-validation guardrails.
      */
     private void executeWriteToolsSequential(List<ToolCallInfo> toolCalls, List<ToolResult> results, Callback callback) {
+        // Take a pre-execution ProjectSnapshot for transactional safety & rollback guardrails
+        ProjectSnapshot snapshot = null;
+        try {
+            SkAssistantFragment fragment = orchestrator.getFragment();
+            if (fragment != null && fragment.scId != null) {
+                String xmlName = fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml";
+                snapshot = new ProjectSnapshot(fragment.scId, xmlName);
+            }
+        } catch (Exception ignored) {}
+
         for (int i = 0; i < toolCalls.size(); i++) {
+            if (orchestrator != null && orchestrator.isCanceled()) {
+                break;
+            }
             try {
                 ToolCallInfo info = toolCalls.get(i);
+                
+                // Pre-validation Guardrails
+                if ("apply_layout_xml".equals(info.toolName)) {
+                    String xml = info.args.optString("xml", "");
+                    if (xml.isEmpty()) {
+                        throw new IllegalArgumentException("Layout XML cannot be empty.");
+                    }
+                    // Validate XML well-formedness before touching project state
+                    try {
+                        javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+                        dbf.setNamespaceAware(true);
+                        javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+                        db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+                    } catch (Exception xmlEx) {
+                        throw new IllegalArgumentException("Invalid layout XML syntax: " + xmlEx.getMessage());
+                    }
+                } else if ("add_java_patch".equals(info.toolName) || "add_xml_patch".equals(info.toolName)) {
+                    String inputCode = info.args.optString("inputCode", "");
+                    if (inputCode.isEmpty()) {
+                        throw new IllegalArgumentException("Patch inputCode cannot be empty.");
+                    }
+                }
+
                 callback.onToolStart(info.toolName);
                 ToolResult result = executeToolInternal(info);
+                
+                // Check if result indicates an error response
+                if (result.content != null && (result.content.startsWith("Error:") || result.content.startsWith("Error"))) {
+                    throw new RuntimeException(result.content);
+                }
+                
                 results.add(result);
                 
                 // Adaptive delay between write operations
@@ -141,7 +184,23 @@ public class ToolExecutor {
                     }
                 }
             } catch (Exception e) {
-                String errorDetails = "Execution error in tool '" + toolCalls.get(i).toolName + "': " + (e.getMessage() != null ? e.getMessage() : e.toString());
+                // AUTOMATIC ROLLBACK on write tool failure / exception to prevent bricking workspace
+                if (snapshot != null) {
+                    try {
+                        SkAssistantFragment fragment = orchestrator.getFragment();
+                        if (fragment != null && fragment.scId != null) {
+                            String xmlName = fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml";
+                            snapshot.restore(fragment.scId, xmlName, orchestrator.getContext());
+                            if (fragment.getActivity() != null) {
+                                fragment.getActivity().runOnUiThread(() -> fragment.refreshDesigner());
+                            }
+                        }
+                    } catch (Exception restoreEx) {
+                        restoreEx.printStackTrace();
+                    }
+                }
+
+                String errorDetails = "Execution error in tool '" + toolCalls.get(i).toolName + "' (Workspace safely rolled back): " + (e.getMessage() != null ? e.getMessage() : e.toString());
                 if (e.getCause() != null && e.getCause().getMessage() != null) {
                     errorDetails += " | Cause: " + e.getCause().getMessage();
                 }
@@ -154,6 +213,7 @@ public class ToolExecutor {
                     true
                 );
                 results.add(errorResult);
+                break; // Stop remaining operations in batch on failure
             }
         }
     }

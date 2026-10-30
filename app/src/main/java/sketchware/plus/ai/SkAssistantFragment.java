@@ -546,11 +546,11 @@ public class SkAssistantFragment extends Fragment {
         }
         isSendButtonThinking = isThinking;
 
-        if (isThinking) {
-            HapticManager.startTicking(1000);
-        } else {
-            HapticManager.stopTicking();
-        }
+//        if (isThinking) {
+//            HapticManager.startTicking(1000);
+//        } else {
+//            HapticManager.stopTicking();
+//        }
 
         int targetIcon = isThinking ? R.drawable.ic_mtrl_stop : R.drawable.ic_mtrl_send;
         int targetColor = ContextCompat.getColor(context, isThinking ? R.color.scolor_red_01 : R.color.color_primary);
@@ -584,14 +584,47 @@ public class SkAssistantFragment extends Fragment {
 
     public void cancelCurrentRequest() {
         isRequestCanceled = true;
+        if (toolOrchestrator != null) {
+            toolOrchestrator.cancel();
+        }
         AiClient.cancelCurrentRequest();
         setStatus(null);
-        
 
-        
         messages.add(new Message("system", "AI response has been stopped."));
-        adapter.notifyItemInserted(messages.size() - 1);
-        scrollToBottom();
+        if (adapter != null) {
+            adapter.notifyItemInserted(messages.size() - 1);
+            scrollToBottom();
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+//        cancelCurrentRequest();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+//        cancelCurrentRequest();
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        cancelCurrentRequest();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        cancelCurrentRequest();
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        cancelCurrentRequest();
     }
 
     public void cancelSKRequests() {
@@ -834,7 +867,7 @@ public class SkAssistantFragment extends Fragment {
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
         saveHistory();
-        HapticManager.vibrateAssistantDone();
+//        HapticManager.vibrateAssistantDone();
     }
 
     public void setUndoVisible(boolean visible) {

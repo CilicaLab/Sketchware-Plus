@@ -22,6 +22,21 @@ public class XmlParsingHelper {
         retryCount = 0;
     }
 
+    public static boolean validateXml(String xml) {
+        if (xml == null || xml.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(true);
+            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+            org.w3c.dom.Document doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+            return doc != null && doc.getDocumentElement() != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public void handleXmlError(String editedXml, String errorMessage, String targetXmlName) {
         if (retryCount < MAX_RETRIES) {
             retryCount++;

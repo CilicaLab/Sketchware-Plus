@@ -57,6 +57,14 @@ public class ToolOrchestrator {
         this.toolExecutor = new ToolExecutor(this);
     }
 
+    public SkAssistantFragment getFragment() {
+        return fragment;
+    }
+
+    public Context getContext() {
+        return context;
+    }
+
     /**
      * Starts the autonomous session with the user's prompt.
      */
@@ -82,6 +90,10 @@ public class ToolOrchestrator {
     public void cancel() {
         isCanceled = true;
         AiClient.cancelCurrentRequest();
+    }
+
+    public boolean isCanceled() {
+        return isCanceled;
     }
 
     private void executeLoop(JSONArray chatHistory) {
@@ -315,6 +327,14 @@ public class ToolOrchestrator {
         }
 
         StringBuilder summary = new StringBuilder();
+        try {
+            if (fragment != null && fragment.scId != null) {
+                String xmlName = fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml";
+                ProjectSnapshot snapshot = new ProjectSnapshot(fragment.scId, xmlName);
+                summary.append(snapshot.toStateSummaryString()).append("\n\n");
+            }
+        } catch (Exception ignored) {}
+
         summary.append("Recent tool actions: ").append(recentActions.isEmpty() ? "none" : joinLast(recentActions, 6));
         if (!recentFiles.isEmpty()) {
             summary.append("\nFiles recently referenced: ").append(joinLast(recentFiles, 8));

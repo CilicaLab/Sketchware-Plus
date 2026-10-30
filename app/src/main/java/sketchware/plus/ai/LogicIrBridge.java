@@ -75,6 +75,14 @@ public class LogicIrBridge {
                 return new ValidationResult(false, "IR JSON is missing 'body' array", "", 0);
             }
 
+            // Inspect body items for basic structural validity
+            for (int i = 0; i < body.length(); i++) {
+                JSONObject blockItem = body.optJSONObject(i);
+                if (blockItem == null) {
+                    return new ValidationResult(false, "IR body contains null or invalid block item at index " + i, "", 0);
+                }
+            }
+
             // Dry-run IR -> BlockBeans
             ArrayList<BlockBean> testBlocks = irToBlocks(ir);
             if (testBlocks == null) {
@@ -83,6 +91,25 @@ public class LogicIrBridge {
 
             // Dry-run IR -> Java
             String testJava = irToJava(ir);
+            if (testJava == null) {
+                return new ValidationResult(false, "Failed to generate Java code from IR", "", 0);
+            }
+
+            // Syntax Sanity Check: Verify balanced braces & parentheses in generated Java
+            int braceBalance = 0;
+            int parenBalance = 0;
+            for (char c : testJava.toCharArray()) {
+                if (c == '{') braceBalance++;
+                else if (c == '}') braceBalance--;
+                else if (c == '(') parenBalance++;
+                else if (c == ')') parenBalance--;
+                if (braceBalance < 0 || parenBalance < 0) {
+                    return new ValidationResult(false, "Syntax Error: Unmatched closing brace or parenthesis in generated Java", testJava, testBlocks.size());
+                }
+            }
+            if (braceBalance != 0) {
+                return new ValidationResult(false, "Syntax Error: Unbalanced curly braces in generated Java", testJava, testBlocks.size());
+            }
 
             return new ValidationResult(true, "Validation successful", testJava, testBlocks.size());
         } catch (Exception e) {

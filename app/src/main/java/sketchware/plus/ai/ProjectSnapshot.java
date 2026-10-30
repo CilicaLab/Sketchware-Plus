@@ -109,4 +109,60 @@ public class ProjectSnapshot {
         fileManager.l();
         libraryManager.k();
     }
+
+    public String toStateSummaryString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("--- Project State Summary ---\n");
+        sb.append("Activities: ");
+        if (activities != null && !activities.isEmpty()) {
+            java.util.List<String> actNames = new java.util.ArrayList<>();
+            for (ProjectFileBean pf : activities) {
+                if (pf != null) actNames.add(pf.getJavaName());
+            }
+            sb.append(String.join(", ", actNames));
+        } else {
+            sb.append("none");
+        }
+        sb.append("\nCustom Views: ");
+        if (customViews != null && !customViews.isEmpty()) {
+            java.util.List<String> cvNames = new java.util.ArrayList<>();
+            for (ProjectFileBean pf : customViews) {
+                if (pf != null) cvNames.add(pf.getJavaName());
+            }
+            sb.append(String.join(", ", cvNames));
+        } else {
+            sb.append("none");
+        }
+        sb.append("\nCurrent Layout Views (Count: ").append(views != null ? views.size() : 0).append("): ");
+        if (views != null && !views.isEmpty()) {
+            java.util.List<String> viewInfo = new java.util.ArrayList<>();
+            for (ViewBean v : views) {
+                if (v != null) {
+                    viewInfo.add(v.id + " (" + v.getClass().getSimpleName() + ")");
+                }
+            }
+            sb.append(String.join(", ", viewInfo));
+        } else {
+            sb.append("none");
+        }
+        sb.append("\nActive Components: ");
+        if (componentsMap != null && !componentsMap.isEmpty()) {
+            java.util.List<String> compInfo = new java.util.ArrayList<>();
+            for (Map.Entry<String, ArrayList<ComponentBean>> entry : componentsMap.entrySet()) {
+                if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                    java.util.List<String> ids = new java.util.ArrayList<>();
+                    for (ComponentBean cb : entry.getValue()) {
+                        if (cb != null) {
+                            ids.add(cb.componentId + " [" + ComponentBean.getComponentTypeName(cb.type) + "]");
+                        }
+                    }
+                    compInfo.add(entry.getKey() + " -> {" + String.join(", ", ids) + "}");
+                }
+            }
+            sb.append(String.join("; ", compInfo));
+        } else {
+            sb.append("none");
+        }
+        return sb.toString();
+    }
 }
