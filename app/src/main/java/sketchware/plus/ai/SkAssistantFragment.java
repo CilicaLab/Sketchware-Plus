@@ -38,6 +38,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -104,7 +105,11 @@ import a.a.a.wq;
 import dev.aldi.sayuti.editor.manage.LocalLibrariesUtil;
 import dev.aldi.sayuti.editor.manage.LocalLibrary;
 import mod.hey.studios.util.Helper;
+import sketchware.plus.BuildConfig;
 import sketchware.plus.R;
+import sketchware.plus.activities.about.models.AboutResponseModel;
+import sketchware.plus.utility.Network;
+import com.google.gson.Gson;
 import com.besome.sketch.beans.ComponentBean;
 import com.google.android.material.snackbar.Snackbar;
 import mod.hilal.saif.components.ComponentsHandler;
@@ -152,7 +157,7 @@ public class SkAssistantFragment extends Fragment {
     private EditText etInput;
     private View tokenUsageContainer;
     private TextView tvTokenUsage;
-    private View modelSelectorContainer;
+    private MaterialCardView modelSelectorContainer;
     private TextView tvCurrentModel;
     private int lastPromptTokens = 0;
     private int lastCompletionTokens = 0;
@@ -485,6 +490,7 @@ public class SkAssistantFragment extends Fragment {
         messages.add(new Message("user", prompt));
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
+        saveHistory();
 
         setStatus(model +" is reasoning...");
         jC.projectOperationsExecutor.execute(() -> {
@@ -601,18 +607,21 @@ public class SkAssistantFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
+        saveHistory();
 //        cancelCurrentRequest();
     }
 
     @Override
     public void onStop() {
         super.onStop();
+        saveHistory();
 //        cancelCurrentRequest();
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        saveHistory();
         cancelCurrentRequest();
     }
 
@@ -773,6 +782,57 @@ public class SkAssistantFragment extends Fragment {
                 tvCurrentModel.setText(model);
             }
         }
+
+        checkBuildVersionStatus();
+    }
+
+    private void checkBuildVersionStatus() {
+        if (getContext() == null || tvCurrentModel == null) return;
+        String commitsUrl = String.format(Helper.getResString(R.string.link_github_commits_url), 30, 1);
+        new Network().get(commitsUrl, response -> {
+            try {
+                if (response != null && getContext() != null) {
+                    Gson gson = new Gson();
+                    AboutResponseModel.CommitDetails[] commitDetailsArray = gson.fromJson(response, AboutResponseModel.CommitDetails[].class);
+                    if (commitDetailsArray != null && commitDetailsArray.length > 0) {
+                        int shaPos = -1;
+                        for (int i = 0; i < commitDetailsArray.length; i++) {
+                            if (commitDetailsArray[i].getSha().equals(BuildConfig.GIT_HASH)) {
+                                shaPos = i;
+                                break;
+                            }
+                        }
+
+                        int bgColor;
+                        int textColor;
+                        if (shaPos == 0) {
+                            // Current Version -> Amber container (same as update_status)
+                            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorAmberContainer);
+                            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnAmberContainer);
+                        } else if (shaPos > 0) {
+                            // New Update -> Cool Green container (same as update_status)
+                            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorCoolGreenContainer);
+                            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnCoolGreenContainer);
+                        } else {
+                            // Old Version -> Violet container (same as update_status)
+                            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorVioletContainer);
+                            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorViolet);
+                        }
+
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                if (modelSelectorContainer != null) {
+                                    modelSelectorContainer.setCardBackgroundColor(bgColor);
+                                }
+                                if (tvCurrentModel != null) {
+                                    tvCurrentModel.setTextColor(textColor);
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        });
     }
 
     public JSONArray getChatHistory() {

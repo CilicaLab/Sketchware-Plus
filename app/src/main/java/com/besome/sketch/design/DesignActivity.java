@@ -326,6 +326,12 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     }
 
     public void refreshViewTabAdapter() {
+        if (projectFile != null && sc_id != null) {
+            ProjectFileBean latest = jC.b(sc_id).a(projectFile.getJavaName());
+            if (latest != null) {
+                projectFile = latest;
+            }
+        }
         if (viewTabAdapter != null && projectFile != null) {
             int orientation = projectFile.orientation;
             if (orientation == ProjectFileBean.ORIENTATION_PORTRAIT) {
