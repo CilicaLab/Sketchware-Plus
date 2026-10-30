@@ -216,22 +216,20 @@ public class SnapshotManager {
     }
 
     private String autoGenerateName(List<String> changedFiles) {
-        String dateStr = new SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault()).format(new Date());
-
         if (changedFiles.isEmpty()) {
-            return "Project Snapshot (" + dateStr + ")";
+            return "Automatic Project Backup";
         }
 
         if (changedFiles.size() == 1) {
             String f = changedFiles.get(0);
             if (f.endsWith(".java") || f.endsWith(".kt")) {
-                return "Edited code: " + getFileName(f) + " (" + dateStr + ")";
+                return "Modified code: " + getFileName(f);
             } else if (f.endsWith(".xml")) {
-                return "Edited layout: " + getFileName(f) + " (" + dateStr + ")";
+                return "Modified layout: " + getFileName(f);
             } else if (f.contains("images/") || f.contains("fonts/") || f.contains("sounds/")) {
-                return "Updated resource: " + getFileName(f) + " (" + dateStr + ")";
+                return "Updated resource: " + getFileName(f);
             } else if (f.contains("project")) {
-                return "Updated project config (" + dateStr + ")";
+                return "Updated project configuration";
             }
         }
 
@@ -246,14 +244,14 @@ public class SnapshotManager {
         }
 
         if (hasCode && !hasLayout && !hasResource) {
-            return "Edited logic & code (" + dateStr + ")";
+            return "Modified source code";
         } else if (hasLayout && !hasCode && !hasResource) {
-            return "Edited layout XML (" + dateStr + ")";
+            return "Modified layout XMLs";
         } else if (hasResource && !hasCode && !hasLayout) {
-            return "Updated assets/resources (" + dateStr + ")";
+            return "Updated assets & resources";
         }
 
-        return "Changed " + changedFiles.size() + " file(s) (" + dateStr + ")";
+        return "Updated " + changedFiles.size() + " project files";
     }
 
     private String getFileName(String path) {

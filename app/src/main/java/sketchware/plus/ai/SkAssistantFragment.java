@@ -786,8 +786,18 @@ public class SkAssistantFragment extends Fragment {
         checkBuildVersionStatus();
     }
 
+    private static int cachedShaPos = -2;
+
     private void checkBuildVersionStatus() {
         if (getContext() == null || tvCurrentModel == null) return;
+
+        if (cachedShaPos != -2) {
+            applyBuildStatusColor(cachedShaPos);
+            return;
+        }
+
+        applyBuildStatusColor(0);
+
         String commitsUrl = String.format(Helper.getResString(R.string.link_github_commits_url), 30, 1);
         new Network().get(commitsUrl, response -> {
             try {
@@ -802,37 +812,40 @@ public class SkAssistantFragment extends Fragment {
                                 break;
                             }
                         }
-
-                        int bgColor;
-                        int textColor;
-                        if (shaPos == 0) {
-                            // Current Version -> Amber container (same as update_status)
-                            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorAmberContainer);
-                            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnAmberContainer);
-                        } else if (shaPos > 0) {
-                            // New Update -> Cool Green container (same as update_status)
-                            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorCoolGreenContainer);
-                            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnCoolGreenContainer);
-                        } else {
-                            // Old Version -> Violet container (same as update_status)
-                            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorVioletContainer);
-                            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorViolet);
-                        }
-
+                        cachedShaPos = shaPos;
                         if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                if (modelSelectorContainer != null) {
-                                    modelSelectorContainer.setCardBackgroundColor(bgColor);
-                                }
-                                if (tvCurrentModel != null) {
-                                    tvCurrentModel.setTextColor(textColor);
-                                }
-                            });
+                            getActivity().runOnUiThread(() -> applyBuildStatusColor(cachedShaPos));
                         }
                     }
                 }
             } catch (Exception ignored) {}
         });
+    }
+
+    private void applyBuildStatusColor(int shaPos) {
+        if (tvCurrentModel == null) return;
+        int bgColor;
+        int textColor;
+        if (shaPos == 0) {
+            // Current Version -> Amber container
+            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorAmberContainer);
+            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnAmberContainer);
+        } else if (shaPos > 0) {
+            // New Update -> Cool Green container
+            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorCoolGreenContainer);
+            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnCoolGreenContainer);
+        } else {
+            // Old Version -> Violet container
+            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorVioletContainer);
+            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorViolet);
+        }
+
+        if (modelSelectorContainer != null) {
+            modelSelectorContainer.setCardBackgroundColor(bgColor);
+        }
+        if (tvCurrentModel != null) {
+            tvCurrentModel.setTextColor(textColor);
+        }
     }
 
     public JSONArray getChatHistory() {
