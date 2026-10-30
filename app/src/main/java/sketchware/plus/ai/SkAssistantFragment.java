@@ -941,7 +941,7 @@ public class SkAssistantFragment extends Fragment {
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
         saveHistory();
-//        HapticManager.vibrateAssistantDone();
+        HapticManager.vibrateAssistantDone();
     }
 
     public void setUndoVisible(boolean visible) {
@@ -1401,11 +1401,7 @@ public class SkAssistantFragment extends Fragment {
     public void refreshDesigner() {
         Activity activity = getActivity();
         if (activity instanceof DesignActivity da) {
-            activity.runOnUiThread(() -> {
-                da.refreshViewTabAdapter();
-                da.refresh();
-                da.refreshComponents();
-            });
+            activity.runOnUiThread(da::refresh);
         }
     }
 

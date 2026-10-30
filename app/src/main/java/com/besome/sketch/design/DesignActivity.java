@@ -179,6 +179,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     private TextView fileName;
     private String currentJavaFileName;
     private ViewEditorFragment viewTabAdapter;
+    private boolean isPageScrolling = false;
+    private boolean pendingRefresh = false;
     private LinearLayout progressContainer;
     private TextView progressText;
     private LinearProgressIndicator progressBar;
@@ -327,7 +329,10 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
     public void refreshViewTabAdapter() {
         if (projectFile != null && sc_id != null) {
-            ProjectFileBean latest = jC.b(sc_id).a(projectFile.getJavaName());
+            ProjectFileBean latest = jC.b(sc_id).b(projectFile.getXmlName());
+            if (latest == null) {
+                latest = jC.b(sc_id).a(projectFile.getJavaName());
+            }
             if (latest != null) {
                 projectFile = latest;
             }
@@ -374,14 +379,20 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     }
 
     public void refresh() {
+        if (isPageScrolling) {
+            pendingRefresh = true;
+            return;
+        }
         refreshFileSelector();
         refreshViewTabAdapter();
-        if (viewPager.getCurrentItem() == 1) {
-            refreshEventTabAdapter();
-        } else if (viewPager.getCurrentItem() == 2) {
-            refreshComponentTabAdapter();
-        } else if (viewPager.getCurrentItem() == 3) {
-            refreshSkAssistant();
+        if (viewPager != null) {
+            if (viewPager.getCurrentItem() == 1) {
+                refreshEventTabAdapter();
+            } else if (viewPager.getCurrentItem() == 2) {
+                refreshComponentTabAdapter();
+            } else if (viewPager.getCurrentItem() == 3) {
+                refreshSkAssistant();
+            }
         }
     }
 
@@ -648,6 +659,15 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
             @Override
             public void onPageScrollStateChanged(int state) {
+                if (state != ViewPager.SCROLL_STATE_IDLE) {
+                    isPageScrolling = true;
+                } else {
+                    isPageScrolling = false;
+                    if (pendingRefresh) {
+                        pendingRefresh = false;
+                        refresh();
+                    }
+                }
             }
 
             @Override
