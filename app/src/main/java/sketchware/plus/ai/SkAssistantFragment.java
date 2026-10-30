@@ -830,8 +830,8 @@ public class SkAssistantFragment extends Fragment {
             // Current Version -> Amber container
             bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorAmberContainer);
             textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnAmberContainer);
-        } else if (shaPos > 0) {
-            // New Update -> Cool Green container
+        } else if (shaPos > 0 || shaPos == -1) {
+            // New Update available -> Cool Green container
             bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorCoolGreenContainer);
             textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnCoolGreenContainer);
         } else {
