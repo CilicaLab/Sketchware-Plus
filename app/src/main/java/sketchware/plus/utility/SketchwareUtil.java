@@ -3,6 +3,8 @@ package sketchware.plus.utility;
 import static sketchware.plus.SketchApplication.getContext;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
@@ -15,6 +17,7 @@ import android.provider.DocumentsContract;
 import android.util.TypedValue;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -174,8 +177,21 @@ public class SketchwareUtil {
         builder.setTitle(Helper.getResString(R.string.common_error_an_error_occurred));
         builder.setIcon(R.drawable.ic_mtrl_warning);
         builder.setMessage(errorMessage);
-        builder.setPositiveButton("Okay", null);
-        builder.show();
+        builder.setPositiveButton(Helper.getResString(R.string.common_word_ok), null);
+        builder.setNeutralButton(Helper.getResString(R.string.common_word_copy), (dialog, which) -> {
+            ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                ClipData clip = ClipData.newPlainText("Error Message", errorMessage);
+                clipboard.setPrimaryClip(clip);
+                SketchwareUtil.toast("Copied to clipboard");
+            }
+        });
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.show();
+        TextView messageView = dialog.findViewById(android.R.id.message);
+        if (messageView != null) {
+            messageView.setTextIsSelectable(true);
+        }
     }
 
     public static void sortListMap(ArrayList<HashMap<String, Object>> listMap, String key, boolean isNumber, boolean ascending) {

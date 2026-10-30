@@ -1,3 +1,5 @@
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+
 def secrets = System.getenv("GOOGLE_SERVICES_JSON")
 def analyticsEnabled = secrets != null
 
@@ -119,8 +121,29 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force "com.google.guava:guava:33.3.1-jre"
+        capabilitiesResolution.withCapability("com.google.collections", "google-collections") {
+            def jreCandidate = candidates.find { it.variantName.contains("jre") }
+            if (jreCandidate != null) {
+                select(jreCandidate)
+            } else {
+                selectHighestVersion()
+            }
+        }
+    }
+}
+
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
+
+    implementation("com.google.guava:guava:33.3.1-jre") {
+        attributes {
+            attribute(TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                    objects.named(TargetJvmEnvironment, TargetJvmEnvironment.STANDARD_JVM))
+        }
+    }
 
     implementation "androidx.appcompat:appcompat:1.8.0"
     implementation "androidx.core:core-splashscreen:1.2.0"
