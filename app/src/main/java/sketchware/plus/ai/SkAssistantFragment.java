@@ -478,7 +478,7 @@ public class SkAssistantFragment extends Fragment {
         });
     }
 
-    private void sendMessage(String prompt) {
+    void sendMessage(String prompt) {
         log("User Prompt: " + prompt);
         isRequestCanceled = false;
         Context context = getContext();
@@ -1845,6 +1845,18 @@ public class SkAssistantFragment extends Fragment {
                     }
                     popupWindow.dismiss();
                 });
+
+                View resendAction = popupView.findViewById(R.id.btn_resend_action);
+                if (resendAction != null) {
+                    resendAction.setVisibility("user".equals(msg.role) ? View.VISIBLE : View.GONE);
+                    resendAction.setOnClickListener(btn -> {
+                        HapticManager.vibrateRun(btn);
+                        if (fragment != null) {
+                            fragment.sendMessage(contentText);
+                        }
+                        popupWindow.dismiss();
+                    });
+                }
 
                 int xOffset = (v.getWidth() - popupWidth) / 2;
                 int yOffset = -(v.getHeight() + popupHeight + 12);
