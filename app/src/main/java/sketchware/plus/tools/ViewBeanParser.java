@@ -3,6 +3,7 @@ package sketchware.plus.tools;
 import static sketchware.plus.SketchApplication.getContext;
 import static sketchware.plus.utility.PropertiesUtil.parseReferName;
 
+import android.util.Log;
 import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup;
@@ -254,7 +255,11 @@ public class ViewBeanParser {
         for (ViewBean bean : beans) {
             var attr = beansAttributes.getOrDefault(bean.id, null);
             if (attr != null) {
-                new ViewBeanFactory(bean).applyAttributes(attr);
+                try {
+                    new ViewBeanFactory(bean).applyAttributes(attr);
+                } catch (Exception e) {
+                    Log.w("SketchwarePlusAI", "Warning applying attributes to view " + bean.id + ": " + e.getMessage(), e);
+                }
             }
         }
         return beans;

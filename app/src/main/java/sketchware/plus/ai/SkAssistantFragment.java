@@ -946,6 +946,12 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void setUndoVisible(boolean visible) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> setUndoVisible(visible));
+            }
+            return;
+        }
         if (btnUndo != null) {
             btnUndo.setVisibility(visible ? View.VISIBLE : View.GONE);
         }

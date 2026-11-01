@@ -3,6 +3,7 @@ package sketchware.plus.ai;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.util.Pair;
 
 import com.besome.sketch.beans.HistoryViewBean;
@@ -57,6 +58,7 @@ public class SketchwareXmlBridge {
 
             return ox.b();
         } catch (Exception e) {
+            Log.e("SketchwarePlusAI", "Error generating raw XML for " + (projectFile != null ? projectFile.getXmlName() : "unknown"), e);
             e.printStackTrace();
             return "<!-- Error generating raw XML: " + e.getMessage() + " -->";
         }
@@ -87,15 +89,23 @@ public class SketchwareXmlBridge {
     }
 
     private static boolean applyAiXmlToSketchwareInternal(Context context, String scId, String xmlName, String aiXml) throws Exception {
+        Log.i("SketchwarePlusAI", "applyAiXmlToSketchwareInternal - Starting layout update for xmlName: " + xmlName + ", scId: " + scId);
         String sanitizedXml = sanitizeAiXmlInput(aiXml);
         String stableXml = reRootWithOriginalConfig(scId, xmlName, sanitizedXml);
 
         ViewBeanParser parser = new ViewBeanParser(stableXml);
         parser.setSkipRoot(true);
 
-        ArrayList<ViewBean> newBeans = parser.parse();
+        ArrayList<ViewBean> newBeans;
+        try {
+            newBeans = parser.parse();
+        } catch (Exception parseEx) {
+            Log.e("SketchwarePlusAI", "Failed to parse AI XML for " + xmlName + ": " + parseEx.getMessage(), parseEx);
+            throw parseEx;
+        }
 
         if (newBeans == null) {
+            Log.e("SketchwarePlusAI", "Failed to parse AI XML into valid ViewBeans: newBeans is null for " + xmlName);
             throw new IllegalArgumentException("Failed to parse AI XML into valid ViewBeans.");
         }
 
@@ -180,6 +190,8 @@ public class SketchwareXmlBridge {
             for (String attr : viewBean.parentAttributes.keySet()) {
                 String targetId = viewBean.parentAttributes.get(attr);
                 if (!detector.isLegalAttribute(targetId, attr)) {
+                    String err = "Circular dependency found in \"" + viewBean.name + "\" for attribute " + attr + " targeting " + targetId;
+                    Log.e("SketchwarePlusAI", err);
                     throw new IllegalArgumentException("Circular dependency found in \"" + viewBean.name + "\"\nPlease resolve the issue before saving");
                 }
             }

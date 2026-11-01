@@ -41,6 +41,7 @@ public class AiViewTreeManager {
     public static void log(String scId, String message) {
         String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
         String formatted = "[" + timestamp + "] [AiViewTreeManager] " + message + "\n";
+        android.util.Log.d("SketchwarePlusAI", message);
 
         if (logPath != null) {
             try {
@@ -170,6 +171,7 @@ public class AiViewTreeManager {
             }
         } catch (Exception e) {
             log("Error processing AI action: " + e.getMessage());
+            android.util.Log.e("SketchwarePlusAI", "Error processing AI action: " + e.getMessage(), e);
             SketchwareUtil.toastError("Action processing failed: " + e.getMessage());
         }
     }

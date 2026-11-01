@@ -1,5 +1,6 @@
 package sketchware.plus.ai;
 
+import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -153,11 +154,13 @@ public class ToolExecutor {
                         javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
                         db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
                     } catch (Exception xmlEx) {
+                        Log.e("SketchwarePlusAI", "Pre-validation failed for apply_layout_xml: " + xmlEx.getMessage(), xmlEx);
                         throw new IllegalArgumentException("Invalid layout XML syntax: " + xmlEx.getMessage());
                     }
                 } else if ("add_java_patch".equals(info.toolName) || "add_xml_patch".equals(info.toolName)) {
                     String inputCode = info.args.optString("inputCode", "");
                     if (inputCode.isEmpty()) {
+                        Log.e("SketchwarePlusAI", "Pre-validation failed for " + info.toolName + ": patch inputCode is empty.");
                         throw new IllegalArgumentException("Patch inputCode cannot be empty.");
                     }
                 }
@@ -167,6 +170,7 @@ public class ToolExecutor {
                 
                 // Check if result indicates an error response
                 if (result.content != null && (result.content.startsWith("Error:") || result.content.startsWith("Error"))) {
+                    Log.w("SketchwarePlusAI", "Tool '" + info.toolName + "' returned an error response: " + result.content);
                     throw new RuntimeException(result.content);
                 }
                 
@@ -184,6 +188,7 @@ public class ToolExecutor {
                     }
                 }
             } catch (Exception e) {
+                Log.e("SketchwarePlusAI", "Tool execution error in '" + toolCalls.get(i).toolName + "': " + e.getMessage(), e);
                 // AUTOMATIC ROLLBACK on write tool failure / exception to prevent bricking workspace
                 if (snapshot != null) {
                     try {
@@ -191,11 +196,13 @@ public class ToolExecutor {
                         if (fragment != null && fragment.scId != null) {
                             String xmlName = fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml";
                             snapshot.restore(fragment.scId, xmlName, orchestrator.getContext());
+                            Log.w("SketchwarePlusAI", "AUTOMATIC ROLLBACK completed successfully for project " + fragment.scId + " / " + xmlName);
                             if (fragment.getActivity() != null) {
-                                fragment.getActivity().runOnUiThread(() -> fragment.refreshDesigner());
+                                fragment.getActivity().runOnUiThread(fragment::refreshDesigner);
                             }
                         }
                     } catch (Exception restoreEx) {
+                        Log.e("SketchwarePlusAI", "Failed to restore project snapshot during rollback", restoreEx);
                         restoreEx.printStackTrace();
                     }
                 }
