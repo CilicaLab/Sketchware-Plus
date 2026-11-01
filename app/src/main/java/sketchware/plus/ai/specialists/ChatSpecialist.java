@@ -17,6 +17,7 @@ public class ChatSpecialist extends BaseSpecialist {
 
     @Override
     public void process(String prompt, String reasoning) {
+        log("[ChatSpecialist.process] ENTRY - prompt: " + prompt + ", reasoning: " + reasoning);
         setStatus("Hold on, let me think...");
         Context androidContext = getContext();
         if (androidContext == null) return;
@@ -46,6 +47,7 @@ public class ChatSpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
+        log("[ChatSpecialist.handleAction] ENTRY - action: " + action);
         // Chat messages are usually handled via the summary field in handleAiResponse
     }
 }

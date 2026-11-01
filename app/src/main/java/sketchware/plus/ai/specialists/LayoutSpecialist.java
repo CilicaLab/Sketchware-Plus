@@ -50,6 +50,7 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     @Override
     public void process(String prompt, String reasoning) {
+        log("[LayoutSpecialist.process] ENTRY - prompt: " + prompt + ", reasoning: " + reasoning);
         setStatus("Grasping layout request...");
         Context androidContext = getContext();
         if (androidContext == null) return;
@@ -151,6 +152,7 @@ public class LayoutSpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
+        log("[LayoutSpecialist.handleAction] ENTRY - action: " + action);
         String type = fragment.normalizeActionType(action.optString("type"));
         switch (type) {
             case "MODIFY_VIEW":

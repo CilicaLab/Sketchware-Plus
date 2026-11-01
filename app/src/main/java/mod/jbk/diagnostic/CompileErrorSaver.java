@@ -5,6 +5,7 @@ import android.content.Intent;
 
 import com.besome.sketch.tools.CompileLogActivity;
 
+import mod.jbk.util.LogUtil;
 import sketchware.plus.utility.FilePathUtil;
 import sketchware.plus.utility.FileUtil;
 
@@ -31,6 +32,7 @@ public class CompileErrorSaver {
      * @param errorText The text to save, if possible, with detailed messages
      */
     public void writeLogsToFile(String errorText) {
+        LogUtil.e("CompileErrorSaver", "Project " + sc_id + " compile/build error:\n" + errorText);
         if (logFileExists()) FileUtil.deleteFile(path);
         FileUtil.writeFile(path, errorText);
     }

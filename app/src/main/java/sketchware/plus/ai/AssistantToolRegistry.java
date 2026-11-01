@@ -38,11 +38,11 @@ public class AssistantToolRegistry {
                         .addProperty("summary", "string", "what changed")
                         .setRequired("xml", "summary").build()));
 
-        t.put(createTool("get_manifest_xml", "Get AndroidManifest.xml content or specific section (permissions, components, application_attributes, full)",
-                new ParameterBuilder().addProperty("section", "string", "optional section name: permissions|components|application_attributes|full").build()));
+        // t.put(createTool("get_manifest_xml", "Dump AndroidManifest.xml or specific section. NOTE: ALWAYS prefer search_manifest instead when searching for specific permissions, activities, services, or tags to save tokens.",
+        //         new ParameterBuilder().addProperty("section", "string", "optional section name: permissions|components|application_attributes|full").build()));
 
-        t.put(createTool("search_manifest", "Search keyword/entry in AndroidManifest.xml",
-                new ParameterBuilder().addProperty("query", "string", "keyword to search").setRequired("query").build()));
+        t.put(createTool("search_manifest", "PREFERRED tool to search/inspect AndroidManifest.xml for permissions, activities, services, tags, or keywords. ALWAYS use search_manifest instead of get_manifest_xml whenever looking for specific entries in the manifest.",
+                new ParameterBuilder().addProperty("query", "string", "keyword, tag, or permission to search (e.g. 'permission', 'activity', 'INTERNET', 'service', 'all')").setRequired("query").build()));
 
         t.put(createTool("inject_imports", "Add imports to current activity",
                 new ParameterBuilder()

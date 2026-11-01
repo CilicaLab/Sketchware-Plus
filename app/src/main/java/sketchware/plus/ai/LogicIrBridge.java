@@ -21,7 +21,13 @@ import java.util.regex.Pattern;
 
 import a.a.a.eC;
 import a.a.a.jC;
+import a.a.a.wq;
 import mod.hilal.saif.blocks.BlocksHandler;
+import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * Bidirectional Intermediate Representation (IR) Bridge for Sketchware Plus AI.
@@ -38,6 +44,61 @@ import mod.hilal.saif.blocks.BlocksHandler;
 public class LogicIrBridge {
 
     private static final String TAG = "LogicIrBridge";
+    private static String logPath;
+    private static String currentScId;
+
+    public static void setLogPath(String path) {
+        logPath = path;
+    }
+
+    public static void setScId(String scId) {
+        currentScId = scId;
+    }
+
+    public static void log(String scId, String message) {
+        Log.d(TAG, message);
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
+        String formatted = "[" + timestamp + "] [LogicIrBridge] " + message + "\n";
+
+        if (logPath != null) {
+            try {
+                File file = new File(logPath);
+                if (!file.exists()) file.createNewFile();
+                FileWriter writer = new FileWriter(file, true);
+                writer.write(formatted);
+                writer.close();
+            } catch (Exception ignored) {}
+        }
+
+        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
+        if (targetScId != null && !targetScId.isEmpty()) {
+            try {
+                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
+                File primaryFile = new File(primaryPath);
+                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
+                    primaryFile.getParentFile().mkdirs();
+                }
+                if (!primaryFile.exists()) primaryFile.createNewFile();
+                FileWriter writer1 = new FileWriter(primaryFile, true);
+                writer1.write(formatted);
+                writer1.close();
+
+                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
+                File secondaryFile = new File(secondaryPath);
+                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
+                    secondaryFile.getParentFile().mkdirs();
+                }
+                if (!secondaryFile.exists()) secondaryFile.createNewFile();
+                FileWriter writer2 = new FileWriter(secondaryFile, true);
+                writer2.write(formatted);
+                writer2.close();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public static void log(String message) {
+        log(null, message);
+    }
 
     // Only matches simple counting loops: for (int i = 0; i < N; i++) style, with < or <=.
     // Anything else (>=, !=, compound conditions, non-standard increments) is intentionally
@@ -66,7 +127,9 @@ public class LogicIrBridge {
      * @return ValidationResult indicating whether the IR is safe to apply.
      */
     public static ValidationResult validateIr(JSONObject ir) {
+        log("validateIr ENTRY - ir present: " + (ir != null));
         if (ir == null) {
+            log("validateIr ERROR: IR JSON object is null");
             return new ValidationResult(false, "IR JSON object is null", "", 0);
         }
         try {

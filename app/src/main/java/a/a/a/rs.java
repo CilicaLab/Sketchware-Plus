@@ -40,7 +40,9 @@ import com.google.android.material.navigationrail.NavigationRailView;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
 
 import mod.hey.studios.moreblock.ReturnMoreblockManager;
 import mod.hey.studios.moreblock.importer.MoreblockImporterDialog;
@@ -148,47 +150,89 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
         currentActivity = projectFileBean;
     }
 
+    private boolean isEventDataChanged(ArrayList<Pair<String, String>> newMoreBlocks, ArrayList<EventBean> newEvents) {
+        if (moreBlocks.size() != newMoreBlocks.size()) return true;
+        for (int i = 0; i < moreBlocks.size(); i++) {
+            Pair<String, String> mb = newMoreBlocks.get(i);
+            EventBean eb = moreBlocks.get(i);
+            if (eb == null || mb == null || !Objects.equals(eb.targetId, mb.first)) {
+                return true;
+            }
+        }
+        int currentTotalEvents = viewEvents.size() + componentEvents.size() + (!activityEvents.isEmpty() ? activityEvents.size() - 1 : 0) + drawerViewEvents.size();
+        if (currentTotalEvents != newEvents.size()) return true;
+
+        return false;
+    }
+
     public void refreshEvents() {
-        if (currentActivity != null) {
-            moreBlocks.clear();
-            viewEvents.clear();
-            componentEvents.clear();
-            activityEvents.clear();
-            drawerViewEvents.clear();
-            for (Pair<String, String> moreBlock : jC.a(sc_id).i(currentActivity.getJavaName())) {
-                EventBean eventBean = new EventBean(EventBean.EVENT_TYPE_ETC, -1, moreBlock.first, "moreBlock");
-                eventBean.initValue();
-                moreBlocks.add(eventBean);
-            }
-            EventBean eventBean2 = new EventBean(EventBean.EVENT_TYPE_ACTIVITY, -1, "onCreate", "initializeLogic");
-            eventBean2.initValue();
-            activityEvents.add(eventBean2);
-            for (EventBean eventBean : jC.a(sc_id).g(currentActivity.getJavaName())) {
-                eventBean.initValue();
-                int i = eventBean.eventType;
-                if (i == EventBean.EVENT_TYPE_VIEW) {
-                    viewEvents.add(eventBean);
-                } else if (i == EventBean.EVENT_TYPE_COMPONENT) {
-                    componentEvents.add(eventBean);
-                } else if (i == EventBean.EVENT_TYPE_ACTIVITY) {
-                    activityEvents.add(eventBean);
-                } else if (i == EventBean.EVENT_TYPE_DRAWER_VIEW) {
-                    drawerViewEvents.add(eventBean);
+        if (currentActivity != null && sc_id != null) {
+            final String javaName = currentActivity.getJavaName();
+            Executors.newSingleThreadExecutor().execute(() -> {
+                ArrayList<Pair<String, String>> newMoreBlocks = jC.a(sc_id).i(javaName);
+                ArrayList<EventBean> newEvents = jC.a(sc_id).g(javaName);
+                if (!isEventDataChanged(newMoreBlocks, newEvents)) {
+                    return;
                 }
-            }
-            if (getPaletteIndex() == -1) {
-                eventAdapter.a(events.get(0));
-                paletteView.setSelectedItemId(R.id.activity);
-            }
-            if (getPaletteIndex() == 4) {
-                importMoreBlockFromCollection.setVisibility(View.VISIBLE);
-            } else {
-                importMoreBlockFromCollection.setVisibility(View.GONE);
-            }
-            if (eventAdapter != null) {
-                eventAdapter.a(events.get(getPaletteIndex()));
-                eventAdapter.notifyDataSetChanged();
-            }
+
+                ArrayList<EventBean> tempMoreBlocks = new ArrayList<>();
+                ArrayList<EventBean> tempViewEvents = new ArrayList<>();
+                ArrayList<EventBean> tempComponentEvents = new ArrayList<>();
+                ArrayList<EventBean> tempActivityEvents = new ArrayList<>();
+                ArrayList<EventBean> tempDrawerViewEvents = new ArrayList<>();
+
+                for (Pair<String, String> moreBlock : newMoreBlocks) {
+                    EventBean eventBean = new EventBean(EventBean.EVENT_TYPE_ETC, -1, moreBlock.first, "moreBlock");
+                    eventBean.initValue();
+                    tempMoreBlocks.add(eventBean);
+                }
+                EventBean eventBean2 = new EventBean(EventBean.EVENT_TYPE_ACTIVITY, -1, "onCreate", "initializeLogic");
+                eventBean2.initValue();
+                tempActivityEvents.add(eventBean2);
+                for (EventBean eventBean : newEvents) {
+                    eventBean.initValue();
+                    int i = eventBean.eventType;
+                    if (i == EventBean.EVENT_TYPE_VIEW) {
+                        tempViewEvents.add(eventBean);
+                    } else if (i == EventBean.EVENT_TYPE_COMPONENT) {
+                        tempComponentEvents.add(eventBean);
+                    } else if (i == EventBean.EVENT_TYPE_ACTIVITY) {
+                        tempActivityEvents.add(eventBean);
+                    } else if (i == EventBean.EVENT_TYPE_DRAWER_VIEW) {
+                        tempDrawerViewEvents.add(eventBean);
+                    }
+                }
+
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        moreBlocks.clear();
+                        viewEvents.clear();
+                        componentEvents.clear();
+                        activityEvents.clear();
+                        drawerViewEvents.clear();
+
+                        moreBlocks.addAll(tempMoreBlocks);
+                        viewEvents.addAll(tempViewEvents);
+                        componentEvents.addAll(tempComponentEvents);
+                        activityEvents.addAll(tempActivityEvents);
+                        drawerViewEvents.addAll(tempDrawerViewEvents);
+
+                        if (getPaletteIndex() == -1) {
+                            eventAdapter.a(events.get(0));
+                            paletteView.setSelectedItemId(R.id.activity);
+                        }
+                        if (getPaletteIndex() == 4) {
+                            importMoreBlockFromCollection.setVisibility(View.VISIBLE);
+                        } else {
+                            importMoreBlockFromCollection.setVisibility(View.GONE);
+                        }
+                        if (eventAdapter != null) {
+                            eventAdapter.a(events.get(getPaletteIndex()));
+                            eventAdapter.notifyDataSetChanged();
+                        }
+                    });
+                }
+            });
         }
     }
 

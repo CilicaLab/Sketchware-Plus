@@ -32,6 +32,7 @@ public class LibrarySpecialist extends BaseSpecialist {
 
     @Override
     public void process(String prompt, String reasoning) {
+        log("[LibrarySpecialist.process] ENTRY - prompt: " + prompt + ", reasoning: " + reasoning);
         setStatus("Checking library dependencies...");
         Context androidContext = getContext();
         if (androidContext == null) return;
@@ -61,6 +62,7 @@ public class LibrarySpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
+        log("[LibrarySpecialist.handleAction] ENTRY - action: " + action);
         String type = action.optString("type");
         String name = action.getString("name");
         if ("ENABLE_LOCAL_LIBRARY".equals(type)) {
@@ -73,10 +75,12 @@ public class LibrarySpecialist extends BaseSpecialist {
     }
 
     public void applyLibrary(String name) {
+        log("[LibrarySpecialist.applyLibrary] ENTRY - name: " + name);
         fragment.addSystemMessage("I'm sorry, I cannot enable or disable built-in libraries (like " + name + ") because I do not have access to them. Please manage them manually through the Library Manager.");
     }
 
     public void applyLocalLibrary(String libName) {
+        log("[LibrarySpecialist.applyLocalLibrary] ENTRY - libName: " + libName);
         try {
             List<LocalLibrary> allAvailable = LocalLibrariesUtil.getAllLocalLibraries();
             LocalLibrary target = null;
@@ -144,6 +148,7 @@ public class LibrarySpecialist extends BaseSpecialist {
     }
 
     public void disableLocalLibrary(String libName) {
+        log("[LibrarySpecialist.disableLocalLibrary] ENTRY - libName: " + libName);
         try {
             ArrayList<HashMap<String, Object>> enabledLibs = LocalLibrariesUtil.getLocalLibraries(getScId());
             boolean removed = false;

@@ -29,6 +29,7 @@ public class ComponentSpecialist extends BaseSpecialist {
 
     @Override
     public void process(String prompt, String reasoning) {
+        log("[ComponentSpecialist.process] ENTRY - prompt: " + prompt + ", reasoning: " + reasoning);
         setStatus("Checking component requirements...");
         Context androidContext = getContext();
         if (androidContext == null) return;
@@ -60,6 +61,7 @@ public class ComponentSpecialist extends BaseSpecialist {
 
     @Override
     public void handleAction(JSONObject action) throws JSONException {
+        log("[ComponentSpecialist.handleAction] ENTRY - action: " + action);
         if ("ADD_COMPONENT".equals(fragment.normalizeActionType(action.optString("type")))) {
             List<String> params = new ArrayList<>();
             JSONArray jParams = action.optJSONArray("params");
@@ -76,6 +78,7 @@ public class ComponentSpecialist extends BaseSpecialist {
     }
 
     public void applyAddComponent(String typeStr, String id, List<String> params, int count) {
+        log("[ComponentSpecialist.applyAddComponent] ENTRY - typeStr: " + typeStr + ", id: " + id + ", count: " + count);
         try {
             int typeVal = -1;
             try {
@@ -86,6 +89,7 @@ public class ComponentSpecialist extends BaseSpecialist {
             }
 
             if (typeVal == -1) {
+                log("[ComponentSpecialist.applyAddComponent] ERROR: Unknown component type: " + typeStr);
                 fragment.addSystemMessage("Unknown component type: " + typeStr);
                 return;
             }
@@ -100,12 +104,14 @@ public class ComponentSpecialist extends BaseSpecialist {
                     .setTitle("Add Component(s)")
                     .setMessage(message)
                     .setPositiveButton("Add", (dialog, which) -> {
+                        log("[ComponentSpecialist.applyAddComponent] User confirmed adding component(s)");
                         fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
                         applyBatchAddComponent(type, id, actualCount, params);
                     })
-                    .setNegativeButton("Cancel", null)
+                    .setNegativeButton("Cancel", (d, w) -> log("[ComponentSpecialist.applyAddComponent] User canceled adding component(s)"))
                     .show();
         } catch (Exception e) {
+            log("[ComponentSpecialist.applyAddComponent] ERROR: " + e.getMessage());
             fragment.addSystemMessage("Error adding component: " + e.getMessage());
         }
     }
@@ -119,6 +125,7 @@ public class ComponentSpecialist extends BaseSpecialist {
     }
 
     public List<String> applyBatchAddComponent(int type, String baseId, int count, List<String> customParams) {
+        log("[ComponentSpecialist.applyBatchAddComponent] ENTRY - type: " + type + ", baseId: " + baseId + ", count: " + count);
         List<String> addedIds = new ArrayList<>();
         try {
             eC dataManager = jC.a(getScId());

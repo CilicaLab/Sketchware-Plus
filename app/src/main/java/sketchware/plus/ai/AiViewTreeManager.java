@@ -14,6 +14,13 @@ import sketchware.plus.tools.ViewBeanParser;
 import sketchware.plus.utility.AttributeConstants;
 import sketchware.plus.utility.SketchwareUtil;
 
+import a.a.a.wq;
+import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 /**
  * Utility class to bridge Sketchware's internal ViewBean system with AI-friendly JSON structures.
  * Provides serialization to nested trees and safe deserialization of AI-generated actions.
@@ -21,21 +28,58 @@ import sketchware.plus.utility.SketchwareUtil;
 public class AiViewTreeManager {
 
     private static String logPath;
+    private static String currentScId;
 
     public static void setLogPath(String path) {
         logPath = path;
     }
 
+    public static void setScId(String scId) {
+        currentScId = scId;
+    }
+
+    public static void log(String scId, String message) {
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
+        String formatted = "[" + timestamp + "] [AiViewTreeManager] " + message + "\n";
+
+        if (logPath != null) {
+            try {
+                File file = new File(logPath);
+                if (!file.exists()) file.createNewFile();
+                FileWriter writer = new FileWriter(file, true);
+                writer.write(formatted);
+                writer.close();
+            } catch (Exception ignored) {}
+        }
+
+        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
+        if (targetScId != null && !targetScId.isEmpty()) {
+            try {
+                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
+                File primaryFile = new File(primaryPath);
+                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
+                    primaryFile.getParentFile().mkdirs();
+                }
+                if (!primaryFile.exists()) primaryFile.createNewFile();
+                FileWriter writer1 = new FileWriter(primaryFile, true);
+                writer1.write(formatted);
+                writer1.close();
+
+                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
+                File secondaryFile = new File(secondaryPath);
+                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
+                    secondaryFile.getParentFile().mkdirs();
+                }
+                if (!secondaryFile.exists()) secondaryFile.createNewFile();
+                FileWriter writer2 = new FileWriter(secondaryFile, true);
+                writer2.write(formatted);
+                writer2.close();
+            } catch (Exception ignored) {}
+        }
+    }
+
     public static void log(String message) {
-        if (logPath == null) return;
-        try {
-            java.io.File file = new java.io.File(logPath);
-            if (!file.exists()) file.createNewFile();
-            java.io.FileWriter writer = new java.io.FileWriter(file, true);
-            String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
-            writer.write("[" + timestamp + "] [Bridge] " + message + "\n");
-            writer.close();
-        } catch (Exception ignored) {}
+        log(null, message);
     }
 
     /**
@@ -43,6 +87,7 @@ public class AiViewTreeManager {
      * This helps the LLM understand the visual hierarchy.
      */
     public static JSONObject buildViewTree(ArrayList<ViewBean> views, ViewBean root) {
+        log("buildViewTree ENTRY - views count: " + (views != null ? views.size() : 0) + ", root: " + (root != null ? root.id : "null"));
         if (root == null) return new JSONObject();
         
         try {
@@ -183,6 +228,7 @@ public class AiViewTreeManager {
     }
 
     private static void applyAttributesWithWhitelist(ViewBean bean, JSONObject attrs) throws Exception {
+        log("applyAttributesWithWhitelist ENTRY - bean id: " + (bean != null ? bean.id : "null") + ", attrs: " + attrs);
         if (attrs == null) return;
         
         Map<String, String> cleanedMap = new HashMap<>();
@@ -205,6 +251,7 @@ public class AiViewTreeManager {
             }
         }
         
+        log("applyAttributesWithWhitelist - applied cleanedMap size: " + cleanedMap.size());
         if (!cleanedMap.isEmpty()) {
             new ViewBeanFactory(bean).applyAttributes(cleanedMap);
         }
@@ -218,6 +265,7 @@ public class AiViewTreeManager {
     }
 
     private static ViewBean findViewById(ArrayList<ViewBean> views, String id) {
+        if (views == null) return null;
         for (ViewBean v : views) {
             if (id.equals(v.id)) return v;
         }
@@ -225,6 +273,8 @@ public class AiViewTreeManager {
     }
 
     private static void deleteViewRecursive(String id, ArrayList<ViewBean> views) {
+        log("deleteViewRecursive ENTRY - id: " + id + ", views size: " + (views != null ? views.size() : 0));
+        if (views == null) return;
         ViewBean target = null;
         for (int i = 0; i < views.size(); i++) {
             if (views.get(i).id.equals(id)) {
@@ -234,6 +284,7 @@ public class AiViewTreeManager {
         }
         
         if (target != null) {
+            log("deleteViewRecursive - deleted target view: " + target.id);
             List<String> children = new ArrayList<>();
             for (ViewBean v : views) {
                 if (id.equals(v.parent)) {

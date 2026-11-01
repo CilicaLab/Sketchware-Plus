@@ -181,6 +181,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     private ViewEditorFragment viewTabAdapter;
     private boolean isPageScrolling = false;
     private boolean pendingRefresh = false;
+    private boolean isViewTabDirty = true;
+    private boolean isEventTabDirty = true;
+    private boolean isComponentTabDirty = true;
+    private boolean isAssistantTabDirty = true;
+    private ProjectFileBean lastRefreshedViewProjectFile = null;
     private LinearLayout progressContainer;
     private TextView progressText;
     private LinearProgressIndicator progressBar;
@@ -328,48 +333,56 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     }
 
     public void refreshViewTabAdapter() {
-        if (projectFile != null && sc_id != null) {
-            ProjectFileBean latest = jC.b(sc_id).b(projectFile.getXmlName());
+        if (projectFile == null || sc_id == null) return;
+
+        final String xmlName = projectFile.getXmlName();
+        final String javaName = projectFile.getJavaName();
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            ProjectFileBean latest = jC.b(sc_id).b(xmlName);
             if (latest == null) {
-                latest = jC.b(sc_id).a(projectFile.getJavaName());
+                latest = jC.b(sc_id).a(javaName);
             }
-            if (latest != null) {
-                projectFile = latest;
-            }
-        }
-        if (viewTabAdapter != null && projectFile != null) {
-            int orientation = projectFile.orientation;
-            if (orientation == ProjectFileBean.ORIENTATION_PORTRAIT) {
-                xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_portrait_grey600_24dp);
-            } else if (orientation == ProjectFileBean.ORIENTATION_LANDSCAPE) {
-                xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_landscape_grey600_24dp);
-            } else {
-                xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_rotation_grey600_24dp);
-            }
-            viewTabAdapter.initialize(projectFile);
-        }
+            final ProjectFileBean targetFile = (latest != null) ? latest : projectFile;
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                projectFile = targetFile;
+                if (viewTabAdapter != null && projectFile != null) {
+                    int orientation = projectFile.orientation;
+                    if (orientation == ProjectFileBean.ORIENTATION_PORTRAIT) {
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_portrait_grey600_24dp);
+                    } else if (orientation == ProjectFileBean.ORIENTATION_LANDSCAPE) {
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_landscape_grey600_24dp);
+                    } else {
+                        xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_rotation_grey600_24dp);
+                    }
+                    if (lastRefreshedViewProjectFile == null || !lastRefreshedViewProjectFile.equals(projectFile)) {
+                        lastRefreshedViewProjectFile = projectFile;
+                        viewTabAdapter.initialize(projectFile);
+                    }
+                }
+            });
+        });
     }
 
     private void refreshEventTabAdapter() {
         if (eventTabAdapter != null && projectFile != null) {
-            if (eventTabAdapter.getCurrentActivity() == null || !eventTabAdapter.getCurrentActivity().equals(projectFile)) {
-                eventTabAdapter.setCurrentActivity(projectFile);
-                eventTabAdapter.refreshEvents();
-            }
+            eventTabAdapter.setCurrentActivity(projectFile);
+            eventTabAdapter.refreshEvents();
         }
     }
 
     private void refreshComponentTabAdapter() {
         if (componentTabAdapter != null && projectFile != null) {
-            if (componentTabAdapter.getProjectFile() == null || !componentTabAdapter.getProjectFile().equals(projectFile)) {
-                componentTabAdapter.setProjectFile(projectFile);
-                componentTabAdapter.refreshData();
-            }
+            componentTabAdapter.setProjectFile(projectFile);
+            componentTabAdapter.refreshData();
         }
     }
 
     public void refreshComponents() {
-        runOnUiThread(this::refreshComponentTabAdapter);
+        isComponentTabDirty = true;
+        runOnUiThread(() -> refresh(false));
     }
 
     private void refreshSkAssistant() {
@@ -378,24 +391,62 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         }
     }
 
+    public void invalidateAllTabs() {
+        isViewTabDirty = true;
+        isEventTabDirty = true;
+        isComponentTabDirty = true;
+        isAssistantTabDirty = true;
+        lastRefreshedViewProjectFile = null;
+    }
+
     public void refresh() {
+        refresh(true);
+    }
+
+    public void refresh(boolean markOthersDirty) {
         if (isPageScrolling) {
             pendingRefresh = true;
             return;
         }
 
+        if (markOthersDirty) {
+            invalidateAllTabs();
+        }
+
         if (viewPager != null) {
-            if (viewPager.getCurrentItem() == 0) {
-                refreshFileSelector();
-                refreshViewTabAdapter();
-                refreshEventTabAdapter();
-            } else if (viewPager.getCurrentItem() == 1) {
-                refreshEventTabAdapter();
+            refreshFileSelector();
+
+            if (isComponentTabDirty) {
                 refreshComponentTabAdapter();
-            } else if (viewPager.getCurrentItem() == 2) {
-                refreshComponentTabAdapter();
-            } else if (viewPager.getCurrentItem() == 3) {
-                refreshSkAssistant();
+            }
+
+
+            int currentItem = viewPager.getCurrentItem();
+            switch (currentItem) {
+                case 0 -> {
+                    if (isViewTabDirty) {
+                        refreshViewTabAdapter();
+                        isViewTabDirty = false;
+                    }
+                }
+                case 1 -> {
+                    if (isEventTabDirty) {
+                        refreshEventTabAdapter();
+                        isEventTabDirty = false;
+                    }
+                }
+                case 2 -> {
+                    if (isComponentTabDirty) {
+                        refreshComponentTabAdapter();
+                        isComponentTabDirty = false;
+                    }
+                }
+                case 3 -> {
+                    if (isAssistantTabDirty) {
+                        refreshSkAssistant();
+                        isAssistantTabDirty = false;
+                    }
+                }
             }
         }
     }
@@ -717,7 +768,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                         viewTabAdapter.showHidePropertyView(false);
                     }
                 }
-                refresh();
+                refresh(false);
                 currentTabNumber = position;
             }
         });
@@ -1009,9 +1060,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         var adapter = new JavaFileAdapter(sc_id);
         adapter.setOnItemClickListener(projectFileBean -> {
             projectFile = projectFileBean;
-            refreshFileSelector();
-            refreshEventTabAdapter();
-            refreshComponentTabAdapter();
+            invalidateAllTabs();
+            refresh(false);
             dialog.dismiss();
         });
         recyclerView.setAdapter(adapter);

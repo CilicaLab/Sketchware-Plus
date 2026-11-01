@@ -15,14 +15,75 @@ import java.util.Map;
 
 import a.a.a.eC;
 import a.a.a.jC;
+import a.a.a.wq;
 import mod.hilal.saif.blocks.BlocksHandler;
 import sketchware.plus.utility.SketchwareUtil;
+import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * A utility designed to assist the AI assistant in seamlessly injecting
  * imports directly into the user's active screen/activity data.
  */
 public class AssistantImportInjector {
+
+    private static String logPath;
+    private static String currentScId;
+
+    public static void setLogPath(String path) {
+        logPath = path;
+    }
+
+    public static void setScId(String scId) {
+        currentScId = scId;
+    }
+
+    public static void log(String scId, String message) {
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
+        String formatted = "[" + timestamp + "] [AssistantImportInjector] " + message + "\n";
+
+        if (logPath != null) {
+            try {
+                File file = new File(logPath);
+                if (!file.exists()) file.createNewFile();
+                FileWriter writer = new FileWriter(file, true);
+                writer.write(formatted);
+                writer.close();
+            } catch (Exception ignored) {}
+        }
+
+        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
+        if (targetScId != null && !targetScId.isEmpty()) {
+            try {
+                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
+                File primaryFile = new File(primaryPath);
+                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
+                    primaryFile.getParentFile().mkdirs();
+                }
+                if (!primaryFile.exists()) primaryFile.createNewFile();
+                FileWriter writer1 = new FileWriter(primaryFile, true);
+                writer1.write(formatted);
+                writer1.close();
+
+                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
+                File secondaryFile = new File(secondaryPath);
+                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
+                    secondaryFile.getParentFile().mkdirs();
+                }
+                if (!secondaryFile.exists()) secondaryFile.createNewFile();
+                FileWriter writer2 = new FileWriter(secondaryFile, true);
+                writer2.write(formatted);
+                writer2.close();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public static void log(String message) {
+        log(null, message);
+    }
 
     /**
      * Injects one or more package imports into the specified project screen data.
@@ -35,7 +96,9 @@ public class AssistantImportInjector {
      * @return true if one or more imports were newly added; false if already existing or on failure.
      */
     public static boolean injectImports(String scId, String javaName, String[] importsToInject, Activity hostActivity) {
+        log(scId, "injectImports ENTRY - scId: " + scId + ", javaName: " + javaName + ", imports count: " + (importsToInject != null ? importsToInject.length : 0));
         if (importsToInject == null || importsToInject.length == 0) {
+            log(scId, "injectImports ABORTED - null or empty importsToInject");
             return false;
         }
 
@@ -184,7 +247,9 @@ public class AssistantImportInjector {
      * @return true if successfully added; false on failure.
      */
     public static boolean injectOnCreateSource(String scId, String javaName, String code, Activity hostActivity) {
+        log(scId, "injectOnCreateSource ENTRY - scId: " + scId + ", javaName: " + javaName + ", code length: " + (code != null ? code.length() : 0));
         if (code == null || code.trim().isEmpty()) {
+            log(scId, "injectOnCreateSource ABORTED - empty or null code");
             return false;
         }
 

@@ -3,6 +3,7 @@ package sketchware.plus.ai;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,6 +16,9 @@ import a.a.a.eC;
 import a.a.a.jC;
 import a.a.a.yq;
 import a.a.a.wq;
+import a.a.a.hC;
+import a.a.a.Ix;
+import sketchware.plus.util.library.BuiltInLibraryManager;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
@@ -25,6 +29,61 @@ import mod.hilal.saif.blocks.BlocksHandler;
  * and calculating parameters for Sketchware Command Blocks.
  */
 public class SourceCodeAide {
+
+    private static String logPath;
+    private static String currentScId;
+
+    public static void setLogPath(String path) {
+        logPath = path;
+    }
+
+    public static void setScId(String scId) {
+        currentScId = scId;
+    }
+
+    public static void log(String scId, String message) {
+        String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
+        String formatted = "[" + timestamp + "] [SourceCodeAide] " + message + "\n";
+
+        if (logPath != null) {
+            try {
+                File file = new File(logPath);
+                if (!file.exists()) file.createNewFile();
+                FileWriter writer = new FileWriter(file, true);
+                writer.write(formatted);
+                writer.close();
+            } catch (Exception ignored) {}
+        }
+
+        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
+        if (targetScId != null && !targetScId.isEmpty()) {
+            try {
+                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
+                File primaryFile = new File(primaryPath);
+                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
+                    primaryFile.getParentFile().mkdirs();
+                }
+                if (!primaryFile.exists()) primaryFile.createNewFile();
+                FileWriter writer1 = new FileWriter(primaryFile, true);
+                writer1.write(formatted);
+                writer1.close();
+
+                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
+                File secondaryFile = new File(secondaryPath);
+                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
+                    secondaryFile.getParentFile().mkdirs();
+                }
+                if (!secondaryFile.exists()) secondaryFile.createNewFile();
+                FileWriter writer2 = new FileWriter(secondaryFile, true);
+                writer2.write(formatted);
+                writer2.close();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public static void log(String message) {
+        log(null, message);
+    }
 
     /**
      * Adds a Java command to the global Java Command Manager file.
@@ -398,5 +457,119 @@ public class SourceCodeAide {
             sb.append(lines[i]).append("\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Generates the live AndroidManifest.xml string for a project using Ix.
+     */
+    public static String getGeneratedManifest(Context context, String scId) {
+        if (context == null || scId == null || scId.isEmpty()) return null;
+        try {
+            eC dataManager = jC.a(scId);
+            hC fileManager = jC.b(scId);
+            yq workspace = new yq(context, scId);
+            BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(scId);
+            Ix manifestGenerator = new Ix(dataManager.l, fileManager.b(), builtInLibManager);
+            manifestGenerator.setYq(workspace);
+            return manifestGenerator.a();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Searches through AndroidManifest.xml by query keyword, XML tag name, or permission string.
+     * @param manifestXml The full AndroidManifest.xml source code.
+     * @param query Search query term (e.g. "permission", "activity", "INTERNET", "service", "all").
+     * @return JSONObject containing status, match count, and list of matching XML snippets.
+     */
+    public static JSONObject searchManifest(String manifestXml, String query) {
+        JSONObject result = new JSONObject();
+        if (manifestXml == null || manifestXml.trim().isEmpty()) {
+            try {
+                result.put("status", "error");
+                result.put("message", "Manifest XML content is empty or null.");
+            } catch (Exception ignored) {}
+            return result;
+        }
+
+        String q = (query != null ? query.trim() : "all").toLowerCase();
+        String[] lines = manifestXml.split("\n");
+        JSONArray matches = new JSONArray();
+
+        try {
+            if (q.isEmpty() || q.equals("all") || q.equals("summary") || q.equals("outline")) {
+                int permissionsCount = 0;
+                int activitiesCount = 0;
+                int servicesCount = 0;
+                int receiversCount = 0;
+                int providersCount = 0;
+
+                JSONArray permissionsList = new JSONArray();
+                JSONArray activitiesList = new JSONArray();
+
+                for (int i = 0; i < lines.length; i++) {
+                    String line = lines[i].trim();
+                    String lineLower = line.toLowerCase();
+                    if (lineLower.contains("<uses-permission")) {
+                        permissionsCount++;
+                        permissionsList.put("Line " + (i + 1) + ": " + line);
+                    } else if (lineLower.contains("<activity")) {
+                        activitiesCount++;
+                        activitiesList.put("Line " + (i + 1) + ": " + line);
+                    } else if (lineLower.contains("<service")) {
+                        servicesCount++;
+                    } else if (lineLower.contains("<receiver")) {
+                        receiversCount++;
+                    } else if (lineLower.contains("<provider")) {
+                        providersCount++;
+                    }
+                }
+
+                result.put("status", "success");
+                result.put("query", q);
+                result.put("totalLines", lines.length);
+                result.put("permissionsCount", permissionsCount);
+                result.put("activitiesCount", activitiesCount);
+                result.put("servicesCount", servicesCount);
+                result.put("receiversCount", receiversCount);
+                result.put("providersCount", providersCount);
+                result.put("permissions", permissionsList);
+                result.put("activities", activitiesList);
+                return result;
+            }
+
+            // Keyword / Tag search
+            for (int i = 0; i < lines.length; i++) {
+                String line = lines[i];
+                if (line.toLowerCase().contains(q)) {
+                    int start = Math.max(0, i - 2);
+                    int end = Math.min(lines.length - 1, i + 2);
+
+                    JSONObject match = new JSONObject();
+                    match.put("line", i + 1);
+                    match.put("matchLine", line.trim());
+                    match.put("snippet", getSnippetRange(lines, start, end));
+                    matches.put(match);
+                }
+            }
+
+            result.put("status", "success");
+            result.put("query", query);
+            result.put("count", matches.length());
+            result.put("matches", matches);
+
+            if (matches.length() == 0) {
+                result.put("status", "not_found");
+                result.put("message", "No elements or lines matching '" + query + "' found in AndroidManifest.xml.");
+            }
+        } catch (Exception e) {
+            try {
+                result.put("status", "error");
+                result.put("message", e.getMessage());
+            } catch (Exception ignored) {}
+        }
+
+        return result;
     }
 }

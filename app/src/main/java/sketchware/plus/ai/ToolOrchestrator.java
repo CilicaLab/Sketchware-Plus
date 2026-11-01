@@ -70,6 +70,9 @@ public class ToolOrchestrator {
      * Starts the autonomous session with the user's prompt.
      */
     public void start(String userPrompt) {
+        if (fragment != null) {
+            fragment.log("ToolOrchestrator.start - userPrompt: " + userPrompt);
+        }
         iterationCount = 0;
         isCanceled = false;
         executionMetrics = new ExecutionMetrics();
@@ -89,6 +92,9 @@ public class ToolOrchestrator {
     }
 
     public void cancel() {
+        if (fragment != null) {
+            fragment.log("ToolOrchestrator.cancel called");
+        }
         isCanceled = true;
         AiClient.cancelCurrentRequest();
     }
@@ -98,6 +104,9 @@ public class ToolOrchestrator {
     }
 
     private void executeLoop(JSONArray chatHistory) {
+        if (fragment != null) {
+            fragment.log("ToolOrchestrator.executeLoop - iteration: " + iterationCount);
+        }
         if (isCanceled) return;
         
         if (iterationCount >= MAX_ITERATIONS) {
@@ -251,13 +260,13 @@ public class ToolOrchestrator {
         return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
-                "1. Inspect before acting. Use get_layout_xml, get_class_outline, list_methods, " +
+                "1. Inspect before acting. Use get_layout_xml, get_class_outline, list_methods, search_manifest, " +
                 "list_project_files, search_project_files, search_in_code, search_chat_history, list_available_components.\n" +
                 "2. Call only tools from the provided list. Never invent tools.\n" +
                 "3. Never web search component IDs. Use list_available_components.\n" +
                 "4. Once you know the action, call the tool immediately. No narration first.\n" +
                 "5. Modifying layouts and UI views: ALWAYS use apply_layout_xml to modify, add, or update Activity layout views. NEVER use add_xml_patch for layout/view XML files like main.xml or Activity layouts.\n" +
-                "6. Manifest patching: Use add_xml_patch EXCLUSIVELY for AndroidManifest.xml (NEVER use add_xml_patch for layout/view XML).\n" +
+                "6. Manifest inspection & patching: Use search_manifest when checking permissions, activities, or manifest tags. Use add_xml_patch EXCLUSIVELY for AndroidManifest.xml (NEVER use add_xml_patch for layout/view XML).\n" +
                 "7. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
                 "8. No redundant tool calls. Reuse info already retrieved.\n" +
@@ -564,9 +573,9 @@ public class ToolOrchestrator {
                 }
                 return success[0] ? "Success: " + summary : "Error: Failed to apply XML. Check syntax.";
 
-            case "get_manifest_xml":
-                String mSection = args.optString("section", "full");
-                return SketchwareManifestBridge.getManifestSection(context, fragment.scId, mSection);
+            // case "get_manifest_xml":
+            //     String mSection = args.optString("section", "full");
+            //     return SketchwareManifestBridge.getManifestSection(context, fragment.scId, mSection);
 
             case "search_manifest":
                 return SketchwareManifestBridge.searchManifest(context, fragment.scId, args.getString("query"));

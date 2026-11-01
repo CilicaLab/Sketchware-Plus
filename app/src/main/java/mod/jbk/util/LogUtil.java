@@ -2,10 +2,14 @@ package mod.jbk.util;
 
 import android.util.Log;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
+
+import sketchware.plus.utility.FileUtil;
 
 public class LogUtil {
     private static boolean loggingEnabled = true;
@@ -19,50 +23,26 @@ public class LogUtil {
         logToLogcatToo = log;
     }
 
-    /**
-     * Similar to {@link Log#d(String, String)}, but to log to {@link System#out}, or while compiling,
-     * /Internal storage/.sketchware/debug.txt
-     */
     public static void d(String tag, String message) {
         d(tag, message, null);
     }
 
-    /**
-     * Similar to {@link Log#d(String, String, Throwable)}, but to log to {@link System#out}, or while compiling,
-     * /Internal storage/.sketchware/debug.txt
-     */
     public static void d(String tag, String message, Throwable throwable) {
         LogUtil.println('D', tag, message, throwable);
     }
 
-    /**
-     * Similar to {@link Log#w(String, String)}, but to log to {@link System#out}, or while compiling,
-     * /Internal storage/.sketchware/debug.txt
-     */
     public static void w(String tag, String message) {
         LogUtil.w(tag, message, null);
     }
 
-    /**
-     * Similar to {@link Log#w(String, String, Throwable)}, but to log to {@link System#out}, or while compiling,
-     * /Internal storage/.sketchware/debug.txt
-     */
     public static void w(String tag, String message, Throwable throwable) {
         LogUtil.println('W', tag, message, throwable);
     }
 
-    /**
-     * Similar to {@link Log#e(String, String)}, but to log to {@link System#out}, or while compiling,
-     * * /Internal storage/.sketchware/debug.txt
-     */
     public static void e(String tag, String message) {
         LogUtil.e(tag, message, null);
     }
 
-    /**
-     * Similar to {@link Log#e(String, String, Throwable)}, but to log to {@link System#out}, or while compiling,
-     * * /Internal storage/.sketchware/debug.txt
-     */
     public static void e(String tag, String message, Throwable throwable) {
         LogUtil.println('E', tag, message, throwable);
     }
@@ -83,6 +63,11 @@ public class LogUtil {
             }
 
             System.out.println(toLog);
+
+            // Log errors and warnings directly to data.log
+            if (type == 'E' || type == 'W' || throwable != null) {
+                logToDataLogFile(toLog.toString());
+            }
         }
 
         if (logToLogcatToo) {
@@ -100,6 +85,33 @@ public class LogUtil {
                     break;
             }
         }
+    }
+
+    private static void logToDataLogFile(String formattedLog) {
+        try {
+            String baseDir = FileUtil.getExternalStorageDir();
+            if (baseDir != null && !baseDir.isEmpty()) {
+                String[] targets = new String[]{
+                        baseDir + File.separator + ".sketchware" + File.separator + "data" + File.separator + "data.log",
+                        baseDir + File.separator + ".sketchware" + File.separator + "mysc" + File.separator + "data.log"
+                };
+
+                for (String path : targets) {
+                    try {
+                        File file = new File(path);
+                        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+                            file.getParentFile().mkdirs();
+                        }
+                        if (!file.exists()) {
+                            file.createNewFile();
+                        }
+                        FileWriter writer = new FileWriter(file, true);
+                        writer.write(formattedLog + "\n");
+                        writer.close();
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     private static String getDateAndTime(long millis) {

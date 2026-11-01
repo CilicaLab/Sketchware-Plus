@@ -237,6 +237,7 @@ public class SkAssistantFragment extends Fragment {
         historyPath = projectMyscPath + "sk_assistant_chat_" + histF + ".json";
         logPath = projectMyscPath + "data.log";
         AiViewTreeManager.setLogPath(logPath);
+        SketchwareManifestBridge.setLogPath(logPath);
         new Thread(this::loadHistory).start();
         log("Assistant Session Started - Activity: " + projectFile.getXmlName());
     }
@@ -1189,15 +1190,8 @@ public class SkAssistantFragment extends Fragment {
                                 }
                             }
                         } else if ("SYSTEM_MANIFEST".equals(category)) {
-                            sb.append("Current Conceptual Manifest (AST Model):\n");
-                            try {
-                                BuiltInLibraryManager builtInLibManager = new BuiltInLibraryManager(scId);
-                                Ix manifestGenerator = new Ix(dataManager.l, fileManager.b(), builtInLibManager);
-                                manifestGenerator.setYq(workspace);
-                                sb.append(manifestGenerator.a()).append("\n");
-                            } catch (Exception e) {
-                                sb.append("Error generating manifest preview: ").append(e.getMessage()).append("\n");
-                            }
+                            sb.append("Manifest Overview: Full manifest XML is omitted from context to save tokens.\n");
+                            sb.append("Use the SEARCH_MANIFEST action (with query: \"permission\", \"activity\", \"service\", \"receiver\", or a specific keyword) to inspect sections of AndroidManifest.xml.\n");
                         } else if ("CUSTOM_DESIGN".equals(category) || "COMPONENT_ARCHITECT".equals(category)) {
                             sb.append("Custom Views: ").append(fileManager.d.size()).append("\n");
                             ArrayList<ComponentBean> components = dataManager.e(projectFile.getJavaName());
@@ -1399,10 +1393,10 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void refreshDesigner() {
-        Activity activity = getActivity();
-        if (activity instanceof DesignActivity da) {
-            activity.runOnUiThread(da::refresh);
-        }
+//        Activity activity = getActivity();
+//        if (activity instanceof DesignActivity da) {
+//            activity.runOnUiThread(da::refresh);
+//        }
     }
 
 

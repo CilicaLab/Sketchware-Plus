@@ -34,7 +34,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
 
 import sketchware.plus.R;
 import sketchware.plus.databinding.FrComponentListBinding;
@@ -51,10 +53,37 @@ public class br extends qA implements View.OnClickListener {
     private FrComponentListBinding binding;
 
     public void refreshData() {
-        if (projectFile != null && adapter != null) {
-            components = jC.a(sc_id).e(projectFile.getJavaName());
-            adapter.notifyDataSetChanged();
+        if (projectFile != null && adapter != null && sc_id != null) {
+            final String javaName = projectFile.getJavaName();
+            Executors.newSingleThreadExecutor().execute(() -> {
+                ArrayList<ComponentBean> newData = jC.a(sc_id).e(javaName);
+                if (isComponentListChanged(components, newData)) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            components = newData;
+                            adapter.notifyDataSetChanged();
+                        });
+                    }
+                }
+            });
         }
+    }
+
+    private boolean isComponentListChanged(ArrayList<ComponentBean> oldList, ArrayList<ComponentBean> newList) {
+        if (oldList == newList) return false;
+        if (oldList == null || newList == null) return true;
+        if (oldList.size() != newList.size()) return true;
+        for (int i = 0; i < oldList.size(); i++) {
+            ComponentBean oldBean = oldList.get(i);
+            ComponentBean newBean = newList.get(i);
+            if (oldBean == null || newBean == null) return true;
+            if (oldBean.type != newBean.type) return true;
+            if (!Objects.equals(oldBean.componentId, newBean.componentId)) return true;
+            if (!Objects.equals(oldBean.param1, newBean.param1)) return true;
+            if (!Objects.equals(oldBean.param2, newBean.param2)) return true;
+            if (!Objects.equals(oldBean.param3, newBean.param3)) return true;
+        }
+        return false;
     }
 
     @Override
@@ -73,6 +102,9 @@ public class br extends qA implements View.OnClickListener {
             sc_id = savedInstanceState.getString("sc_id");
         } else {
             sc_id = requireActivity().getIntent().getStringExtra("sc_id");
+        }
+        if (projectFile != null) {
+            refreshData();
         }
         return binding.getRoot();
     }

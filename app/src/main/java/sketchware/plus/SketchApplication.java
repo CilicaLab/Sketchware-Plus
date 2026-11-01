@@ -11,6 +11,7 @@ import androidx.multidex.MultiDex;
 
 import com.besome.sketch.tools.CollectErrorActivity;
 
+import mod.jbk.util.LogUtil;
 import sketchware.plus.utility.theme.ThemeManager;
 
 public class SketchApplication extends Application {
@@ -32,6 +33,7 @@ public class SketchApplication extends Application {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(@NonNull Thread thread, @NonNull Throwable throwable) {
+                LogUtil.e("CRASH", "Uncaught Exception in Thread: " + thread.getName(), throwable);
                 Intent intent = new Intent(getApplicationContext(), CollectErrorActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 intent.putExtra("error", Log.getStackTraceString(throwable));

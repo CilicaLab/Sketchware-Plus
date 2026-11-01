@@ -19,6 +19,7 @@ public class XmlParsingHelper {
     }
 
     public void resetRetryCount() {
+        if (fragment != null) fragment.log("XmlParsingHelper.resetRetryCount - retryCount reset from " + retryCount + " to 0");
         retryCount = 0;
     }
 
@@ -31,19 +32,25 @@ public class XmlParsingHelper {
             dbf.setNamespaceAware(true);
             javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
             org.w3c.dom.Document doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
-            return doc != null && doc.getDocumentElement() != null;
+            boolean isValid = doc != null && doc.getDocumentElement() != null;
+            return isValid;
         } catch (Exception e) {
             return false;
         }
     }
 
     public void handleXmlError(String editedXml, String errorMessage, String targetXmlName) {
+        if (fragment != null) {
+            fragment.log("XmlParsingHelper.handleXmlError - retryCount: " + retryCount + ", targetXmlName: " + targetXmlName + ", error: " + errorMessage);
+        }
         if (retryCount < MAX_RETRIES) {
             retryCount++;
+            if (fragment != null) fragment.log("XmlParsingHelper.handleXmlError - auto retrying fix (" + retryCount + "/" + MAX_RETRIES + ")");
             fragment.appendSystemMessage("XML Parse Error. Auto retrying fix (" + retryCount + "/" + MAX_RETRIES + ")...");
             autoFixXml(editedXml, errorMessage, targetXmlName);
         } else {
             retryCount = 0;
+            if (fragment != null) fragment.log("XmlParsingHelper.handleXmlError - max retries reached, showing error dialog");
             Context context = fragment.getContext();
             if (context == null) return;
             new MaterialAlertDialogBuilder(context)
@@ -56,6 +63,9 @@ public class XmlParsingHelper {
     }
 
     public void autoFixXml(String failedXml, String errorMessage, String targetXmlName) {
+        if (fragment != null) {
+            fragment.log("XmlParsingHelper.autoFixXml ENTRY - targetXmlName: " + targetXmlName + ", errorMessage: " + errorMessage);
+        }
         String systemPrompt = "The user provided XML that failed to parse. FIX the XML so it parses correctly. " + fragment.getXmlRules();
         String userPrompt = "Failed XML:\n" + failedXml + "\n\nError Message: " + errorMessage + "\n\nPlease provide the corrected XML.";
 
@@ -65,6 +75,7 @@ public class XmlParsingHelper {
         AiClient.askAi(context, systemPrompt, userPrompt, AiClient.AiTemperatureType.CODE_GENERATION, new AiClient.AiCallback() {
             @Override
             public void onSuccess(String response) {
+                if (fragment != null) fragment.log("XmlParsingHelper.autoFixXml SUCCESS - response length: " + (response != null ? response.length() : 0));
                 if (fragment.isRequestCanceled()) return;
                 if (fragment.getActivity() != null) {
                     fragment.getActivity().runOnUiThread(() -> {
@@ -75,6 +86,7 @@ public class XmlParsingHelper {
 
             @Override
             public void onError(String error) {
+                if (fragment != null) fragment.log("XmlParsingHelper.autoFixXml ERROR: " + error);
                 if (fragment.getActivity() != null) {
                     fragment.getActivity().runOnUiThread(() -> {
                         if (!"Canceled".equals(error)) {
