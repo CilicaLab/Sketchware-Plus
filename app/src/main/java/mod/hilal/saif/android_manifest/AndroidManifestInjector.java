@@ -88,9 +88,16 @@ public class AndroidManifestInjector {
 
                 if (value instanceof String) {
                     if ("_application_permissions".equals(name)) {
-                        XmlBuilder usesPermissionTag = new XmlBuilder("uses-permission");
-                        usesPermissionTag.addAttributeValue((String) value);
-                        nx.addChildNode(usesPermissionTag);
+                        String permVal = ((String) value).trim();
+                        if (!permVal.isEmpty()) {
+                            XmlBuilder usesPermissionTag = new XmlBuilder("uses-permission");
+                            if (permVal.contains("=")) {
+                                usesPermissionTag.addAttributeValue(permVal);
+                            } else {
+                                usesPermissionTag.addAttribute("android", "name", permVal);
+                            }
+                            nx.addChildNode(usesPermissionTag);
+                        }
                     }
                 } else {
                     SketchwareUtil.toastError("Invalid AndroidManifest attribute injection value in attribute #" + (i + 1));
