@@ -1399,10 +1399,10 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void refreshDesigner() {
-//        Activity activity = getActivity();
-//        if (activity instanceof DesignActivity da) {
-//            activity.runOnUiThread(da::refresh);
-//        }
+            Activity activity = getActivity();
+             if (activity instanceof DesignActivity da) {
+            activity.runOnUiThread(da::refresh);
+        }
     }
 
 

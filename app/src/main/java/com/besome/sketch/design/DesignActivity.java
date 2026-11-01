@@ -444,6 +444,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 case 3 -> {
                     if (isAssistantTabDirty) {
                         refreshSkAssistant();
+                        refreshViewTabAdapter();
                         isAssistantTabDirty = false;
                     }
                 }

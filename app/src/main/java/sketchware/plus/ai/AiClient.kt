@@ -600,6 +600,7 @@ object AiClient {
     ): JSONObject {
         return JSONObject().apply {
             put("model", model)
+            put("max_tokens", 8192)
             val effectiveTemp = if (tools != null && tools.length() > 0) {
                 temperature.coerceAtMost(0.1f)
             } else {
