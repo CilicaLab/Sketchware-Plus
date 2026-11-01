@@ -44,56 +44,15 @@ import java.util.Locale;
 public class LogicIrBridge {
 
     private static final String TAG = "LogicIrBridge";
-    private static String logPath;
-    private static String currentScId;
 
     public static void setLogPath(String path) {
-        logPath = path;
     }
 
     public static void setScId(String scId) {
-        currentScId = scId;
     }
 
     public static void log(String scId, String message) {
         Log.d(TAG, message);
-        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
-        String formatted = "[" + timestamp + "] [LogicIrBridge] " + message + "\n";
-
-        if (logPath != null) {
-            try {
-                File file = new File(logPath);
-                if (!file.exists()) file.createNewFile();
-                FileWriter writer = new FileWriter(file, true);
-                writer.write(formatted);
-                writer.close();
-            } catch (Exception ignored) {}
-        }
-
-        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
-        if (targetScId != null && !targetScId.isEmpty()) {
-            try {
-                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
-                File primaryFile = new File(primaryPath);
-                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
-                    primaryFile.getParentFile().mkdirs();
-                }
-                if (!primaryFile.exists()) primaryFile.createNewFile();
-                FileWriter writer1 = new FileWriter(primaryFile, true);
-                writer1.write(formatted);
-                writer1.close();
-
-                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
-                File secondaryFile = new File(secondaryPath);
-                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
-                    secondaryFile.getParentFile().mkdirs();
-                }
-                if (!secondaryFile.exists()) secondaryFile.createNewFile();
-                FileWriter writer2 = new FileWriter(secondaryFile, true);
-                writer2.write(formatted);
-                writer2.close();
-            } catch (Exception ignored) {}
-        }
     }
 
     public static void log(String message) {

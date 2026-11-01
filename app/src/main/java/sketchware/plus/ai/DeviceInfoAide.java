@@ -12,12 +12,9 @@ import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
 
-import a.a.a.wq;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -29,55 +26,14 @@ import java.util.TimeZone;
  */
 public class DeviceInfoAide {
 
-    private static String logPath;
-    private static String currentScId;
-
     public static void setLogPath(String path) {
-        logPath = path;
     }
 
     public static void setScId(String scId) {
-        currentScId = scId;
     }
 
     public static void log(String scId, String message) {
-        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
-        String formatted = "[" + timestamp + "] [DeviceInfoAide] " + message + "\n";
-
-        if (logPath != null) {
-            try {
-                File file = new File(logPath);
-                if (!file.exists()) file.createNewFile();
-                FileWriter writer = new FileWriter(file, true);
-                writer.write(formatted);
-                writer.close();
-            } catch (Exception ignored) {}
-        }
-
-        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
-        if (targetScId != null && !targetScId.isEmpty()) {
-            try {
-                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
-                File primaryFile = new File(primaryPath);
-                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
-                    primaryFile.getParentFile().mkdirs();
-                }
-                if (!primaryFile.exists()) primaryFile.createNewFile();
-                FileWriter writer1 = new FileWriter(primaryFile, true);
-                writer1.write(formatted);
-                writer1.close();
-
-                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
-                File secondaryFile = new File(secondaryPath);
-                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
-                    secondaryFile.getParentFile().mkdirs();
-                }
-                if (!secondaryFile.exists()) secondaryFile.createNewFile();
-                FileWriter writer2 = new FileWriter(secondaryFile, true);
-                writer2.write(formatted);
-                writer2.close();
-            } catch (Exception ignored) {}
-        }
+        android.util.Log.d("DeviceInfoAide", message);
     }
 
     public static void log(String message) {

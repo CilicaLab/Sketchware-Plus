@@ -3,7 +3,6 @@ package sketchware.plus.ai;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,55 +29,14 @@ import mod.hilal.saif.blocks.BlocksHandler;
  */
 public class SourceCodeAide {
 
-    private static String logPath;
-    private static String currentScId;
-
     public static void setLogPath(String path) {
-        logPath = path;
     }
 
     public static void setScId(String scId) {
-        currentScId = scId;
     }
 
     public static void log(String scId, String message) {
-        String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
-        String formatted = "[" + timestamp + "] [SourceCodeAide] " + message + "\n";
-
-        if (logPath != null) {
-            try {
-                File file = new File(logPath);
-                if (!file.exists()) file.createNewFile();
-                FileWriter writer = new FileWriter(file, true);
-                writer.write(formatted);
-                writer.close();
-            } catch (Exception ignored) {}
-        }
-
-        String targetScId = (scId != null && !scId.isEmpty()) ? scId : currentScId;
-        if (targetScId != null && !targetScId.isEmpty()) {
-            try {
-                String primaryPath = wq.b(targetScId) + File.separator + "data.log";
-                File primaryFile = new File(primaryPath);
-                if (primaryFile.getParentFile() != null && !primaryFile.getParentFile().exists()) {
-                    primaryFile.getParentFile().mkdirs();
-                }
-                if (!primaryFile.exists()) primaryFile.createNewFile();
-                FileWriter writer1 = new FileWriter(primaryFile, true);
-                writer1.write(formatted);
-                writer1.close();
-
-                String secondaryPath = wq.d(targetScId) + File.separator + "data.log";
-                File secondaryFile = new File(secondaryPath);
-                if (secondaryFile.getParentFile() != null && !secondaryFile.getParentFile().exists()) {
-                    secondaryFile.getParentFile().mkdirs();
-                }
-                if (!secondaryFile.exists()) secondaryFile.createNewFile();
-                FileWriter writer2 = new FileWriter(secondaryFile, true);
-                writer2.write(formatted);
-                writer2.close();
-            } catch (Exception ignored) {}
-        }
+        android.util.Log.d("SourceCodeAide", message);
     }
 
     public static void log(String message) {

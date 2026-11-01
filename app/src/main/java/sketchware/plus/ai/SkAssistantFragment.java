@@ -68,7 +68,6 @@ import org.json.JSONObject;
 import android.app.ProgressDialog;
 import android.widget.Toast;
 
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
@@ -151,7 +150,6 @@ public class SkAssistantFragment extends Fragment {
     private ObjectAnimator fabBounceAnimator;
     public final List<Message> messages = new ArrayList<>();
     private String historyPath;
-    private String logPath;
     public Button btnUndo;
     private MaterialButton btnSend;
     private EditText etInput;
@@ -235,9 +233,6 @@ public class SkAssistantFragment extends Fragment {
             histF = projectFile.getXmlName();
         }
         historyPath = projectMyscPath + "sk_assistant_chat_" + histF + ".json";
-        logPath = projectMyscPath + "data.log";
-        AiViewTreeManager.setLogPath(logPath);
-        SketchwareManifestBridge.setLogPath(logPath);
         new Thread(this::loadHistory).start();
         log("Assistant Session Started - Activity: " + projectFile.getXmlName());
     }
@@ -1424,15 +1419,7 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void log(String message) {
-        if (logPath == null) return;
-        try {
-            File file = new File(logPath);
-            if (!file.exists()) file.createNewFile();
-            FileWriter writer = new FileWriter(file, true);
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
-            writer.write("[" + timestamp + "] " + message + "\n");
-            writer.close();
-        } catch (Exception ignored) {}
+        android.util.Log.d("SkAssistant", message);
     }
 
     public String normalizeActionType(String type) {
