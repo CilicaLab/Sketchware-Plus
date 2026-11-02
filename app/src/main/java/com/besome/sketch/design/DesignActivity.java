@@ -1029,6 +1029,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
     private void showCurrentActivitySrcCode() {
         if (projectFile == null) return;
+        k();
         new Thread(() -> {
             var filename = Helper.getText(fileName);
             String code;
@@ -1040,6 +1041,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 }
             }
             runOnUiThread(() -> {
+                h();
                 if (isFinishing()) return;
                 if (code.isEmpty()) {
                     SketchwareUtil.toast("Failed to generate source.");

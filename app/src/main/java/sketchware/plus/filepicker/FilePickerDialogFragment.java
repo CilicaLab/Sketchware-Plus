@@ -32,24 +32,45 @@ import sketchware.plus.utility.FileUtil;
 
 public class FilePickerDialogFragment extends BottomSheetDialogFragment {
 
-    private final FilePickerOptions options;
-    private final FilePickerCallback callback;
+    private FilePickerOptions options;
+    private FilePickerCallback callback;
 
     private File currentDirectory;
     private FilePickerAdapter adapter;
     private TextView tvCurrentPath;
     private int sortMode = 0; // 0=A-Z, 1=Z-A, 2=Modified Newest, 3=Modified Oldest, 4=Size Largest, 5=Size Smallest
 
+    /**
+     * Required public default constructor for FragmentManager instantiation and state restoration.
+     */
+    public FilePickerDialogFragment() {
+        this.options = new FilePickerOptions();
+        this.callback = null;
+        this.currentDirectory = initDirectory(this.options);
+    }
+
     public FilePickerDialogFragment(FilePickerOptions options, FilePickerCallback callback) {
         this.options = options != null ? options : new FilePickerOptions();
         this.callback = callback;
-        this.currentDirectory = this.options.getInitialDirectory();
-        if (this.currentDirectory == null || !this.currentDirectory.exists() || !this.currentDirectory.canRead()) {
-            this.currentDirectory = Environment.getExternalStorageDirectory();
-            if (this.currentDirectory == null || !this.currentDirectory.exists()) {
-                this.currentDirectory = new File("/storage/emulated/0");
+        this.currentDirectory = initDirectory(this.options);
+    }
+
+    private static File initDirectory(FilePickerOptions options) {
+        File dir = options != null ? options.getInitialDirectory() : null;
+        if (dir == null || !dir.exists() || !dir.canRead()) {
+            dir = Environment.getExternalStorageDirectory();
+            if (dir == null || !dir.exists()) {
+                dir = new File("/storage/emulated/0");
             }
         }
+        return dir;
+    }
+
+    private FilePickerOptions getOptions() {
+        if (options == null) {
+            options = new FilePickerOptions();
+        }
+        return options;
     }
 
     @NonNull
@@ -78,8 +99,8 @@ public class FilePickerDialogFragment extends BottomSheetDialogFragment {
 
         tvCurrentPath = view.findViewById(R.id.tv_current_path);
         TextView tvTitle = view.findViewById(R.id.tv_title);
-        if (tvTitle != null && options.getTitle() != null) {
-            tvTitle.setText(options.getTitle());
+        if (tvTitle != null && getOptions().getTitle() != null) {
+            tvTitle.setText(getOptions().getTitle());
         }
 
         RecyclerView recyclerView = view.findViewById(R.id.recycler_files);
@@ -90,7 +111,7 @@ public class FilePickerDialogFragment extends BottomSheetDialogFragment {
         TextView tvSelection = view.findViewById(R.id.tv_selection);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false));
-        adapter = new FilePickerAdapter(options.isMultipleSelection(), options.getSelectionMode(), file -> {
+        adapter = new FilePickerAdapter(getOptions().isMultipleSelection(), getOptions().getSelectionMode(), file -> {
             if (file.isDirectory()) {
                 loadDirectory(file);
             }
@@ -247,7 +268,7 @@ public class FilePickerDialogFragment extends BottomSheetDialogFragment {
     }
 
     private boolean isValidExtension(File file) {
-        String[] ext = options.getExtensions();
+        String[] ext = getOptions().getExtensions();
         if (ext == null || ext.length == 0) return true;
         String name = file.getName().toLowerCase(Locale.ROOT);
         for (String e : ext) {

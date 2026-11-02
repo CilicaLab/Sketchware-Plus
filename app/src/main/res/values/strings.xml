@@ -2300,9 +2300,9 @@ Please try again later"</string>
     <!--  links  -->
     <string name="link_github_release">https://github.com/CilicaLab/Sketchware-Plus/releases</string>
     <string name="link_docs_url">https://docs.sketchware.pro</string>
-    <string name="link_ideas_url">https://discord.gg/4uxhMwCt</string>
+    <string name="link_ideas_url">https://discord.gg/gTsZ6zpJNr</string>
     <string name="link_discord_invite">https://discord.gg/gTsZ6zpJNr</string>
-    <string name="link_telegram_invite">https://t.me/sketchwarepro</string>
+    <string name="link_telegram_invite">https://t.me/cilicalab</string>
     <string name="link_about_team">https://raw.githubusercontent.com/CilicaLab/Sketchware-Plus/master/about.json</string>
     <string name="link_github_commits_url"><![CDATA[https://api.github.com/repos/CilicaLab/Sketchware-Plus/commits?per_page=%s&page=%s]]></string>
     <string name="github_api_error_message">Something went wrong. Please wait and try again.</string>
