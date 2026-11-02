@@ -24,6 +24,7 @@ import a.a.a.eC;
 import a.a.a.jC;
 import a.a.a.yq;
 import mod.hilal.saif.components.ComponentsHandler;
+import sketchware.plus.ai.specialists.ComponentSpecialist;
 import sketchware.plus.utility.HapticManager;
 import sketchware.plus.utility.SketchwareUtil;
 
@@ -51,6 +52,10 @@ public class ToolOrchestrator {
     private String baseSystemPrompt = null;
     private String lastAssistantMessage = "";
     private ExecutionMetrics executionMetrics = new ExecutionMetrics();
+    private String lastToolName = null;
+    private String lastToolArgs = null;
+    private int duplicateToolCallCount = 0;
+    private int consecutiveReadSearchCount = 0;
 
     public ToolOrchestrator(SkAssistantFragment fragment) {
         this.fragment = fragment;
@@ -78,6 +83,10 @@ public class ToolOrchestrator {
         executionMetrics = new ExecutionMetrics();
         lastAssistantMessage = "";
         baseSystemPrompt = null;  // Reset for fresh build
+        lastToolName = null;
+        lastToolArgs = null;
+        duplicateToolCallCount = 0;
+        consecutiveReadSearchCount = 0;
 
         // Start a fresh history for this specific request only to prevent context distraction
         JSONArray freshSessionHistory = new JSONArray();
@@ -255,7 +264,8 @@ public class ToolOrchestrator {
                     "2. When updating or patching code/XML, use apply_layout_xml, add_java_patch, or add_xml_patch, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
                     "3. Call only tools from the provided list. Never invent tools.\n" +
                     "4. Once you know the action, call the tool immediately. No narration first.\n" +
-                    "5. When finished, reply with a brief summary of changes and make no tool calls.";
+                    "5. When finished, reply with a brief summary of changes and make no tool calls.\n" +
+                    "6. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. Execute ONCE and immediately reply to the user.";
         }
         return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
@@ -271,7 +281,10 @@ public class ToolOrchestrator {
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
                 "8. No redundant tool calls. Reuse info already retrieved.\n" +
                 "9. Tool arguments must be valid JSON.\n" +
-                "10. When finished, reply with a brief summary of changes and make no tool calls.";
+                "10. When finished, reply with a brief summary of changes and make no tool calls.\n" +
+                "11. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
+                "12. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, search_in_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
+                "13. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.";
     }
 
     private String buildMetricsContext() {
@@ -431,6 +444,73 @@ public class ToolOrchestrator {
                 assistantMsg.put("content", thought != null ? thought : JSONObject.NULL);
                 assistantMsg.put("tool_calls", sanitizedToolCalls);
                 chatHistory.put(assistantMsg);
+
+                // Check for duplicate tool call loop
+                if (toolCalls.length() == 1) {
+                    try {
+                        JSONObject call = toolCalls.getJSONObject(0);
+                        JSONObject fn = call.optJSONObject("function");
+                        if (fn != null) {
+                            String tName = fn.optString("name", "");
+                            String tArgs = fn.optString("arguments", "");
+                            if (tName.equals(lastToolName) && tArgs.equals(lastToolArgs)) {
+                                duplicateToolCallCount++;
+                                if (duplicateToolCallCount >= 2) {
+                                    JSONObject toolResultMsg = new JSONObject();
+                                    toolResultMsg.put("role", "tool");
+                                    toolResultMsg.put("tool_call_id", call.optString("id", "call_loop_prevented"));
+                                    toolResultMsg.put("name", tName);
+                                    toolResultMsg.put("content", "Error: Duplicate tool call loop detected. You have already executed this exact action successfully. Stop calling tools and reply to the user now.");
+                                    chatHistory.put(toolResultMsg);
+
+                                    mainHandler.post(() -> {
+                                        fragment.setStatus(null);
+                                        executeLoop(chatHistory);
+                                    });
+                                    return;
+                                }
+                            } else {
+                                lastToolName = tName;
+                                lastToolArgs = tArgs;
+                                duplicateToolCallCount = 0;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                // Check for excessive consecutive read/search operations (anti-searching loop)
+                boolean allReadOrSearch = true;
+                for (int i = 0; i < toolCalls.length(); i++) {
+                    JSONObject call = toolCalls.optJSONObject(i);
+                    JSONObject fn = call != null ? call.optJSONObject("function") : null;
+                    String tName = fn != null ? fn.optString("name", "") : "";
+                    if (!tName.matches("(list_.*|get_.*|read_.*|search_.*|web_.*)")) {
+                        allReadOrSearch = false;
+                        break;
+                    }
+                }
+
+                if (allReadOrSearch) {
+                    consecutiveReadSearchCount += toolCalls.length();
+                    if (consecutiveReadSearchCount >= 3) {
+                        try {
+                            JSONObject toolResultMsg = new JSONObject();
+                            toolResultMsg.put("role", "tool");
+                            toolResultMsg.put("tool_call_id", toolCalls.getJSONObject(0).optString("id", "call_search_limit"));
+                            toolResultMsg.put("name", toolCalls.getJSONObject(0).optJSONObject("function").optString("name", "search"));
+                            toolResultMsg.put("content", "Error: You have performed too many search/read operations in a row. Stop searching history or files, synthesize what you have found, and provide your final response to the user now.");
+                            chatHistory.put(toolResultMsg);
+
+                            mainHandler.post(() -> {
+                                fragment.setStatus(null);
+                                executeLoop(chatHistory);
+                            });
+                            return;
+                        } catch (Exception ignored) {}
+                    }
+                } else {
+                    consecutiveReadSearchCount = 0;
+                }
 
                 // Use ToolExecutor for optimized parallel/sequential execution
                 toolExecutor.executeBatch(toolCalls, new ToolExecutor.Callback() {
@@ -689,9 +769,12 @@ public class ToolOrchestrator {
                 return "Permission " + perm + " added successfully.";
 
             case "add_component": {
+                int typeId = args.getInt("type");
+                if (!ComponentSpecialist.isValidComponentType(typeId)) {
+                    return "Error: Component type ID " + typeId + " does not exist. Please use list_available_components to check valid component types.";
+                }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
-                int typeId = args.getInt("type");
                 String requestedId = args.getString("id");
                 int count = args.optInt("count", 1);
                 

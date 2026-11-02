@@ -1711,15 +1711,15 @@ public class SkAssistantFragment extends Fragment {
 
         private void runPopInAnimation(View view) {
             if (view == null) return;
-            view.setScaleX(0.85f);
-            view.setScaleY(0.85f);
+            view.setScaleX(0.8f);
+            view.setScaleY(0.8f);
             view.setAlpha(0f);
             view.animate()
                     .scaleX(1.0f)
                     .scaleY(1.0f)
                     .alpha(1.0f)
-                    .setDuration(580)
-                    .setInterpolator(new OvershootInterpolator(1.0f))
+                    .setDuration(550)
+                    .setInterpolator(new OvershootInterpolator(1.8f))
                     .start();
         }
 

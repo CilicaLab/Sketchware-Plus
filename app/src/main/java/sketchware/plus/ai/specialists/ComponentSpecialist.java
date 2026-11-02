@@ -88,9 +88,9 @@ public class ComponentSpecialist extends BaseSpecialist {
                 typeVal = ComponentsHandler.id(typeStr);
             }
 
-            if (typeVal == -1) {
-                log("[ComponentSpecialist.applyAddComponent] ERROR: Unknown component type: " + typeStr);
-                fragment.addSystemMessage("Unknown component type: " + typeStr);
+            if (typeVal == -1 || !isValidComponentType(typeVal)) {
+                log("[ComponentSpecialist.applyAddComponent] ERROR: Unknown or non-existent component type: " + typeStr);
+                fragment.addSystemMessage("Unknown or non-existent component type: " + typeStr + ". Use list_available_components to view valid types.");
                 return;
             }
             final int type = typeVal;
@@ -124,9 +124,25 @@ public class ComponentSpecialist extends BaseSpecialist {
         return applyBatchAddComponent(type, baseId, count, null);
     }
 
+    public static boolean isValidComponentType(int type) {
+        if (type <= 0) return false;
+        try {
+            String name = ComponentBean.getComponentTypeName(type);
+            return name != null && !name.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public List<String> applyBatchAddComponent(int type, String baseId, int count, List<String> customParams) {
         log("[ComponentSpecialist.applyBatchAddComponent] ENTRY - type: " + type + ", baseId: " + baseId + ", count: " + count);
         List<String> addedIds = new ArrayList<>();
+        if (!isValidComponentType(type)) {
+            String errMsg = "Error: Component type ID " + type + " does not exist. Use list_available_components to check valid component types.";
+            log("[ComponentSpecialist.applyBatchAddComponent] " + errMsg);
+            fragment.addSystemMessage(errMsg);
+            return addedIds;
+        }
         try {
             eC dataManager = jC.a(getScId());
             String javaName = getProjectFile().getJavaName();
