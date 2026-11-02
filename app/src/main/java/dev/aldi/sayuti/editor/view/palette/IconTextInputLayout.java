@@ -29,7 +29,7 @@ public class IconTextInputLayout extends IconBase implements AndroidxOrMaterialV
         viewBean.layout.paddingRight = 0;
         viewBean.layout.paddingBottom = 0;
         viewBean.convert = "com.google.android.material.textfield.TextInputLayout";
-        viewBean.inject = "style=\"@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox\"";
+        viewBean.inject = "style=\"@style/Widget.Material3.TextInputLayout.OutlinedBox\"";
         return viewBean;
     }
 }

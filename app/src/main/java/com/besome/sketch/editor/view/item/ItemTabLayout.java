@@ -33,9 +33,18 @@ public class ItemTabLayout extends TabLayout implements ItemView {
         setDrawingCacheEnabled(true);
         setClickable(false);
         setFocusable(false);
+        setBackgroundColor(android.graphics.Color.TRANSPARENT);
         addTab(newTab().setText("Tab 1"), true);
         addTab(newTab().setText("Tab 2"));
         addTab(newTab().setText("Tab 3"));
+        setSelectedTabIndicatorGravity(INDICATOR_GRAVITY_BOTTOM);
+        setTabMode(MODE_FIXED);
+        setTabGravity(GRAVITY_FILL);
+
+        int primaryColor = com.google.android.material.color.MaterialColors.getColor(this, sketchware.plus.R.attr.colorPrimary, 0xFF1976D2);
+        int onSurfaceVariant = com.google.android.material.color.MaterialColors.getColor(this, sketchware.plus.R.attr.colorOnSurfaceVariant, 0xFF757575);
+        setTabTextColors(onSurfaceVariant, primaryColor);
+        setSelectedTabIndicatorColor(primaryColor);
     }
 
     @Override

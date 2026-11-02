@@ -1397,9 +1397,12 @@ public class ViewPane extends RelativeLayout {
             default -> TabLayout.MODE_FIXED;
         });
         tabLayout.setSelectedTabIndicatorHeight(PropertiesUtil.resolveSize(indicatorHeight, 3));
-        tabLayout.setSelectedTabIndicatorColor(PropertiesUtil.isHexColor(indicatorColor) ? PropertiesUtil.parseColor(indicatorColor) : 0xffffc107);
-        int tabTextColor = PropertiesUtil.isHexColor(textColor) ? PropertiesUtil.parseColor(textColor) : 0xff57beee;
-        int tabSelectedTextColor = PropertiesUtil.isHexColor(selectedTextColor) ? PropertiesUtil.parseColor(selectedTextColor) : Color.WHITE;
+        int defaultPrimary = com.google.android.material.color.MaterialColors.getColor(tabLayout, sketchware.plus.R.attr.colorPrimary, 0xFF1976D2);
+        int defaultOnSurfaceVariant = com.google.android.material.color.MaterialColors.getColor(tabLayout, sketchware.plus.R.attr.colorOnSurfaceVariant, 0xFF757575);
+
+        tabLayout.setSelectedTabIndicatorColor(PropertiesUtil.isHexColor(indicatorColor) ? PropertiesUtil.parseColor(indicatorColor) : defaultPrimary);
+        int tabTextColor = PropertiesUtil.isHexColor(textColor) ? PropertiesUtil.parseColor(textColor) : defaultOnSurfaceVariant;
+        int tabSelectedTextColor = PropertiesUtil.isHexColor(selectedTextColor) ? PropertiesUtil.parseColor(selectedTextColor) : defaultPrimary;
         tabLayout.setTabTextColors(tabTextColor, tabSelectedTextColor);
     }
 

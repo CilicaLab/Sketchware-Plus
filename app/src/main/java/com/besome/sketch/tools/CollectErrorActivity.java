@@ -4,10 +4,12 @@ import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,16 +38,29 @@ public class CollectErrorActivity extends BaseAppCompatActivity {
         Intent intent = getIntent();
         final String error = (intent != null && intent.hasExtra("error")) ? intent.getStringExtra("error") : "Unknown error";
 
-        var dialog = new MaterialAlertDialogBuilder(this)
+        var dialogBuilder = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.common_error_an_error_occurred)
                 .setMessage("An error occurred while running Sketchware Plus. Would you like to send this crash report?\n\n" + error)
                 .setPositiveButton("Send", (dialogInterface, which) -> sendCrashReport(error))
-                .setNeutralButton("Copy", (dialogInterface, which) -> copyToClipboard(error))
+                .setNeutralButton("Copy", null)
                 .setNegativeButton("Cancel", (dialogInterface, which) -> finish())
-                .setCancelable(false)
-                .show();
+                .setOnDismissListener(dialogInterface -> {
+                    if (!isFinishing()) {
+                        finish();
+                    }
+                })
+                .setCancelable(false);
 
-        TextView messageView = dialog.findViewById(android.R.id.message);
+        var alertDialog = dialogBuilder.create();
+        alertDialog.setOnShowListener(d -> {
+            Button copyButton = alertDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
+            if (copyButton != null) {
+                copyButton.setOnClickListener(v -> copyToClipboard(error));
+            }
+        });
+        alertDialog.show();
+
+        TextView messageView = alertDialog.findViewById(android.R.id.message);
         if (messageView != null) {
             messageView.setTextIsSelectable(true);
         }

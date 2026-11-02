@@ -43,6 +43,7 @@ public class ItemCardView extends MaterialCardView implements ItemView, ScrollCo
         setDrawingCacheEnabled(true);
         setMinimumWidth((int) wB.a(context, 32.0f));
         setMinimumHeight((int) wB.a(context, 32.0f));
+        setRadius(wB.a(context, 12.0f));
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     }
 
