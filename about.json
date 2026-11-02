@@ -11,10 +11,10 @@
   ],
   "changelog": [
     {
-      "title": "v7.0.0 Release",
-      "description": "- Featuring SK Assistant AI integration for code generation and bug fixing\n- Modern Android SDK & Jetpack library support\n- Kotlin source compilation and enhanced project builder\n- Automated UI & Manifest refactoring",
-      "releaseDate": 1709251200000,
-      "isBeta": false,
+      "title": "In Development",
+      "description": "No official release published yet. Stay tuned for upcoming releases!",
+      "releaseDate": 0,
+      "isBeta": true,
       "isTitled": true
     }
   ]
