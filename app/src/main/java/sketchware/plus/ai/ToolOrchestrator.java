@@ -715,12 +715,39 @@ public class ToolOrchestrator {
 
             case "add_java_patch":
             case "add_xml_patch":
+                String ref = args.optString("reference", "");
+                String input = args.optString("inputCode", "");
+                if (ref.isEmpty() || input.isEmpty()) {
+                    return "Error: 'reference' and 'inputCode' parameters cannot be empty.";
+                }
+
                 if ("add_xml_patch".equals(name)) {
                     String targetXml = args.optString("xmlName", "");
                     if (!"AndroidManifest.xml".equalsIgnoreCase(targetXml)) {
                         return "Error: 'add_xml_patch' is strictly prohibited for layout/view XML files like '" + targetXml + "'. To modify Activity views and layouts, you MUST use the 'apply_layout_xml' tool.";
                     }
+                    String manifestSrc = SourceCodeAide.getGeneratedManifest(context, fragment.scId);
+                    if (manifestSrc != null && !manifestSrc.contains(ref)) {
+                        return "Error: Reference anchor line '" + ref + "' was not found in AndroidManifest.xml. Please use search_manifest to find the exact existing tag or line before patching.";
+                    }
+                } else {
+                    String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
+                    String javaSrc;
+                    if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
+                        javaSrc = ((SkAssistantDialog.CodeEditorProvider) fragment.getActivity()).getCodeText();
+                    } else {
+                        javaSrc = new yq(context, fragment.scId).getFileSrc(
+                            javaName, 
+                            jC.b(fragment.scId),
+                            jC.a(fragment.scId),
+                            jC.c(fragment.scId)
+                        );
+                    }
+                    if (javaSrc != null && !javaSrc.contains(ref)) {
+                        return "Error: Reference anchor line '" + ref + "' was not found in " + javaName + ". Please use search_in_code or read_method to find the exact existing line before patching.";
+                    }
                 }
+
                 if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
                     SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
                     String newCode = args.optString("inputCode", args.optString("command", ""));
