@@ -151,6 +151,7 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
     }
 
     private boolean isEventDataChanged(ArrayList<Pair<String, String>> newMoreBlocks, ArrayList<EventBean> newEvents) {
+        if (activityEvents == null || activityEvents.isEmpty()) return true;
         if (moreBlocks.size() != newMoreBlocks.size()) return true;
         for (int i = 0; i < moreBlocks.size(); i++) {
             Pair<String, String> mb = newMoreBlocks.get(i);
@@ -159,7 +160,7 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
                 return true;
             }
         }
-        int currentTotalEvents = viewEvents.size() + componentEvents.size() + (!activityEvents.isEmpty() ? activityEvents.size() - 1 : 0) + drawerViewEvents.size();
+        int currentTotalEvents = viewEvents.size() + componentEvents.size() + (activityEvents.size() - 1) + drawerViewEvents.size();
         if (currentTotalEvents != newEvents.size()) return true;
 
         return false;
