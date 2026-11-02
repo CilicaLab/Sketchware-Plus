@@ -82,14 +82,16 @@
 
                     <com.google.android.material.tabs.TabLayout
                         android:id="@+id/explore_tab_layout"
+                        style="@style/Widget.SketchwarePro.TabLayout"
                         android:layout_width="match_parent"
-                        android:layout_height="36dp"
+                        android:layout_height="wrap_content"
                         android:background="@android:color/transparent"
-                        app:tabIndicatorColor="@color/color_primary"
+                        app:tabIndicatorColor="?attr/colorPrimary"
                         app:tabIndicatorHeight="3dp"
+                        app:tabIndicatorAnimationMode="elastic"
+                        app:tabIndicatorFullWidth="false"
                         app:tabMode="fixed"
-                        app:tabRippleColor="@null"
-                        app:tabSelectedTextColor="@color/color_primary"
+                        app:tabSelectedTextColor="?attr/colorPrimary"
                         app:tabTextColor="?attr/colorOnSurfaceVariant">
 
                         <com.google.android.material.tabs.TabItem

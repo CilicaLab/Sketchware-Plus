@@ -4,36 +4,28 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 import sketchware.plus.R;
-import sketchware.plus.store.adapters.StoreItemAdapter;
+import sketchware.plus.store.adapters.StorePagerAdapter;
 import sketchware.plus.store.auth.SessionManager;
-import sketchware.plus.store.models.StoreItem;
+import sketchware.plus.store.fragments.StorePageFragment;
 import sketchware.plus.store.models.StoreUser;
 import sketchware.plus.store.repository.RepositoryCallback;
 import sketchware.plus.store.repository.RepositoryProvider;
 import sketchware.plus.store.repository.StoreRepository;
-import sketchware.plus.store.widget.StateView;
 
 public class StoreActivity extends AppCompatActivity {
 
@@ -46,23 +38,18 @@ public class StoreActivity extends AppCompatActivity {
     }
 
     private StoreRepository repository;
-    private StoreItemAdapter adapter;
-    private StateView stateView;
-    private SwipeRefreshLayout swipeRefresh;
-    private RecyclerView recyclerView;
     private TabLayout tabLayout;
+    private ViewPager2 viewPager;
+    private StorePagerAdapter pagerAdapter;
     private ExtendedFloatingActionButton fabUpload;
     private MaterialToolbar toolbar;
 
-    private String currentType = "ALL";
     private String currentQuery = "";
-    private String currentSortBy = "newest"; // "newest" or "most_downloaded"
     private StoreUser currentUser;
 
     private final android.os.Handler searchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable searchRunnable;
     private static final long SEARCH_DEBOUNCE_DELAY_MS = 300L;
-    private long currentRequestId = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,20 +60,16 @@ public class StoreActivity extends AppCompatActivity {
 
         initViews();
         setupToolbar();
-        setupTabs();
-        setupRecyclerView();
+        setupViewPager();
         setupListeners();
 
         loadCurrentUser();
-        loadItems(true);
     }
 
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         tabLayout = findViewById(R.id.tab_layout);
-        swipeRefresh = findViewById(R.id.swipe_refresh);
-        recyclerView = findViewById(R.id.recycler_view);
-        stateView = findViewById(R.id.state_view);
+        viewPager = findViewById(R.id.view_pager);
         fabUpload = findViewById(R.id.fab_upload);
         if (fabUpload != null) {
             fabUpload.bringToFront();
@@ -103,64 +86,26 @@ public class StoreActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
     }
 
-    private void setupTabs() {
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                switch (tab.getPosition()) {
-                    case 0:
-                        currentType = "ALL";
-                        break;
-                    case 1:
-                        currentType = StoreItem.TYPE_BLOCK;
-                        break;
-                    case 2:
-                        currentType = StoreItem.TYPE_COMPONENT;
-                        break;
-                }
-                loadItems(true);
+    private void setupViewPager() {
+        pagerAdapter = new StorePagerAdapter(this);
+        viewPager.setAdapter(pagerAdapter);
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+            switch (position) {
+                case 1:
+                    tab.setText("Blocks");
+                    break;
+                case 2:
+                    tab.setText("Components");
+                    break;
+                case 0:
+                default:
+                    tab.setText("All");
+                    break;
             }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
-        });
-    }
-
-    private void setupRecyclerView() {
-        adapter = new StoreItemAdapter(this);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(adapter);
-
-        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                if (fabUpload != null) {
-                    fabUpload.setVisibility(View.VISIBLE);
-                    fabUpload.show();
-                }
-            }
-        });
-
-        adapter.setOnItemClickListener(item -> {
-            ItemDetailActivity.start(this, item);
-        });
-
-        adapter.setOnInstallClickListener((item, position) -> {
-            // Simulate installation
-            item.setDownloads(item.getDownloads() + 1);
-            adapter.notifyItemChanged(position);
-            Snackbar.make(recyclerView, "Installed " + item.getName() + " successfully!", Snackbar.LENGTH_LONG).show();
-        });
+        }).attach();
     }
 
     private void setupListeners() {
-        swipeRefresh.setColorSchemeResources(R.color.color_primary);
-        swipeRefresh.setOnRefreshListener(() -> loadItems(false));
-
         fabUpload.setOnClickListener(v -> handleUploadPackClick());
     }
 
@@ -186,8 +131,6 @@ public class StoreActivity extends AppCompatActivity {
         loadCurrentUser();
     }
 
-
-
     private void loadCurrentUser() {
         repository.getCurrentUser(new RepositoryCallback<StoreUser>() {
             @Override
@@ -200,66 +143,6 @@ public class StoreActivity extends AppCompatActivity {
             public void onError(String error) {
                 currentUser = null;
                 invalidateOptionsMenu();
-            }
-        });
-    }
-
-    private void loadItems(boolean showStateLoading) {
-        final long requestId = ++currentRequestId;
-
-        if (showStateLoading) {
-            stateView.showLoading("Fetching store items...");
-        } else {
-            swipeRefresh.setRefreshing(true);
-        }
-
-        if (fabUpload != null) {
-            fabUpload.setVisibility(View.VISIBLE);
-            fabUpload.bringToFront();
-            fabUpload.show();
-        }
-
-        repository.getItems(currentType, currentQuery, currentSortBy, new RepositoryCallback<List<StoreItem>>() {
-            @Override
-            public void onSuccess(List<StoreItem> items) {
-                if (requestId != currentRequestId) {
-                    // Outdated response, ignore
-                    return;
-                }
-                swipeRefresh.setRefreshing(false);
-                List<StoreItem> safeItems = items != null ? items : new ArrayList<>();
-                adapter.setItems(safeItems);
-                if (safeItems.isEmpty()) {
-                    String label = "ALL".equalsIgnoreCase(currentType) || currentType == null ? "item" : currentType.toLowerCase();
-                    stateView.showEmpty(
-                            "No " + label + "s found",
-                            TextUtils.isEmpty(currentQuery)
-                                    ? "Be the first to upload a " + label + " pack!"
-                                    : "No items match your search '" + currentQuery + "'"
-                    );
-                } else {
-                    stateView.showContent();
-                }
-                if (fabUpload != null) {
-                    fabUpload.setVisibility(View.VISIBLE);
-                    fabUpload.bringToFront();
-                    fabUpload.show();
-                }
-            }
-
-            @Override
-            public void onError(String error) {
-                if (requestId != currentRequestId) {
-                    // Outdated response, ignore
-                    return;
-                }
-                swipeRefresh.setRefreshing(false);
-                stateView.showError(error, v -> loadItems(true));
-                if (fabUpload != null) {
-                    fabUpload.setVisibility(View.VISIBLE);
-                    fabUpload.bringToFront();
-                    fabUpload.show();
-                }
             }
         });
     }
@@ -280,7 +163,7 @@ public class StoreActivity extends AppCompatActivity {
                             searchHandler.removeCallbacks(searchRunnable);
                         }
                         currentQuery = query;
-                        loadItems(true);
+                        dispatchSearch(query);
                         return true;
                     }
 
@@ -291,7 +174,7 @@ public class StoreActivity extends AppCompatActivity {
                         }
                         searchRunnable = () -> {
                             currentQuery = newText;
-                            loadItems(false);
+                            dispatchSearch(newText);
                         };
                         searchHandler.postDelayed(searchRunnable, SEARCH_DEBOUNCE_DELAY_MS);
                         return true;
@@ -302,6 +185,16 @@ public class StoreActivity extends AppCompatActivity {
 
         updateMenuVisibility(menu);
         return true;
+    }
+
+    private void dispatchSearch(String query) {
+        if (pagerAdapter != null) {
+            for (StorePageFragment fragment : pagerAdapter.getFragments().values()) {
+                if (fragment != null) {
+                    fragment.search(query);
+                }
+            }
+        }
     }
 
     @Override

@@ -1,7 +1,6 @@
 package sketchware.plus.activities.main.fragments.explore;
 
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -10,45 +9,37 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 import sketchware.plus.R;
-import sketchware.plus.store.activities.ItemDetailActivity;
 import sketchware.plus.store.activities.LoginActivity;
 import sketchware.plus.store.activities.ProfileActivity;
 import sketchware.plus.store.activities.UploadActivity;
-import sketchware.plus.store.adapters.StoreItemAdapter;
+import sketchware.plus.store.adapters.StorePagerAdapter;
 import sketchware.plus.store.auth.SessionManager;
-import sketchware.plus.store.models.StoreItem;
+import sketchware.plus.store.fragments.StorePageFragment;
 import sketchware.plus.store.models.StoreUser;
 import sketchware.plus.store.repository.RepositoryCallback;
 import sketchware.plus.store.repository.RepositoryProvider;
 import sketchware.plus.store.repository.StoreRepository;
-import sketchware.plus.store.widget.StateView;
 
 public class ExploreFragment extends Fragment {
 
     private StoreRepository repository;
-    private StoreItemAdapter adapter;
-    private StateView stateView;
-    private SwipeRefreshLayout swipeRefresh;
-    private RecyclerView recyclerView;
     private TabLayout tabLayout;
+    private ViewPager2 viewPager;
+    private StorePagerAdapter pagerAdapter;
     private MaterialToolbar toolbar;
     private MenuProvider menuProvider;
     private boolean isMenuAdded = false;
@@ -74,9 +65,6 @@ public class ExploreFragment extends Fragment {
         }
     }
 
-    private String currentType = "ALL";
-    private String currentQuery = "";
-    private String currentSortBy = "newest";
     private StoreUser currentUser;
 
     @Nullable
@@ -88,12 +76,9 @@ public class ExploreFragment extends Fragment {
 
         initViews(view);
         setupToolbar();
-        setupTabs();
-        setupRecyclerView();
-        setupListeners();
+        setupViewPager();
 
         loadCurrentUser();
-        loadItems(true);
 
         return view;
     }
@@ -116,15 +101,13 @@ public class ExploreFragment extends Fragment {
                         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
                             @Override
                             public boolean onQueryTextSubmit(String query) {
-                                currentQuery = query;
-                                loadItems(true);
+                                dispatchSearch(query);
                                 return true;
                             }
 
                             @Override
                             public boolean onQueryTextChange(String newText) {
-                                currentQuery = newText;
-                                loadItems(false);
+                                dispatchSearch(newText);
                                 return true;
                             }
                         });
@@ -188,9 +171,7 @@ public class ExploreFragment extends Fragment {
     private void initViews(View view) {
         toolbar = requireActivity().findViewById(R.id.explore_toolbar);
         tabLayout = requireActivity().findViewById(R.id.explore_tab_layout);
-        swipeRefresh = view.findViewById(R.id.swipe_refresh);
-        recyclerView = view.findViewById(R.id.recycler_view);
-        stateView = view.findViewById(R.id.state_view);
+        viewPager = view.findViewById(R.id.view_pager);
     }
 
     private void setupToolbar() {
@@ -208,72 +189,33 @@ public class ExploreFragment extends Fragment {
         if (profileItem != null) profileItem.setVisible(loggedIn);
     }
 
-    private void setupTabs() {
-        if (tabLayout == null) return;
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                switch (tab.getPosition()) {
-                    case 0:
-                        currentType = "ALL";
-                        break;
-                    case 1:
-                        currentType = StoreItem.TYPE_BLOCK;
-                        break;
-                    case 2:
-                        currentType = StoreItem.TYPE_COMPONENT;
-                        break;
-                }
-                loadItems(true);
+    private void setupViewPager() {
+        if (tabLayout == null || viewPager == null) return;
+        pagerAdapter = new StorePagerAdapter(this);
+        viewPager.setAdapter(pagerAdapter);
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+            switch (position) {
+                case 1:
+                    tab.setText("Blocks");
+                    break;
+                case 2:
+                    tab.setText("Components");
+                    break;
+                case 0:
+                default:
+                    tab.setText("All");
+                    break;
             }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
-        });
+        }).attach();
     }
 
-    private void setupRecyclerView() {
-        if (recyclerView == null) return;
-        adapter = new StoreItemAdapter(requireContext());
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        recyclerView.setAdapter(adapter);
-
-        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                if (getActivity() != null) {
-                    ExtendedFloatingActionButton fab = getActivity().findViewById(R.id.create_new_project);
-                    if (fab != null) {
-                        fab.show();
-                        if (dy > 0) {
-                            fab.shrink();
-                        } else if (dy < 0) {
-                            fab.extend();
-                        }
-                    }
+    private void dispatchSearch(String query) {
+        if (pagerAdapter != null) {
+            for (StorePageFragment fragment : pagerAdapter.getFragments().values()) {
+                if (fragment != null) {
+                    fragment.search(query);
                 }
             }
-        });
-
-        adapter.setOnItemClickListener(item -> {
-            ItemDetailActivity.start(requireContext(), item);
-        });
-
-        adapter.setOnInstallClickListener((item, position) -> {
-            item.setDownloads(item.getDownloads() + 1);
-            adapter.notifyItemChanged(position);
-            Snackbar.make(recyclerView, "Installed " + item.getName() + " successfully!", Snackbar.LENGTH_LONG).show();
-        });
-    }
-
-    private void setupListeners() {
-        if (swipeRefresh != null) {
-            swipeRefresh.setColorSchemeResources(R.color.color_primary);
-            swipeRefresh.setOnRefreshListener(() -> loadItems(false));
         }
     }
 
@@ -340,50 +282,17 @@ public class ExploreFragment extends Fragment {
         });
     }
 
-    private void loadItems(boolean showStateLoading) {
-        if (repository == null) {
-            repository = RepositoryProvider.getRepository(requireContext());
-        }
-        if (repository == null || stateView == null) return;
-
-        if (showStateLoading) {
-            stateView.showLoading("Fetching store items...");
-        } else if (swipeRefresh != null) {
-            swipeRefresh.setRefreshing(true);
-        }
-
-        repository.getItems(currentType, currentQuery, currentSortBy, new RepositoryCallback<List<StoreItem>>() {
-            @Override
-            public void onSuccess(List<StoreItem> items) {
-                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
-                List<StoreItem> safeItems = items != null ? items : new ArrayList<>();
-                if (adapter != null) adapter.setItems(safeItems);
-                if (safeItems.isEmpty()) {
-                    String label = "ALL".equalsIgnoreCase(currentType) || currentType == null ? "item" : currentType.toLowerCase();
-                    stateView.showEmpty(
-                            "No " + label + "s found",
-                            TextUtils.isEmpty(currentQuery)
-                                    ? "Be the first to upload a " + label + " pack!"
-                                    : "No items match your search '" + currentQuery + "'"
-                    );
-                } else {
-                    stateView.showContent();
-                }
-            }
-
-            @Override
-            public void onError(String error) {
-                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
-                stateView.showError(error, v -> loadItems(true));
-            }
-        });
-    }
-
     public void refresh() {
         setupMainFab();
-        if (getView() != null && stateView != null) {
+        if (getView() != null) {
             loadCurrentUser();
-            loadItems(true);
+            if (pagerAdapter != null) {
+                for (StorePageFragment fragment : pagerAdapter.getFragments().values()) {
+                    if (fragment != null) {
+                        fragment.refresh();
+                    }
+                }
+            }
         }
     }
 

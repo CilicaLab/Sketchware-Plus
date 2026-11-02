@@ -80,14 +80,15 @@
                     app:iconGravity="textStart"
                     app:iconPadding="12dp" />
 
-                <ProgressBar
+                <com.google.android.material.progressindicator.CircularProgressIndicator
                     android:id="@+id/pb_auth"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:elevation="4dp"
                     android:indeterminate="true"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    app:indicatorSize="32dp" />
 
             </FrameLayout>
 
