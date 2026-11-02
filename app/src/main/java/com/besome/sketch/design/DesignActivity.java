@@ -1873,7 +1873,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     Helper.getResString(R.string.design_tab_title_view),
                     Helper.getResString(R.string.design_tab_title_event),
                     Helper.getResString(R.string.design_tab_title_component),
-                    "SK Assistant"};
+                    Helper.getResString(R.string.design_tab_title_sk_assistant)};
         }
 
         @Override
