@@ -261,7 +261,7 @@ public class ToolOrchestrator {
                     "CURRENT FILE CONTENT:\n" + provider.getCodeText() + "\n\n" +
                     "RULES:\n" +
                     "1. Analyze the current file content above.\n" +
-                    "2. When updating or patching code/XML, use apply_layout_xml, add_java_patch, or add_xml_patch, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
+                    "2. When updating or patching code/XML, use apply_layout_xml, patch_java_file, or patch_manifest_xml, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
                     "3. Call only tools from the provided list. Never invent tools.\n" +
                     "4. Once you know the action, call the tool immediately. No narration first.\n" +
                     "5. When finished, reply with a brief summary of changes and make no tool calls.\n" +
@@ -270,20 +270,20 @@ public class ToolOrchestrator {
         return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
-                "1. Inspect before acting. Use get_layout_xml, get_class_outline, list_methods, search_manifest, " +
-                "list_project_files, search_project_files, search_in_code, search_chat_history, list_available_components.\n" +
+                "1. Inspect before acting. Use read_layout_xml, view_file_outline, list_methods, search_manifest, " +
+                "list_files, find_files, grep_code, search_chat_history, list_components.\n" +
                 "2. Call only tools from the provided list. Never invent tools.\n" +
-                "3. Never web search component IDs. Use list_available_components.\n" +
+                "3. Never web search component IDs. Use list_components.\n" +
                 "4. Once you know the action, call the tool immediately. No narration first.\n" +
-                "5. Modifying layouts and UI views: ALWAYS use apply_layout_xml to modify, add, or update Activity layout views. NEVER use add_xml_patch for layout/view XML files like main.xml or Activity layouts.\n" +
-                "6. Manifest inspection & patching: Use search_manifest when checking permissions, activities, or manifest tags. Use add_xml_patch EXCLUSIVELY for AndroidManifest.xml (NEVER use add_xml_patch for layout/view XML).\n" +
+                "5. Modifying layouts and UI views: ALWAYS use apply_layout_xml to modify, add, or update Activity layout views. NEVER use patch_manifest_xml for layout/view XML files like main.xml or Activity layouts.\n" +
+                "6. Manifest inspection & patching: Use search_manifest when checking permissions, activities, or manifest tags. Use patch_manifest_xml EXCLUSIVELY for AndroidManifest.xml (NEVER use patch_manifest_xml for layout/view XML).\n" +
                 "7. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
                 "8. No redundant tool calls. Reuse info already retrieved.\n" +
                 "9. Tool arguments must be valid JSON.\n" +
                 "10. When finished, reply with a brief summary of changes and make no tool calls.\n" +
                 "11. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
-                "12. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, search_in_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
+                "12. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
                 "13. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.";
     }
 
@@ -551,9 +551,7 @@ public class ToolOrchestrator {
 
                                 // Update UI with per-tool timing
                                 mainHandler.post(() -> {
-                                    String statusMsg = "Completed: " + result.toolName +
-                                        " (" + result.executionTimeMs + "ms" +
-                                        (result.fromCache ? ", cached" : "") + ")";
+                                    String statusMsg = "Completed: " + result.toolName;
                                     fragment.setStatus(statusMsg);
                                 });
                             }
@@ -593,9 +591,11 @@ public class ToolOrchestrator {
             case "web_search":
                 return WebSearchAide.searchWeb(args.getString("query")).toString();
                 
+            case "read_url":
             case "web_browse":
                 return WebSearchAide.browseWebPage(args.getString("url")).toString();
 
+            case "list_files":
             case "list_project_files":
                 JSONObject fileList = new JSONObject();
                 JSONArray files = new JSONArray();
@@ -608,6 +608,7 @@ public class ToolOrchestrator {
                 fileList.put("files", files);
                 return fileList.toString();
 
+            case "find_files":
             case "search_project_files":
                 String sQuery = args.getString("query").toLowerCase();
                 JSONObject sResult = new JSONObject();
@@ -623,6 +624,7 @@ public class ToolOrchestrator {
                 sResult.put("files", sFiles);
                 return sResult.toString();
 
+            case "read_layout_xml":
             case "get_layout_xml":
                 if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
                     return ((SkAssistantDialog.CodeEditorProvider) fragment.getActivity()).getCodeText();
@@ -660,6 +662,7 @@ public class ToolOrchestrator {
             case "search_manifest":
                 return SketchwareManifestBridge.searchManifest(context, fragment.scId, args.getString("query"));
 
+            case "add_imports":
             case "inject_imports":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
@@ -671,6 +674,7 @@ public class ToolOrchestrator {
                 if (injected) runOnMainSync(() -> fragment.refreshDesigner());
                 return injected ? "Imports injected successfully." : "Imports already exist or injection failed.";
 
+            case "insert_source_code":
             case "add_source_directly":
             case "add_onCreate_code":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
@@ -683,8 +687,10 @@ public class ToolOrchestrator {
 
             case "list_methods":
             case "get_full_code":
+            case "view_file_outline":
             case "get_class_outline":
             case "read_method":
+            case "grep_code":
             case "search_in_code":
                 String source;
                 if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
@@ -700,19 +706,21 @@ public class ToolOrchestrator {
                 }
                 if ("list_methods".equals(name)) {
                     return SourceCodeAide.listMethods(source).toString();
-                } else if ("get_class_outline".equals(name) || "get_full_code".equals(name)) {
+                } else if ("view_file_outline".equals(name) || "get_class_outline".equals(name) || "get_full_code".equals(name)) {
                     if (source == null) return "Source not found.";
                     String[] lines = source.split("\n");
-                    if (lines.length > 100 || "get_class_outline".equals(name)) {
+                    if (lines.length > 100 || "view_file_outline".equals(name) || "get_class_outline".equals(name)) {
                         return SourceCodeAide.getClassOutline(source).toString();
                     }
                     return source;
-                } else if ("search_in_code".equals(name)) {
+                } else if ("grep_code".equals(name) || "search_in_code".equals(name)) {
                     return SourceCodeAide.findSnippet(source, args.getString("query"), args.optInt("contextLines", 2)).toString();
                 } else {
                     return SourceCodeAide.findMethod(source, args.getString("methodName")).toString();
                 }
 
+            case "patch_java_file":
+            case "patch_manifest_xml":
             case "add_java_patch":
             case "add_xml_patch":
                 String ref = args.optString("reference", "");
@@ -721,10 +729,10 @@ public class ToolOrchestrator {
                     return "Error: 'reference' and 'inputCode' parameters cannot be empty.";
                 }
 
-                if ("add_xml_patch".equals(name)) {
+                if ("patch_manifest_xml".equals(name) || "add_xml_patch".equals(name)) {
                     String targetXml = args.optString("xmlName", "");
                     if (!"AndroidManifest.xml".equalsIgnoreCase(targetXml)) {
-                        return "Error: 'add_xml_patch' is strictly prohibited for layout/view XML files like '" + targetXml + "'. To modify Activity views and layouts, you MUST use the 'apply_layout_xml' tool.";
+                        return "Error: 'patch_manifest_xml' is strictly prohibited for layout/view XML files like '" + targetXml + "'. To modify Activity views and layouts, you MUST use the 'apply_layout_xml' tool.";
                     }
                     String manifestSrc = SourceCodeAide.getGeneratedManifest(context, fragment.scId);
                     if (manifestSrc != null && !manifestSrc.contains(ref)) {
@@ -744,7 +752,7 @@ public class ToolOrchestrator {
                         );
                     }
                     if (javaSrc != null && !javaSrc.contains(ref)) {
-                        return "Error: Reference anchor line '" + ref + "' was not found in " + javaName + ". Please use search_in_code or read_method to find the exact existing line before patching.";
+                        return "Error: Reference anchor line '" + ref + "' was not found in " + javaName + ". Please use grep_code or read_method to find the exact existing line before patching.";
                     }
                 }
 
@@ -759,7 +767,7 @@ public class ToolOrchestrator {
                 }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
-                JSONObject patch = "add_java_patch".equals(name) ? SourceCodeAide.addJavaCommandToManager(
+                JSONObject patch = ("patch_java_file".equals(name) || "add_java_patch".equals(name)) ? SourceCodeAide.addJavaCommandToManager(
                     context, fragment.scId, args.getString("javaName"),
                     args.getString("reference"), args.optInt("distance", 0),
                     args.optInt("front", 0), args.optInt("back", 0),
@@ -798,7 +806,7 @@ public class ToolOrchestrator {
             case "add_component": {
                 int typeId = args.getInt("type");
                 if (!ComponentSpecialist.isValidComponentType(typeId)) {
-                    return "Error: Component type ID " + typeId + " does not exist. Please use list_available_components to check valid component types.";
+                    return "Error: Component type ID " + typeId + " does not exist. Please use list_components to check valid component types.";
                 }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
@@ -819,6 +827,7 @@ public class ToolOrchestrator {
                 }
             }
 
+            case "list_components":
             case "list_available_components":
                 JSONObject components = new JSONObject();
                 JSONArray builtIn = new JSONArray();

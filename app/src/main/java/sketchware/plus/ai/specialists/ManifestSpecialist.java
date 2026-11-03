@@ -119,7 +119,8 @@ public class ManifestSpecialist extends BaseSpecialist {
                 break;
 
             case "ADD_XML_PATCH":
-                log("[ManifestSpecialist.handleAction] Executing ADD_XML_PATCH...");
+            case "PATCH_MANIFEST_XML":
+                log("[ManifestSpecialist.handleAction] Executing PATCH_MANIFEST_XML...");
                 applyAddXmlPatch(action);
                 break;
 

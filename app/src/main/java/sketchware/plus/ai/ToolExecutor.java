@@ -157,7 +157,7 @@ public class ToolExecutor {
                         Log.e("SketchwarePlusAI", "Pre-validation failed for apply_layout_xml: " + xmlEx.getMessage(), xmlEx);
                         throw new IllegalArgumentException("Invalid layout XML syntax: " + xmlEx.getMessage());
                     }
-                } else if ("add_java_patch".equals(info.toolName) || "add_xml_patch".equals(info.toolName)) {
+                } else if ("patch_java_file".equals(info.toolName) || "patch_manifest_xml".equals(info.toolName) || "add_java_patch".equals(info.toolName) || "add_xml_patch".equals(info.toolName)) {
                     String inputCode = info.args.optString("inputCode", "");
                     if (inputCode.isEmpty()) {
                         Log.e("SketchwarePlusAI", "Pre-validation failed for " + info.toolName + ": patch inputCode is empty.");
@@ -289,6 +289,9 @@ public class ToolExecutor {
      * - Slow tools: minimal delay (already took time)
      */
     private long calculateAdaptiveDelay(String toolName, long executionTimeMs) {
+        if ("read_layout_xml".equals(toolName) || "get_layout_xml".equals(toolName)) {
+            return 1500L;
+        }
         if (toolName.contains("web_")) {
             // External APIs need longer delay for rate limiting
             return API_DELAY_MS;

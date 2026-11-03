@@ -20,19 +20,19 @@ public class AssistantToolRegistry {
         t.put(createTool("web_search", "Search web (DuckDuckGo)",
                 new ParameterBuilder().addProperty("query", "string", "query").setRequired("query").build()));
 
-        t.put(createTool("web_browse", "Fetch content of a URL",
+        t.put(createTool("read_url", "Fetch content of a URL",
                 new ParameterBuilder().addProperty("url", "string", "full URL").setRequired("url").build()));
 
-        t.put(createTool("list_project_files", "List Java/Kotlin/XML files in project",
+        t.put(createTool("list_files", "List Java/Kotlin/XML files in project",
                 new ParameterBuilder().build()));
 
-        t.put(createTool("search_project_files", "Find files by name",
+        t.put(createTool("find_files", "Find files by name",
                 new ParameterBuilder().addProperty("query", "string", "file name or part").setRequired("query").build()));
 
-        t.put(createTool("get_layout_xml", "Get current activity XML + view hierarchy",
+        t.put(createTool("read_layout_xml", "Get current activity XML + view hierarchy",
                 new ParameterBuilder().build()));
 
-        t.put(createTool("apply_layout_xml", "REQUIRED tool to create, modify, or update Activity UI layout views. ALWAYS use apply_layout_xml for any view or layout edits (NEVER use add_xml_patch for layouts).",
+        t.put(createTool("apply_layout_xml", "REQUIRED tool to create, modify, or update Activity UI layout views. ALWAYS use apply_layout_xml for any view or layout edits (NEVER use patch_manifest_xml for layouts).",
                 new ParameterBuilder()
                         .addProperty("xml", "string", "full valid layout XML")
                         .addProperty("summary", "string", "what changed")
@@ -44,13 +44,13 @@ public class AssistantToolRegistry {
         t.put(createTool("search_manifest", "PREFERRED tool to search/inspect AndroidManifest.xml for permissions, activities, services, tags, or keywords. ALWAYS use search_manifest instead of get_manifest_xml whenever looking for specific entries in the manifest.",
                 new ParameterBuilder().addProperty("query", "string", "keyword, tag, or permission to search (e.g. 'permission', 'activity', 'INTERNET', 'service', 'all')").setRequired("query").build()));
 
-        t.put(createTool("inject_imports", "Add imports to current activity",
+        t.put(createTool("add_imports", "Add imports to current activity",
                 new ParameterBuilder()
                         .addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
-        t.put(createTool("add_source_directly", "PREFERRED tool to add Java code to activity onCreate / initializeLogic via 'Add source directly' block. ALWAYS use this instead of java patches when adding code to onCreate.",
+        t.put(createTool("insert_source_code", "PREFERRED tool to add Java code to activity onCreate / initializeLogic via 'Add source directly' block. ALWAYS use this instead of java patches when adding code to onCreate.",
                 new ParameterBuilder()
                         .addProperty("code", "string", "Java code snippet to add")
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
@@ -65,17 +65,17 @@ public class AssistantToolRegistry {
         t.put(createTool("list_methods", "List method names in a file",
                 new ParameterBuilder().addProperty("javaName", "string", "file name").setRequired("javaName").build()));
 
-        t.put(createTool("get_class_outline", "Get class structure outline (package, fields, method signatures with line numbers) without dumping full source",
+        t.put(createTool("view_file_outline", "Get class structure outline (package, fields, method signatures with line numbers) without dumping full source",
                 new ParameterBuilder().addProperty("javaName", "string", "file name, e.g. MainActivity.java").setRequired("javaName").build()));
 
-        t.put(createTool("search_in_code", "Search keyword in a file, returns lines w/ context",
+        t.put(createTool("grep_code", "Search keyword in a file, returns lines w/ context",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "file name")
                         .addProperty("query", "string", "keyword/snippet")
                         .addProperty("contextLines", "integer", "default 2")
                         .setRequired("javaName", "query").build()));
 
-        t.put(createTool("add_java_patch", "Patch generated source code",
+        t.put(createTool("patch_java_file", "Patch generated source code",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "target file")
                         .addProperty("reference", "string", "EXACT anchor line")
@@ -86,7 +86,7 @@ public class AssistantToolRegistry {
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("javaName", "reference", "command", "inputCode").build()));
 
-        t.put(createTool("add_xml_patch", "Patch AndroidManifest.xml via XML Command Manager. EXCLUSIVELY for AndroidManifest.xml! NEVER use add_xml_patch for layout/view XML files like main.xml or Activity layouts (use apply_layout_xml for layout/view changes).",
+        t.put(createTool("patch_manifest_xml", "Patch AndroidManifest.xml via XML Command Manager. EXCLUSIVELY for AndroidManifest.xml! NEVER use patch_manifest_xml for layout/view XML files like main.xml or Activity layouts (use apply_layout_xml for layout/view changes).",
                 new ParameterBuilder()
                         .addProperty("xmlName", "string", "MUST BE 'AndroidManifest.xml'. Do NOT use for layout/view XML files.")
                         .addProperty("reference", "string", "EXACT anchor line in XML")
@@ -109,12 +109,12 @@ public class AssistantToolRegistry {
 
         t.put(createTool("add_component", "Add Sketchware component(s) to activity",
                 new ParameterBuilder()
-                        .addProperty("type", "integer", "type ID from list_available_components")
+                        .addProperty("type", "integer", "type ID from list_components")
                         .addProperty("id", "string", "unique instance name or prefix (e.g. 'vibrator' or 'intent')")
                         .addProperty("count", "integer", "Optional number of components of this type to add at once (default 1). E.g. set to 10 or 500 for batch addition.")
                         .setRequired("type", "id").build()));
 
-        t.put(createTool("list_available_components", "List built-in + custom components",
+        t.put(createTool("list_components", "List built-in + custom components",
                 new ParameterBuilder().build()));
 
         t.put(createTool("apply_custom_view", "Create/update custom view XML",

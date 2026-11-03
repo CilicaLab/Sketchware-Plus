@@ -1,6 +1,6 @@
 package sketchware.plus.fragments.settings.system;
 
-import android.app.ProgressDialog;
+import sketchware.plus.dialogs.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
