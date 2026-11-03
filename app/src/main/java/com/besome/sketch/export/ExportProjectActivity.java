@@ -697,6 +697,10 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
                         "Incorrect password, or integrity check failed.".equals(throwable.getMessage())) {
                     activity.get().runOnUiThread(() -> SketchwareUtil.showAnErrorOccurredDialog(activity.get(),
                             "Either an incorrect password was entered, or your key store is corrupt."));
+                } else if (throwable instanceof NullPointerException &&
+                        java.util.Arrays.stream(throwable.getStackTrace()).anyMatch(el -> el.getClassName().contains("zipsigner"))) {
+                    activity.get().runOnUiThread(() -> SketchwareUtil.showAnErrorOccurredDialog(activity.get(),
+                            "Failed to sign APK: The signing certificate could not be loaded from your keystore. Please check that your keystore file is valid and that your alias and passwords are correct."));
                 } else {
                     Log.e("AppExporter", throwable.getMessage(), throwable);
                     activity.get().runOnUiThread(() -> SketchwareUtil.showAnErrorOccurredDialog(activity.get(),
