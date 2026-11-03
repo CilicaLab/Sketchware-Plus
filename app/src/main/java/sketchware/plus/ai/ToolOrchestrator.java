@@ -280,7 +280,7 @@ public class ToolOrchestrator {
                 "7. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
                 "8. No redundant tool calls. Reuse info already retrieved.\n" +
-                "9. Tool arguments must be valid JSON.\n" +
+                "9. Tool arguments MUST be valid, strict JSON matching the tool schema. Never output raw XML tags (such as <tool_call> or <function=...>) for tool calls.\n" +
                 "10. When finished, reply with a brief summary of changes and make no tool calls.\n" +
                 "11. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
                 "12. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +

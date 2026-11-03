@@ -415,17 +415,40 @@ object AiClient {
                     continue
                 }
 
-                // ---------------- 400 output_parse_failed: retry once or twice at temperature 0 ----------------
-                if (code == 400 && parseRetries < 2 && result.body.contains("output_parse_failed")) {
-                    parseRetries++
-                    retryNumber++
-                    currentTemp = 0.0f
-                    postRetry(callback, retryNumber, 300)
-                    if (!sleepInterruptibly(300)) {
-                        callback.onError("Canceled")
-                        return
+                // ---------------- 400 tool_use_failed / output_parse_failed: retry at temp 0 or switch model ----------------
+                val isParseOrToolError = code == 400 && (
+                        result.body.contains("output_parse_failed") ||
+                        result.body.contains("tool_use_failed") ||
+                        result.body.contains("tool call validation failed") ||
+                        result.body.contains("missing properties") ||
+                        result.body.contains("failed_generation")
+                )
+                if (isParseOrToolError) {
+                    if (parseRetries < 2) {
+                        parseRetries++
+                        retryNumber++
+                        currentTemp = 0.0f
+                        postRetry(callback, retryNumber, 300)
+                        if (!sleepInterruptibly(300)) {
+                            callback.onError("Canceled")
+                            return
+                        }
+                        continue
+                    } else {
+                        val next = pickNext(chain, target)
+                        if (next != null && next.id != target.id) {
+                            val previous = target
+                            target = next
+                            parseRetries = 0
+                            retryNumber++
+                            postSwitch(callback, describeSwitch(previous, target), retryNumber, 300)
+                            if (!sleepInterruptibly(300)) {
+                                callback.onError("Canceled")
+                                return
+                            }
+                            continue
+                        }
                     }
-                    continue
                 }
 
                 // ---------------- anything else ----------------
@@ -647,7 +670,56 @@ object AiClient {
             callback.onToolCall(toolCalls, content, promptTokens, completionTokens, totalTokens)
         } else {
             val content = message.optString("content", "").trim()
-            callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
+            val xmlToolCalls = parseXmlToolCalls(content)
+            if (xmlToolCalls != null && xmlToolCalls.length() > 0) {
+                callback.onToolCall(xmlToolCalls, null, promptTokens, completionTokens, totalTokens)
+            } else {
+                callback.onSuccess(content, promptTokens, completionTokens, totalTokens)
+            }
+        }
+    }
+
+    private fun parseXmlToolCalls(rawContent: String): JSONArray? {
+        if (!rawContent.contains("<tool_call>") && !rawContent.contains("<function=") && !rawContent.contains("</tool_call>")) {
+            return null
+        }
+        try {
+            val toolCalls = JSONArray()
+            val fnPattern = java.util.regex.Pattern.compile(
+                "<function=([a-zA-Z0-9_-]+)>(.*?)</function>",
+                java.util.regex.Pattern.DOTALL or java.util.regex.Pattern.CASE_INSENSITIVE
+            )
+            val paramPattern = java.util.regex.Pattern.compile(
+                "<\\s*parameter\\s+(?:name=[\"']?([a-zA-Z0-9_-]+)[\"']?|([a-zA-Z0-9_-]+)=[\"']?[^>]*[\"']?)>(.*?)</\\s*parameter\\s*>",
+                java.util.regex.Pattern.DOTALL or java.util.regex.Pattern.CASE_INSENSITIVE
+            )
+            val matcher = fnPattern.matcher(rawContent)
+            var idCount = 0
+            while (matcher.find()) {
+                val fnName = sanitizeToolName(matcher.group(1))
+                val fnBody = matcher.group(2) ?: ""
+                val argsObj = JSONObject()
+                val pMatcher = paramPattern.matcher(fnBody)
+                while (pMatcher.find()) {
+                    val paramName = pMatcher.group(1) ?: pMatcher.group(2) ?: ""
+                    val paramVal = (pMatcher.group(3) ?: "").trim()
+                    if (paramName.isNotEmpty()) {
+                        argsObj.put(paramName, paramVal)
+                    }
+                }
+                idCount++
+                toolCalls.put(JSONObject().apply {
+                    put("id", "call_xml_$idCount")
+                    put("type", "function")
+                    put("function", JSONObject().apply {
+                        put("name", fnName)
+                        put("arguments", argsObj.toString())
+                    })
+                })
+            }
+            return if (toolCalls.length() > 0) toolCalls else null
+        } catch (e: Exception) {
+            return null
         }
     }
 
