@@ -1,13 +1,16 @@
 package sketchware.plus.security;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 
 import mod.jbk.build.BuildProgressReceiver;
 import sketchware.plus.utility.FileUtil;
-import mod.hey.studios.util.Helper;
 
 public class SecurityGuardHandler {
+
+    private static final Type MAP_TYPE = new TypeToken<HashMap<String, Object>>(){}.getType();
 
     private final String configPath;
 
@@ -33,21 +36,22 @@ public class SecurityGuardHandler {
     private HashMap<String, Object> getConfig() {
         try {
             if (FileUtil.isExistFile(configPath)) {
-                return new Gson().fromJson(FileUtil.readFile(configPath), Helper.TYPE_MAP);
+                HashMap<String, Object> m = new Gson().fromJson(FileUtil.readFile(configPath), MAP_TYPE);
+                if (m != null) return m;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            android.util.Log.e("SecurityGuard", "config read failed: " + e, e);
+        }
         return new HashMap<>();
     }
 
     public boolean isFeatureEnabled(String key) {
-        HashMap<String, Object> config = getConfig();
-        Object val = config.get(key);
+        Object val = getConfig().get(key);
         return val instanceof Boolean && (Boolean) val;
     }
 
     public String getFeatureString(String key) {
-        HashMap<String, Object> config = getConfig();
-        Object val = config.get(key);
+        Object val = getConfig().get(key);
         return val instanceof String ? (String) val : "";
     }
 
@@ -68,7 +72,7 @@ public class SecurityGuardHandler {
     private void reportWithDelay(BuildProgressReceiver receiver, String message) {
         receiver.onProgress(message, 2);
         try {
-            Thread.sleep(400); // Small delay to make text visible
+            Thread.sleep(400);
         } catch (InterruptedException ignored) {}
     }
 }

@@ -19,8 +19,14 @@ public class SecurityGuardInjector {
     @SuppressWarnings("unused")
     public static String inject(Context context, String scId, String applicationCode) {
         SecurityGuardHandler handler = new SecurityGuardHandler(scId);
+
+        // force sync BEFORE reading expected_signature, or signature_check stays empty forever
+        if (handler.isFeatureEnabled("signature_check")) {
+            detectAndPersistSigningHash(context, scId);
+        }
+
         String storedSignature = handler.getFeatureString("expected_signature");
-        final String expectedSignature = storedSignature == null ? "" : storedSignature;
+        final String expectedSignature = storedSignature == null ? "" : normalizeHash(storedSignature);
 
         String safeScId = scId != null ? scId.replaceAll("[^a-zA-Z0-9]", "_") : "default";
         String suffix = "_" + safeScId;
@@ -38,49 +44,53 @@ public class SecurityGuardInjector {
             String pkgName = metadata != null ? yB.c(metadata, "my_sc_pkg_name") : null;
             if (pkgName != null && !pkgName.isEmpty()) {
                 injections.add("        if (!getPackageName().equals(\"" + pkgName + "\")) " + dieMethodName + "();");
+            } else {
+                Log.w("SecurityGuardInjector", "package_lock enabled but pkgName not resolved for scId=" + scId);
             }
         }
 
-        if (handler.isFeatureEnabled("signature_check") && !expectedSignature.isEmpty()) {
-            injections.add("        " + checkSigMethodName + "(\"" + expectedSignature + "\");");
-            methods.add("\n    private void " + checkSigMethodName + "(String expected) {\n" +
-                    "        try {\n" +
-                    "            android.content.pm.PackageManager pm = getPackageManager();\n" +
-                    "            android.content.pm.Signature[] signatures;\n" +
-                    "            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {\n" +
-                    "                android.content.pm.PackageInfo info = pm.getPackageInfo(getPackageName(), android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);\n" +
-                    "                android.content.pm.SigningInfo signingInfo = info.signingInfo;\n" +
-                    "                if (signingInfo.hasMultipleSigners()) {\n" +
-                    "                    signatures = signingInfo.getSigningCertificateHistory();\n" +
-                    "                } else {\n" +
-                    "                    signatures = signingInfo.getApkContentsSigners();\n" +
-                    "                }\n" +
-                    "            } else {\n" +
-                    "                @SuppressWarnings(\"deprecation\")\n" +
-                    "                android.content.pm.PackageInfo info = pm.getPackageInfo(getPackageName(), android.content.pm.PackageManager.GET_SIGNATURES);\n" +
-                    "                @SuppressWarnings(\"deprecation\")\n" +
-                    "                android.content.pm.Signature[] sigs = info.signatures;\n" +
-                    "                signatures = sigs;\n" +
-                    "            }\n" +
-                    "            if (signatures != null) {\n" +
-                    "                for (android.content.pm.Signature signature : signatures) {\n" +
-                    "                    java.security.MessageDigest md = java.security.MessageDigest.getInstance(\"SHA-256\");\n" +
-                    "                    md.update(signature.toByteArray());\n" +
-                    "                    byte[] digest = md.digest();\n" +
-                    "                    StringBuilder sb = new StringBuilder();\n" +
-                    "                    for (byte b : digest) {\n" +
-                    "                        String hex = Integer.toHexString(0xFF & b).toUpperCase();\n" +
-                    "                        if (hex.length() == 1) sb.append('0');\n" +
-                    "                        sb.append(hex);\n" +
-                    "                    }\n" +
-                    "                    if (sb.toString().equals(expected)) return;\n" +
-                    "                }\n" +
-                    "            }\n" +
-                    "        } catch (Exception e) {\n" +
-                    "            android.util.Log.e(\"SecurityGuard\", \"Signature check failed\", e);\n" +
-                    "        }\n" +
-                    "        " + dieMethodName + "();\n" +
-                    "    }\n");
+        if (handler.isFeatureEnabled("signature_check")) {
+            if (expectedSignature.isEmpty()) {
+                Log.w("SecurityGuardInjector", "signature_check enabled but expected_signature is empty — skipping. Set a custom keystore or let auto_signature_sync populate it.");
+            } else {
+                injections.add("        " + checkSigMethodName + "(\"" + expectedSignature + "\");");
+                methods.add("\n    private void " + checkSigMethodName + "(String expected) {\n" +
+                        "        try {\n" +
+                        "            android.content.pm.PackageManager pm = getPackageManager();\n" +
+                        "            android.content.pm.Signature[] signatures;\n" +
+                        "            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {\n" +
+                        "                android.content.pm.PackageInfo info = pm.getPackageInfo(getPackageName(), android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);\n" +
+                        "                android.content.pm.SigningInfo signingInfo = info.signingInfo;\n" +
+                        "                if (signingInfo.hasMultipleSigners()) {\n" +
+                        "                    signatures = signingInfo.getSigningCertificateHistory();\n" +
+                        "                } else {\n" +
+                        "                    signatures = signingInfo.getApkContentsSigners();\n" +
+                        "                }\n" +
+                        "            } else {\n" +
+                        "                android.content.pm.PackageInfo info = pm.getPackageInfo(getPackageName(), android.content.pm.PackageManager.GET_SIGNATURES);\n" +
+                        "                signatures = info.signatures;\n" +
+                        "            }\n" +
+                        "            if (signatures != null) {\n" +
+                        "                for (android.content.pm.Signature signature : signatures) {\n" +
+                        "                    java.security.MessageDigest md = java.security.MessageDigest.getInstance(\"SHA-256\");\n" +
+                        "                    md.update(signature.toByteArray());\n" +
+                        "                    byte[] digest = md.digest();\n" +
+                        "                    StringBuilder sb = new StringBuilder();\n" +
+                        "                    for (byte b : digest) {\n" +
+                        "                        String hex = Integer.toHexString(0xFF & b).toUpperCase();\n" +
+                        "                        if (hex.length() == 1) sb.append('0');\n" +
+                        "                        sb.append(hex);\n" +
+                        "                    }\n" +
+                        "                    String actual = sb.toString().replace(\":\", \"\").toUpperCase();\n" +
+                        "                    if (actual.equals(expected.replace(\":\", \"\").toUpperCase())) return;\n" +
+                        "                }\n" +
+                        "            }\n" +
+                        "        } catch (Exception e) {\n" +
+                        "            android.util.Log.e(\"SecurityGuard\", \"Signature check failed\", e);\n" +
+                        "        }\n" +
+                        "        " + dieMethodName + "();\n" +
+                        "    }\n");
+            }
         }
 
         if (handler.isFeatureEnabled("root_detection")) {
@@ -138,6 +148,7 @@ public class SecurityGuardInjector {
         }
 
         if (injections.isEmpty()) {
+            Log.w("SecurityGuardInjector", "No features enabled/resolved — nothing injected for scId=" + scId);
             return applicationCode;
         }
 
@@ -167,18 +178,61 @@ public class SecurityGuardInjector {
     }
 
     public static String detectAndPersistSigningHash(Context context, String scId) {
-        @SuppressWarnings("unused")
-        Context ctx = context;
         SecurityGuardHandler handler = new SecurityGuardHandler(scId);
         if (handler.isFeatureEnabled("auto_signature_sync")) {
-            // TODO: Check if custom keystore API is configured; if custom keystore is used, do not overwrite expected_signature.
-            String detected = getActiveSigningHash();
+            String existing = handler.getFeatureString("expected_signature");
+            String testkeyHash = getActiveSigningHash();
+
+            // If user manually set a custom expected_signature that differs from testkey, preserve it!
+            if (existing != null && !existing.trim().isEmpty() && testkeyHash != null && !normalizeHash(existing).equalsIgnoreCase(normalizeHash(testkeyHash))) {
+                return normalizeHash(existing);
+            }
+
+            String customHash = getCustomKeystoreHash();
+            String detected = (customHash != null) ? customHash : testkeyHash;
             if (detected != null) {
-                handler.setFeatureValue("expected_signature", detected);
-                return detected;
+                String normalized = normalizeHash(detected);
+                handler.setFeatureValue("expected_signature", normalized);
+                return normalized;
+            } else {
+                Log.w("SecurityGuardInjector", "auto_signature_sync on but testkey/custom cert not found/resolvable");
             }
         }
         return null;
+    }
+
+    private static String getCustomKeystoreHash() {
+        try {
+            File keystoreDir = new File(sketchware.plus.utility.FileUtil.getExternalStorageDir(), "sketchware/keystore");
+            if (keystoreDir.exists() && keystoreDir.isDirectory()) {
+                File[] files = keystoreDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile() && (f.getName().endsWith(".jks") || f.getName().endsWith(".keystore"))) {
+                            try (FileInputStream fis = new FileInputStream(f)) {
+                                java.security.KeyStore ks = java.security.KeyStore.getInstance("JKS");
+                                ks.load(fis, "sketchware".toCharArray());
+                                java.util.Enumeration<String> aliases = ks.aliases();
+                                if (aliases.hasMoreElements()) {
+                                    String alias = aliases.nextElement();
+                                    java.security.cert.Certificate cert = ks.getCertificate(alias);
+                                    if (cert instanceof X509Certificate) {
+                                        return SecurityUtils.getCertificateHash((X509Certificate) cert);
+                                    }
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e("SecurityGuardInjector", "Error loading custom keystore hash", e);
+        }
+        return null;
+    }
+
+    private static String normalizeHash(String hash) {
+        return hash == null ? "" : hash.replace(":", "").trim().toUpperCase();
     }
 
     private static String getActiveSigningHash() {
@@ -190,6 +244,8 @@ public class SecurityGuardInjector {
                     X509Certificate cert = (X509Certificate) cf.generateCertificate(fis);
                     return SecurityUtils.getCertificateHash(cert);
                 }
+            } else {
+                Log.w("SecurityGuardInjector", "testkey cert missing at " + testkeyCert.getAbsolutePath());
             }
         } catch (Exception e) {
             Log.e("SecurityGuardInjector", "Failed to get active signing hash", e);
@@ -219,7 +275,7 @@ public class SecurityGuardInjector {
             if (onCreateIdx != -1) {
                 modified = modified.substring(0, onCreateIdx) + "super.onCreate();\n" + injections + modified.substring(onCreateIdx + "super.onCreate();".length());
             } else {
-                Log.w("SecurityGuardInjector", "Neither mApplicationContext anchor nor super.onCreate() found. Skipping security injections.");
+                Log.e("SecurityGuardInjector", "FATAL: no anchor found, injections dropped entirely. Dump your template.");
                 return modified;
             }
         }
@@ -227,6 +283,8 @@ public class SecurityGuardInjector {
         int lastBrace = findFinalClosingBrace(modified);
         if (lastBrace != -1) {
             modified = modified.substring(0, lastBrace) + methods + "\n" + modified.substring(lastBrace);
+        } else {
+            Log.e("SecurityGuardInjector", "FATAL: couldn't find final closing brace, methods dropped.");
         }
         return modified;
     }
@@ -243,60 +301,21 @@ public class SecurityGuardInjector {
             char c = code.charAt(i);
             char next = (i + 1 < code.length()) ? code.charAt(i + 1) : '\0';
 
-            if (inLineComment) {
-                if (c == '\n') inLineComment = false;
-                continue;
-            }
-            if (inBlockComment) {
-                if (c == '*' && next == '/') {
-                    inBlockComment = false;
-                    i++;
-                }
-                continue;
-            }
-            if (inString) {
-                if (c == '\\') {
-                    i++;
-                } else if (c == '"') {
-                    inString = false;
-                }
-                continue;
-            }
-            if (inChar) {
-                if (c == '\\') {
-                    i++;
-                } else if (c == '\'') {
-                    inChar = false;
-                }
-                continue;
-            }
+            if (inLineComment) { if (c == '\n') inLineComment = false; continue; }
+            if (inBlockComment) { if (c == '*' && next == '/') { inBlockComment = false; i++; } continue; }
+            if (inString) { if (c == '\\') { i++; } else if (c == '"') { inString = false; } continue; }
+            if (inChar) { if (c == '\\') { i++; } else if (c == '\'') { inChar = false; } continue; }
 
-            if (c == '/' && next == '/') {
-                inLineComment = true;
-                i++;
-                continue;
-            }
-            if (c == '/' && next == '*') {
-                inBlockComment = true;
-                i++;
-                continue;
-            }
-            if (c == '"') {
-                inString = true;
-                continue;
-            }
-            if (c == '\'') {
-                inChar = true;
-                continue;
-            }
+            if (c == '/' && next == '/') { inLineComment = true; i++; continue; }
+            if (c == '/' && next == '*') { inBlockComment = true; i++; continue; }
+            if (c == '"') { inString = true; continue; }
+            if (c == '\'') { inChar = true; continue; }
 
             if (c == '{') {
                 braceCount++;
             } else if (c == '}') {
                 braceCount--;
-                if (braceCount == 0) {
-                    lastBrace = i;
-                }
+                if (braceCount == 0) lastBrace = i;
             }
         }
         return lastBrace;

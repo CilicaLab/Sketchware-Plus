@@ -196,7 +196,6 @@ public class BuildService extends Service implements BuildProgressReceiver {
             builder.buildBuiltInLibraryInformation();
             q.b(fileManager, dataManager, libraryManager, builder.getBuiltInLibraryManager());
             q.f();
-            new SecurityGuardHandler(sc_id).reportProgress(this);
             q.e();
             BuildStatsManager.recordStat("Source Generation", System.currentTimeMillis() - start);
 
@@ -241,6 +240,7 @@ public class BuildService extends Service implements BuildProgressReceiver {
             start = System.currentTimeMillis();
             new StringfogHandler(sc_id).start(this, builder);
             BuildStatsManager.recordStat("Stringfog", System.currentTimeMillis() - start);
+            new SecurityGuardHandler(sc_id).reportProgress(this);
 
             if (canceled || Thread.interrupted()) return;
 
