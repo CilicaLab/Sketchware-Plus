@@ -152,6 +152,7 @@ public class SkAssistantFragment extends Fragment {
     public Button btnUndo;
     private MaterialButton btnSend;
     private EditText etInput;
+    private String lastUserPrompt = "";
     private View tokenUsageContainer;
     private TextView tvTokenUsage;
     private MaterialCardView modelSelectorContainer;
@@ -474,6 +475,7 @@ public class SkAssistantFragment extends Fragment {
 
     void sendMessage(String prompt) {
         log("User Prompt: " + prompt);
+        this.lastUserPrompt = prompt;
         isRequestCanceled = false;
         Context context = getContext();
         if (context == null) return;
@@ -888,6 +890,7 @@ public class SkAssistantFragment extends Fragment {
             public void onError(String error) {
                 log("AI Error (" + category + "): " + error);
                 setStatus(null);
+                restoreFailedPromptToEditText(error);
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
                         if (!"Canceled".equals(error)) {
@@ -924,6 +927,41 @@ public class SkAssistantFragment extends Fragment {
         messages.add(new Message("system", content));
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
+    }
+
+    public void restoreFailedPromptToEditText(String error) {
+        if (error == null) return;
+        String lower = error.toLowerCase();
+        boolean isNetworkError = lower.contains("unable to resolve host")
+                || lower.contains("no address associated with hostname")
+                || lower.contains("unknownhostexception")
+                || lower.contains("connectexception")
+                || lower.contains("failed to connect")
+                || lower.contains("unable to resolve")
+                || lower.contains("no internet connection")
+                || lower.contains("sockettimeoutexception")
+                || lower.contains("network error")
+                || lower.contains("ai request failed");
+
+        if (isNetworkError && lastUserPrompt != null && !lastUserPrompt.trim().isEmpty()) {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    if (etInput != null) {
+                        etInput.setText(lastUserPrompt);
+                        etInput.setSelection(etInput.getText().length());
+                        etInput.requestFocus();
+                    }
+                    if (messages != null && !messages.isEmpty()) {
+                        int lastIdx = messages.size() - 1;
+                        Message lastMsg = messages.get(lastIdx);
+                        if ("user".equals(lastMsg.role) && lastUserPrompt.equals(lastMsg.content)) {
+                            messages.remove(lastIdx);
+                            adapter.notifyItemRemoved(lastIdx);
+                        }
+                    }
+                });
+            }
+        }
     }
 
     public void addAssistantMessage(String content) {

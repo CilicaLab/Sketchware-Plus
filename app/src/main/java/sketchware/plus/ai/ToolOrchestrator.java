@@ -215,6 +215,7 @@ public class ToolOrchestrator {
             public void onError(String error) {
                 mainHandler.post(() -> {
                     fragment.setStatus(null);
+                    fragment.restoreFailedPromptToEditText(error);
                     fragment.addSystemMessage("Error: " + error);
                 });
             }
