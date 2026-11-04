@@ -204,7 +204,7 @@ public class BuildService extends Service implements BuildProgressReceiver {
             builder.maybeExtractAapt2();
             if (canceled || Thread.interrupted()) return;
             
-            onProgress("Extracting built-in libraries...", 3);
+            onProgress("Extracting built-in libraries...", 2);
             start = System.currentTimeMillis();
             BuiltInLibraries.extractCompileAssets(this);
             BuildStatsManager.recordStat("Lib Extraction", System.currentTimeMillis() - start);
@@ -215,7 +215,7 @@ public class BuildService extends Service implements BuildProgressReceiver {
 
             if (canceled || Thread.interrupted()) return;
 
-            onProgress("Generating view binding...", 11);
+            onProgress("Generating view binding...", 4);
             start = System.currentTimeMillis();
             if (canceled || Thread.interrupted()) return;
             builder.generateViewBinding();
@@ -229,18 +229,18 @@ public class BuildService extends Service implements BuildProgressReceiver {
 
             if (canceled || Thread.interrupted()) return;
 
-            onProgress("Java is compiling...", 13);
+            onProgress("Java is compiling...", 10);
             start = System.currentTimeMillis();
             if (canceled || Thread.interrupted()) return;
             builder.compileJavaCode();
             BuildStatsManager.recordStat("Java Compilation", System.currentTimeMillis() - start);
 
             if (canceled || Thread.interrupted()) return;
+            new SecurityGuardHandler(sc_id).reportProgress(this, 12);
 
             start = System.currentTimeMillis();
             new StringfogHandler(sc_id).start(this, builder);
             BuildStatsManager.recordStat("Stringfog", System.currentTimeMillis() - start);
-            new SecurityGuardHandler(sc_id).reportProgress(this);
 
             if (canceled || Thread.interrupted()) return;
 
@@ -250,21 +250,21 @@ public class BuildService extends Service implements BuildProgressReceiver {
 
             if (canceled || Thread.interrupted()) return;
 
-            onProgress(builder.getDxRunningText(), 17);
+            onProgress(builder.getDxRunningText(), 16);
             start = System.currentTimeMillis();
             builder.createDexFilesFromClasses();
             BuildStatsManager.recordStat("Dexing", System.currentTimeMillis() - start);
 
             if (canceled || Thread.interrupted()) return;
 
-            onProgress("Merging DEX files...", 18);
+            onProgress("Merging DEX files...", 16);
             start = System.currentTimeMillis();
             builder.getDexFilesReady();
             BuildStatsManager.recordStat("Dex Merging", System.currentTimeMillis() - start);
 
             if (canceled || Thread.interrupted()) return;
 
-            onProgress("Building APK...", 19);
+            onProgress("Building APK...", 18);
             start = System.currentTimeMillis();
             builder.buildApk();
             BuildStatsManager.recordStat("APK Building", System.currentTimeMillis() - start);

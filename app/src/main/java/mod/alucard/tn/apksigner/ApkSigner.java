@@ -76,9 +76,39 @@ public class ApkSigner {
     public void signWithKeyStore(@NonNull String inputFilePath, @NonNull String outputFilePath,
                                  @NonNull String keyStorePath, @NonNull String keyStorePassword,
                                  @NonNull String keyStoreKeyAlias, @NonNull String keyPassword, @Nullable LogCallback callback) {
+        signWithCustomKeyStore(inputFilePath, outputFilePath, keyStorePath, keyStorePassword, keyStoreKeyAlias, keyPassword, true, true, true, callback);
+    }
+
+    public void signWithCustomKeyStore(@NonNull String inputFilePath, @NonNull String outputFilePath,
+                                        @NonNull String keyStorePath, @NonNull String keyStorePassword,
+                                        @NonNull String keyStoreKeyAlias, @NonNull String keyPassword,
+                                        boolean v1SigningEnabled, boolean v2SigningEnabled, boolean v3SigningEnabled,
+                                        @Nullable LogCallback callback) {
         try (LogWriter logger = new LogWriter(callback)) {
             long savedTimeMillis = System.currentTimeMillis();
             PrintStream oldOut = System.out;
+
+            // Register BouncyCastle and JKS KeyStore provider for Android JVM
+            try {
+                java.security.Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
+                if (java.security.Security.getProvider("JKS") == null) {
+                    java.security.Security.addProvider(new java.security.Provider("JKS", 1.0, "JKS Provider") {
+                        {
+                            put("KeyStore.JKS", "kellinwood.security.zipsigner.optional.JKS");
+                        }
+                    });
+                }
+            } catch (Exception ignored) {}
+
+            String ksType = "JKS";
+            String lowerPath = keyStorePath.toLowerCase();
+            if (lowerPath.endsWith(".p12") || lowerPath.endsWith(".pfx") || lowerPath.endsWith(".pkcs12")) {
+                ksType = "PKCS12";
+            } else if (lowerPath.endsWith(".bks")) {
+                ksType = "BKS";
+            }
+
+            String effectiveKeyPass = (keyPassword != null && !keyPassword.isEmpty()) ? keyPassword : keyStorePassword;
 
             List<String> args = Arrays.asList(
                     "sign",
@@ -93,10 +123,20 @@ public class ApkSigner {
                     "--ks-key-alias",
                     keyStoreKeyAlias,
                     "--key-pass",
-                    "pass:" + keyPassword
+                    "pass:" + effectiveKeyPass,
+                    "--ks-type",
+                    ksType,
+                    "--v1-signing-enabled",
+                    String.valueOf(v1SigningEnabled),
+                    "--v2-signing-enabled",
+                    String.valueOf(v2SigningEnabled),
+                    "--v3-signing-enabled",
+                    String.valueOf(v3SigningEnabled),
+                    "--v4-signing-enabled",
+                    "false"
             );
 
-            logger.write("Signing an APK with a JKS keystore and these arguments: ");
+            logger.write("Signing APK with custom keystore (" + ksType + ", v1=" + v1SigningEnabled + ", v2=" + v2SigningEnabled + ", v3=" + v3SigningEnabled + ")...");
 
             if (callback != null) {
                 try (PrintStream stream = new PrintStream(logger)) {
@@ -108,16 +148,20 @@ public class ApkSigner {
                 ApkSignerTool.main(args.toArray(new String[0]));
             } catch (Exception e) {
                 LogCallback.errorCount.incrementAndGet();
-                logger.write("Failed to sign APK with JKS keystore: " + Log.getStackTraceString(e));
+                logger.write("An error occurred while trying to sign the APK file " + inputFilePath +
+                        " and outputting it to " + outputFilePath + ": " + e.getMessage() + "\n" +
+                        "Stack trace: " + Log.getStackTraceString(e));
+                throw e;
+            } finally {
+                if (callback != null) {
+                    System.setOut(oldOut);
+                }
             }
 
-            logger.write("Signing an APK took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
-
-            if (callback != null) {
-                System.setOut(oldOut);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+            logger.write("Signing an APK file took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
+        } catch (Exception e) {
+            Log.e("ApkSigner", "Error signing APK with custom keystore: " + e.getMessage(), e);
+            throw new RuntimeException("APK signing failed: " + e.getMessage(), e);
         }
     }
 

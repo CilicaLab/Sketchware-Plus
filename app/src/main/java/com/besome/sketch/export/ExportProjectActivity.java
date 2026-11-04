@@ -306,7 +306,10 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
                             credentials.getKeyStorePassword().toCharArray(),
                             credentials.getKeyAlias(),
                             credentials.getKeyPassword().toCharArray(),
-                            credentials.getSigningAlgorithm()
+                            credentials.getSigningAlgorithm(),
+                            credentials.isV1SigningEnabled(),
+                            credentials.isV2SigningEnabled(),
+                            credentials.isV3SigningEnabled()
                     );
                 }
             }
@@ -385,7 +388,10 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
                             credentials.getKeyStorePassword().toCharArray(),
                             credentials.getKeyAlias(),
                             credentials.getKeyPassword().toCharArray(),
-                            credentials.getSigningAlgorithm()
+                            credentials.getSigningAlgorithm(),
+                            credentials.isV1SigningEnabled(),
+                            credentials.isV2SigningEnabled(),
+                            credentials.isV3SigningEnabled()
                     );
                 }
             } else {
@@ -450,6 +456,9 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
         private char[] signingAliasPassword = null;
         private String signingAlgorithm = null;
         private boolean signWithTestkey = false;
+        private boolean v1SigningEnabled = true;
+        private boolean v2SigningEnabled = true;
+        private boolean v3SigningEnabled = true;
 
         public BuildingAsyncTask(ExportProjectActivity exportProjectActivity, yq.ExportType exportType) {
             super(exportProjectActivity);
@@ -476,6 +485,20 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
             }
 
             String sc_id = activity.get().sc_id;
+
+            // Sync custom keystore signature for SecurityGuard BEFORE source code is generated!
+            if (isResultJarSigningEnabled() && signingKeystorePath != null && signingKeystorePassword != null) {
+                sketchware.plus.security.SecurityGuardInjector.isCustomKeystoreExport = true;
+                String customHash = sketchware.plus.security.SecurityUtils.getKeystoreSignatureHash(signingKeystorePath, signingKeystorePassword, signingAliasName);
+                if (customHash != null && !customHash.trim().isEmpty()) {
+                    sketchware.plus.security.SecurityGuardHandler sgHandler = new sketchware.plus.security.SecurityGuardHandler(sc_id);
+                    String normalizedCustomHash = customHash.replace(":", "").trim().toUpperCase();
+                    sgHandler.setFeatureValue("expected_signature", normalizedCustomHash);
+                    Log.d("ExportProjectActivity", "Updated SecurityGuard expected_signature for custom keystore: " + normalizedCustomHash);
+                }
+            } else {
+                sketchware.plus.security.SecurityGuardInjector.isCustomKeystoreExport = false;
+            }
 
             try {
                 publishProgress("Deleting temporary files...");
@@ -677,17 +700,40 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
                     if (signWithTestkey) {
                         TestkeySignBridge.signWithTestkey(builder.yq.unsignedAlignedApkPath, outputLocation);
                     } else if (isResultJarSigningEnabled()) {
-                        Security.addProvider(new BouncyCastleProvider());
-                        CustomKeySigner.signZip(
-                                new ZipSigner(),
-                                wq.j(),
-                                signingKeystorePassword,
-                                signingAliasName,
-                                signingKeystorePassword,
-                                signingAlgorithm,
-                                builder.yq.unsignedAlignedApkPath,
-                                outputLocation
-                        );
+                        boolean success = false;
+                        try {
+                            mod.alucard.tn.apksigner.ApkSigner apkSigner = new mod.alucard.tn.apksigner.ApkSigner();
+                            apkSigner.signWithCustomKeyStore(
+                                    builder.yq.unsignedAlignedApkPath,
+                                    outputLocation,
+                                    wq.j(),
+                                    new String(signingKeystorePassword),
+                                    signingAliasName,
+                                    new String(signingAliasPassword != null ? signingAliasPassword : signingKeystorePassword),
+                                    v1SigningEnabled,
+                                    v2SigningEnabled,
+                                    v3SigningEnabled,
+                                    line -> Log.d("ApkSigner", line)
+                            );
+                            success = new File(outputLocation).exists() && new File(outputLocation).length() > 0;
+                        } catch (Exception e) {
+                            Log.e("ExportProjectActivity", "ApkSigner failed, attempting fallback to CustomKeySigner", e);
+                        }
+
+                        if (!success) {
+                            Log.w("ExportProjectActivity", "ApkSigner did not output signed APK. Falling back to CustomKeySigner (ZipSigner)...");
+                            Security.addProvider(new BouncyCastleProvider());
+                            CustomKeySigner.signZip(
+                                    new ZipSigner(),
+                                    wq.j(),
+                                    signingKeystorePassword,
+                                    signingAliasName,
+                                    signingAliasPassword != null ? signingAliasPassword : signingKeystorePassword,
+                                    signingAlgorithm,
+                                    builder.yq.unsignedAlignedApkPath,
+                                    outputLocation
+                            );
+                        }
                     } else {
                         FileUtil.copyFile(builder.yq.unsignedAlignedApkPath, outputLocation);
                     }
@@ -708,6 +754,8 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
                 }
 
                 cancel(true);
+            } finally {
+                sketchware.plus.security.SecurityGuardInjector.isCustomKeystoreExport = false;
             }
         }
 
@@ -805,11 +853,18 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
          * regardless of {@link #configureResultJarSigning(String, char[], String, char[], String)} and {@link #disableResultJarSigning()} calls.
          */
         public void configureResultJarSigning(String keystorePath, char[] keystorePassword, String aliasName, char[] aliasPassword, String signatureAlgorithm) {
+            configureResultJarSigning(keystorePath, keystorePassword, aliasName, aliasPassword, signatureAlgorithm, true, true, true);
+        }
+
+        public void configureResultJarSigning(String keystorePath, char[] keystorePassword, String aliasName, char[] aliasPassword, String signatureAlgorithm, boolean v1, boolean v2, boolean v3) {
             signingKeystorePath = keystorePath;
             signingKeystorePassword = keystorePassword;
             signingAliasName = aliasName;
             signingAliasPassword = aliasPassword;
             signingAlgorithm = signatureAlgorithm;
+            v1SigningEnabled = v1;
+            v2SigningEnabled = v2;
+            v3SigningEnabled = v3;
         }
 
         /**

@@ -177,58 +177,21 @@ public class SecurityGuardInjector {
         return insertMethodsAndStaticBlock(applicationCode, staticBlock, combinedInjections.toString(), combinedMethods.toString());
     }
 
+    public static volatile boolean isCustomKeystoreExport = false;
+
     public static String detectAndPersistSigningHash(Context context, String scId) {
         SecurityGuardHandler handler = new SecurityGuardHandler(scId);
-        if (handler.isFeatureEnabled("auto_signature_sync")) {
-            String existing = handler.getFeatureString("expected_signature");
+        if (handler.isFeatureEnabled("auto_signature_sync") && !isCustomKeystoreExport) {
             String testkeyHash = getActiveSigningHash();
-
-            // If user manually set a custom expected_signature that differs from testkey, preserve it!
-            if (existing != null && !existing.trim().isEmpty() && testkeyHash != null && !normalizeHash(existing).equalsIgnoreCase(normalizeHash(testkeyHash))) {
-                return normalizeHash(existing);
-            }
-
-            String customHash = getCustomKeystoreHash();
-            String detected = (customHash != null) ? customHash : testkeyHash;
-            if (detected != null) {
-                String normalized = normalizeHash(detected);
+            if (testkeyHash != null) {
+                String normalized = normalizeHash(testkeyHash);
                 handler.setFeatureValue("expected_signature", normalized);
                 return normalized;
             } else {
-                Log.w("SecurityGuardInjector", "auto_signature_sync on but testkey/custom cert not found/resolvable");
+                Log.w("SecurityGuardInjector", "auto_signature_sync on but testkey cert not found/resolvable");
             }
         }
-        return null;
-    }
-
-    private static String getCustomKeystoreHash() {
-        try {
-            File keystoreDir = new File(sketchware.plus.utility.FileUtil.getExternalStorageDir(), "sketchware/keystore");
-            if (keystoreDir.exists() && keystoreDir.isDirectory()) {
-                File[] files = keystoreDir.listFiles();
-                if (files != null) {
-                    for (File f : files) {
-                        if (f.isFile() && (f.getName().endsWith(".jks") || f.getName().endsWith(".keystore"))) {
-                            try (FileInputStream fis = new FileInputStream(f)) {
-                                java.security.KeyStore ks = java.security.KeyStore.getInstance("JKS");
-                                ks.load(fis, "sketchware".toCharArray());
-                                java.util.Enumeration<String> aliases = ks.aliases();
-                                if (aliases.hasMoreElements()) {
-                                    String alias = aliases.nextElement();
-                                    java.security.cert.Certificate cert = ks.getCertificate(alias);
-                                    if (cert instanceof X509Certificate) {
-                                        return SecurityUtils.getCertificateHash((X509Certificate) cert);
-                                    }
-                                }
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.e("SecurityGuardInjector", "Error loading custom keystore hash", e);
-        }
-        return null;
+        return handler.getFeatureString("expected_signature");
     }
 
     private static String normalizeHash(String hash) {

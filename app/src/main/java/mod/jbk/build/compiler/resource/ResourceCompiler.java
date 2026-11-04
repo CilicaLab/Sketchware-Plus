@@ -118,7 +118,7 @@ public class ResourceCompiler {
 
             long savedTimeMillis = System.currentTimeMillis();
             if (progressListener != null) {
-                progressListener.onProgressUpdate("Compiling resources with AAPT2...", 9);
+                progressListener.onProgressUpdate("Compiling resources with AAPT2...", 6);
             }
             compileBuiltInLibraryResources();
             LogUtil.d(TAG + ":c", "Compiling built-in library resources took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
@@ -145,7 +145,7 @@ public class ResourceCompiler {
         public void link() throws zy, MissingFileException {
             String resourcesPath = buildHelper.yq.binDirectoryPath + File.separator + "res";
             if (progressListener != null)
-                progressListener.onProgressUpdate("Linking resources with AAPT2...", 10);
+                progressListener.onProgressUpdate("Linking resources with AAPT2...", 8);
 
             ArrayList<String> args = new ArrayList<>();
             args.add(aapt2.getAbsolutePath());

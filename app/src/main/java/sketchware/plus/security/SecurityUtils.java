@@ -9,19 +9,26 @@ import java.util.Enumeration;
 public class SecurityUtils {
 
     public static String getKeystoreSignatureHash(String path, char[] password) {
+        return getKeystoreSignatureHash(path, password, null);
+    }
+
+    public static String getKeystoreSignatureHash(String path, char[] password, String targetAlias) {
         try {
-            KeyStore ks = KeyStore.getInstance(path.endsWith(".jks") ? "JKS" : "BKS");
-            try (FileInputStream fis = new FileInputStream(path)) {
-                ks.load(fis, password);
-            }
+            java.security.Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
+            KeyStore ks = kellinwood.security.zipsigner.optional.KeyStoreFileManager.loadKeyStore(path, password);
             
-            Enumeration<String> aliases = ks.aliases();
-            while (aliases.hasMoreElements()) {
-                String alias = aliases.nextElement();
-                Certificate cert = ks.getCertificate(alias);
-                if (cert != null) {
-                    return getCertificateHash(cert);
+            Certificate cert = null;
+            if (targetAlias != null && !targetAlias.trim().isEmpty() && ks.containsAlias(targetAlias)) {
+                cert = ks.getCertificate(targetAlias);
+            }
+            if (cert == null) {
+                Enumeration<String> aliases = ks.aliases();
+                if (aliases.hasMoreElements()) {
+                    cert = ks.getCertificate(aliases.nextElement());
                 }
+            }
+            if (cert != null) {
+                return getCertificateHash(cert);
             }
         } catch (Exception e) {
             e.printStackTrace();

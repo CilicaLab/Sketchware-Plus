@@ -62,15 +62,19 @@ public class SecurityGuardHandler {
     }
 
     public void reportProgress(BuildProgressReceiver receiver) {
-        if (isFeatureEnabled("package_lock")) reportWithDelay(receiver, "Locking package identity...");
-        if (isFeatureEnabled("signature_check")) reportWithDelay(receiver, "Applying anti-cloning shield...");
-        if (isFeatureEnabled("root_detection")) reportWithDelay(receiver, "Injecting root detection...");
-        if (isFeatureEnabled("emulator_detection")) reportWithDelay(receiver, "Injecting emulator protection...");
-        if (isFeatureEnabled("anti_debug")) reportWithDelay(receiver, "Hardening anti-debugger...");
+        reportProgress(receiver, 10);
     }
 
-    private void reportWithDelay(BuildProgressReceiver receiver, String message) {
-        receiver.onProgress(message, 2);
+    public void reportProgress(BuildProgressReceiver receiver, int progressStep) {
+        if (isFeatureEnabled("package_lock")) reportWithDelay(receiver, "Locking package identity...", progressStep);
+        if (isFeatureEnabled("signature_check")) reportWithDelay(receiver, "Applying anti-cloning shield...", progressStep);
+        if (isFeatureEnabled("root_detection")) reportWithDelay(receiver, "Injecting root detection...", progressStep);
+        if (isFeatureEnabled("emulator_detection")) reportWithDelay(receiver, "Injecting emulator protection...", progressStep);
+        if (isFeatureEnabled("anti_debug")) reportWithDelay(receiver, "Hardening anti-debugger...", progressStep);
+    }
+
+    private void reportWithDelay(BuildProgressReceiver receiver, String message, int progressStep) {
+        receiver.onProgress(message, progressStep);
         try {
             Thread.sleep(400);
         } catch (InterruptedException ignored) {}

@@ -61,9 +61,16 @@ public class GetKeyStoreCredentialsDialog {
         binding.tilAlias.setEnabled(signingWithKeyStore);
         binding.tilPassword.setEnabled(signingWithKeyStore);
         binding.tilSigningAlgorithm.setEnabled(signingWithKeyStore);
+        binding.cbV1.setEnabled(signingWithKeyStore || mode == SigningMode.TESTKEY);
+        binding.cbV2.setEnabled(signingWithKeyStore || mode == SigningMode.TESTKEY);
+        binding.cbV3.setEnabled(signingWithKeyStore || mode == SigningMode.TESTKEY);
     }
 
     private void onNextButtonClick(DialogInterface dialogInterface) {
+        boolean v1 = binding.cbV1.isChecked();
+        boolean v2 = binding.cbV2.isChecked();
+        boolean v3 = binding.cbV3.isChecked();
+
         if (mode == SigningMode.OWN_KEY_STORE) {
             if (new File(wq.j()).exists()) {
                 if (validateInputs()) {
@@ -72,7 +79,8 @@ public class GetKeyStoreCredentialsDialog {
                             Helper.getText(binding.etSigningAlgorithm),
                             Helper.getText(binding.etPassword),
                             Helper.getText(binding.etAlias),
-                            Helper.getText(binding.etPassword)
+                            Helper.getText(binding.etPassword),
+                            v1, v2, v3
                     ));
                 }
             } else {
@@ -80,7 +88,7 @@ public class GetKeyStoreCredentialsDialog {
             }
         } else if (mode == SigningMode.TESTKEY) {
             dialogInterface.dismiss();
-            receiver.gotCredentials(new Credentials(Helper.getText(binding.etSigningAlgorithm)));
+            receiver.gotCredentials(new Credentials(Helper.getText(binding.etSigningAlgorithm), v1, v2, v3));
         } else if (mode == SigningMode.DONT_SIGN) {
             dialogInterface.dismiss();
             receiver.gotCredentials(null);
@@ -109,6 +117,11 @@ public class GetKeyStoreCredentialsDialog {
             isValid = false;
         } else {
             binding.tilSigningAlgorithm.setError(null);
+        }
+
+        if (!binding.cbV1.isChecked() && !binding.cbV2.isChecked() && !binding.cbV3.isChecked()) {
+            SketchwareUtil.toastError("Please select at least one signature scheme (V1, V2, or V3)");
+            isValid = false;
         }
 
         return isValid;
@@ -150,28 +163,45 @@ public class GetKeyStoreCredentialsDialog {
         private final String keyAlias;
         private final String keyPassword;
         private final String signingAlgorithm;
+        private final boolean v1SigningEnabled;
+        private final boolean v2SigningEnabled;
+        private final boolean v3SigningEnabled;
 
         /**
          * Constructs a credentials holder configured to sign with testkey,
          * meaning that no key store, aliases, and passwords were entered.
          */
         public Credentials(String signingAlgorithm) {
+            this(signingAlgorithm, true, true, true);
+        }
+
+        public Credentials(String signingAlgorithm, boolean v1, boolean v2, boolean v3) {
             signWithTestkey = true;
             keyStorePassword = null;
             keyAlias = null;
             keyPassword = null;
             this.signingAlgorithm = signingAlgorithm;
+            this.v1SigningEnabled = v1;
+            this.v2SigningEnabled = v2;
+            this.v3SigningEnabled = v3;
         }
 
         /**
          * Constructs a credentials holder configured to sign with a private key taken from a key store.
          */
         public Credentials(String signingAlgorithm, String keyPassword, String keyAlias, String keyStorePassword) {
+            this(signingAlgorithm, keyPassword, keyAlias, keyStorePassword, true, true, true);
+        }
+
+        public Credentials(String signingAlgorithm, String keyPassword, String keyAlias, String keyStorePassword, boolean v1, boolean v2, boolean v3) {
             signWithTestkey = false;
             this.keyStorePassword = keyStorePassword;
             this.keyAlias = keyAlias;
             this.keyPassword = keyPassword;
             this.signingAlgorithm = signingAlgorithm;
+            this.v1SigningEnabled = v1;
+            this.v2SigningEnabled = v2;
+            this.v3SigningEnabled = v3;
         }
 
         /**
@@ -207,6 +237,18 @@ public class GetKeyStoreCredentialsDialog {
          */
         public String getSigningAlgorithm() {
             return signingAlgorithm;
+        }
+
+        public boolean isV1SigningEnabled() {
+            return v1SigningEnabled;
+        }
+
+        public boolean isV2SigningEnabled() {
+            return v2SigningEnabled;
+        }
+
+        public boolean isV3SigningEnabled() {
+            return v3SigningEnabled;
         }
     }
 }
