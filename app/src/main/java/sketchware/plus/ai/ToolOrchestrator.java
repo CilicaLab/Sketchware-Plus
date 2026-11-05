@@ -266,7 +266,8 @@ public class ToolOrchestrator {
                     "3. Call only tools from the provided list. Never invent tools.\n" +
                     "4. Once you know the action, call the tool immediately. No narration first.\n" +
                     "5. When finished, reply with a brief summary of changes and make no tool calls.\n" +
-                    "6. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. Execute ONCE and immediately reply to the user.";
+                    "6. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. Execute ONCE and immediately reply to the user.\n" +
+                    "7. CRITICAL PACKAGE RULE: Always preserve and include the 'package <package_name>;' statement at line 1 of Java/Kotlin source files.";
         }
         return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
@@ -759,11 +760,18 @@ public class ToolOrchestrator {
 
                 if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
                     SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
-                    String newCode = args.optString("inputCode", args.optString("command", ""));
-                    if (newCode.isEmpty()) {
-                        newCode = args.toString();
+                    String inputCode = args.optString("inputCode", args.optString("command", ""));
+                    if (inputCode.isEmpty()) {
+                        inputCode = args.toString();
                     }
-                    provider.setCodeText(newCode);
+                    String currentCode = provider.getCodeText();
+                    String finalCode;
+                    if (!ref.isEmpty() && currentCode != null && currentCode.contains(ref)) {
+                        finalCode = currentCode.replace(ref, inputCode);
+                    } else {
+                        finalCode = inputCode;
+                    }
+                    provider.setCodeText(finalCode);
                     return "Success: Code/XML patched directly in editor for " + provider.getFileName();
                 }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");

@@ -80,14 +80,26 @@ public class SrcCodeEditor extends BaseAppCompatActivity implements SkAssistantD
 
     @Override
     public void setCodeText(String code) {
-        beforeContent = code;
-        binding.editor.setText(code);
+        String newCodeText = code;
+        String currentText = getCodeText();
+        if (currentText != null && !currentText.isEmpty()) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\s*package\\s+[\\w.]+;?)", java.util.regex.Pattern.MULTILINE).matcher(currentText);
+            if (m.find()) {
+                String matchedGroup = m.group(1);
+                String pkgHeader = matchedGroup != null ? matchedGroup.trim() : "";
+                if (!pkgHeader.isEmpty() && newCodeText != null && !java.util.regex.Pattern.compile("^\\s*package\\s+[\\w.]+;?", java.util.regex.Pattern.MULTILINE).matcher(newCodeText).find()) {
+                    newCodeText = pkgHeader + "\n\n" + newCodeText.trim();
+                }
+            }
+        }
+        beforeContent = newCodeText;
+        binding.editor.setText(newCodeText);
         if (fromAndroidManifest) {
             save();
         } else {
             String contentPath = getIntent().getStringExtra("content");
             if (contentPath != null) {
-                FileUtil.writeFile(contentPath, code);
+                FileUtil.writeFile(contentPath, newCodeText);
             }
         }
         SketchwareUtil.toast("Applied changes to code editor");
