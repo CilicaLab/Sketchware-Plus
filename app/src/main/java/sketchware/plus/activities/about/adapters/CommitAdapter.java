@@ -32,6 +32,10 @@ public class CommitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     public int shaPosition = -1;
     private boolean isLoadingVisible = false;
 
+
+    private Markwon markwonInstance;
+
+
     public CommitAdapter(AboutAppViewModel aboutAppViewModel) {
         this.aboutAppViewModel = aboutAppViewModel;
     }
@@ -85,42 +89,28 @@ public class CommitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             itemHolder.binding.tvStatus.setTextColor(activeBackgroundTextColor);
 
             String statusText;
-            int indicatorColor;
+            int bgColor, textColor, indicatorColor;
 
-            if (shaPosition == -1) {
-                if (position == 0) {
-                    statusText = "New Update";
-                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
-                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
-                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen);
-                } else {
-                    statusText = "Old Version";
-                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
-                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);
-                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorViolet);
-                }
+            if (shaPosition == -1 || position < shaPosition) {
+                statusText = "New Update";
+                bgColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
+                textColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
+                indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen);
+            } else if (position > shaPosition) {
+                statusText = "Old Version";
+                bgColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
+                textColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);
+                indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorViolet);
             } else {
-                if (position < shaPosition) {
-                    statusText = "New Update";
-                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorCoolGreenContainer);
-                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnCoolGreenContainer);
-                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorGreen);
-                } else if (position > shaPosition) {
-                    statusText = "Old Version";
-                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorVioletContainer);
-                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorViolet);
-                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorViolet);
-                } else {
-                    statusText = "Current Version";
-                    activeBackgroundColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorAmberContainer);
-                    activeBackgroundTextColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnAmberContainer);
-                    indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorAmber);
-                }
+                statusText = "Current Version";
+                bgColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorAmberContainer);
+                textColor = MaterialColors.getColor(itemHolder.binding.updateStatus, R.attr.colorOnAmberContainer);
+                indicatorColor = MaterialColors.getColor(itemHolder.binding.viewLeftline, R.attr.colorAmber);
             }
 
             itemHolder.binding.updateStatus.setText(statusText);
-            rippleRound(itemHolder.binding.updateStatus, activeBackgroundColor, activeBackgroundColor, 100);
-            itemHolder.binding.updateStatus.setTextColor(activeBackgroundTextColor);
+            rippleRound(itemHolder.binding.updateStatus, bgColor, bgColor, 100);
+            itemHolder.binding.updateStatus.setTextColor(textColor);
             advancedCorners(itemHolder.binding.viewLeftline, indicatorColor);
         }
     }
@@ -133,11 +123,20 @@ public class CommitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     public void addItems(ArrayList<AboutResponseModel.CommitDetails> newItems) {
         int startPosition = commitDetailsList.size();
         commitDetailsList.addAll(newItems);
+
+        boolean shaJustFound = false;
         if (shaPosition == -1) {
             updateShaPosition();
+            shaJustFound = shaPosition != -1;
         }
+
         notifyItemRangeInserted(startPosition, newItems.size());
+        if (shaJustFound && startPosition > 0) {
+            // rebind old rows so their labels get fixed
+            notifyItemRangeChanged(0, startPosition);
+        }
     }
+
 
     private boolean isCoreTeamMember(String userName) {
         ArrayList<String> coreTeam = aboutAppViewModel.getCoreTeamMembers();
@@ -159,17 +158,23 @@ public class CommitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     }
 
     private void markwon(TextView textView, String input) {
-        Markwon markwon = Markwon.create(textView.getContext());
-        markwon.setMarkdown(textView, input);
+        if (markwonInstance == null) markwonInstance = Markwon.create(textView.getContext());
+        markwonInstance.setMarkdown(textView, input);
     }
 
+
     public void updateShaPosition() {
-        int i = 0;
-        for (AboutResponseModel.CommitDetails commitDetails : commitDetailsList) {
-            if (commitDetails.getSha().equals(BuildConfig.GIT_HASH)) {
+        String buildHash = BuildConfig.GIT_HASH;
+        if (buildHash == null || buildHash.isEmpty()) return;
+
+        for (int i = 0; i < commitDetailsList.size(); i++) {
+            String sha = commitDetailsList.get(i).getSha();
+            if (sha != null && (sha.equalsIgnoreCase(buildHash)
+                    || sha.toLowerCase().startsWith(buildHash.toLowerCase())
+                    || buildHash.toLowerCase().startsWith(sha.toLowerCase()))) {
                 shaPosition = i;
+                return;
             }
-            i++;
         }
     }
 

@@ -821,28 +821,22 @@ public class SkAssistantFragment extends Fragment {
 
     private void applyBuildStatusColor(int shaPos) {
         if (tvCurrentModel == null) return;
-        int bgColor;
-        int textColor;
+
+        int bgColor, textColor;
         if (shaPos == 0) {
-            // Current Version -> Amber container
+            // Current
             bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorAmberContainer);
             textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnAmberContainer);
-        } else if (shaPos > 0 || shaPos == -1) {
-            // New Update available -> Cool Green container
+        } else {
+            // shaPos > 0 or -1 (not found) -> new update
             bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorCoolGreenContainer);
             textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorOnCoolGreenContainer);
-        } else {
-            // Old Version -> Violet container
-            bgColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorVioletContainer);
-            textColor = MaterialColors.getColor(tvCurrentModel, R.attr.colorViolet);
         }
 
         if (modelSelectorContainer != null) {
             modelSelectorContainer.setCardBackgroundColor(bgColor);
         }
-        if (tvCurrentModel != null) {
-            tvCurrentModel.setTextColor(textColor);
-        }
+        tvCurrentModel.setTextColor(textColor);
     }
 
     public JSONArray getChatHistory() {

@@ -124,9 +124,11 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
     }
 
     private void loadStorageInfo() {
-        if (deviceStats != null) deviceStats.setText("Device Storage: Calculating...");
-        if (sketchwareStats != null) sketchwareStats.setText(".sketchware Folder: Calculating...");
-        if (progress != null) progress.setProgress(0);
+        if (deviceStats != null) deviceStats.setText("Device Storage: Measuring storage capacity...");
+        if (sketchwareStats != null) sketchwareStats.setText(".sketchware Folder: Initializing scan...");
+        if (progress != null) {
+            progress.setIndeterminate(true);
+        }
 
         new Thread(() -> {
             long deviceTotal = 0;
@@ -139,24 +141,30 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
             long deviceUsed = deviceTotal - deviceFree;
             int deviceUsedPercent = deviceTotal > 0 ? (int) ((deviceUsed * 100) / deviceTotal) : 0;
 
-            long sketchwareSize = 0;
-            try {
-                File sketchwareDir = new File(FileUtil.getExternalStorageDir(), ".sketchware");
-                sketchwareSize = getDirSize(sketchwareDir);
-            } catch (Exception ignored) {}
-
             final long finalDeviceUsed = deviceUsed;
             final long finalDeviceTotal = deviceTotal;
             final int finalPercent = deviceUsedPercent;
-            final long finalSketchwareSize = sketchwareSize;
 
             runOnUiThread(() -> {
                 if (deviceStats != null) {
                     deviceStats.setText("Device Storage: " + formatSize(finalDeviceUsed) + " used of " + formatSize(finalDeviceTotal) + " (" + finalPercent + "%)");
                 }
                 if (progress != null) {
+                    progress.setIndeterminate(false);
                     progress.setProgress(finalPercent);
                 }
+            });
+
+            long sketchwareSize = 0;
+            try {
+                File sketchwareDir = new File(FileUtil.getExternalStorageDir(), ".sketchware");
+                long[] state = new long[]{0, System.currentTimeMillis()};
+                sketchwareSize = getDirSizeWithProgress(sketchwareDir, sketchwareDir, state);
+            } catch (Exception ignored) {}
+
+            final long finalSketchwareSize = sketchwareSize;
+
+            runOnUiThread(() -> {
                 if (sketchwareStats != null) {
                     sketchwareStats.setText(".sketchware Folder: " + formatSize(finalSketchwareSize));
                 }
@@ -180,10 +188,16 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
                 File sketchwareDir = new File(FileUtil.getExternalStorageDir(), ".sketchware");
                 if (sketchwareDir.exists()) {
                     // 1. Clean .sketchware/temp/
+                    runOnUiThread(() -> {
+                        if (sketchwareStats != null) sketchwareStats.setText(".sketchware Folder: Cleaning temporary files (temp/)...");
+                    });
                     File tempDir = new File(sketchwareDir, "temp");
                     deleteRecursive(tempDir);
 
                     // 2. Clean .sketchware/download/apk/
+                    runOnUiThread(() -> {
+                        if (sketchwareStats != null) sketchwareStats.setText(".sketchware Folder: Cleaning APK download cache (download/apk/)...");
+                    });
                     File apkDir = new File(new File(sketchwareDir, "download"), "apk");
                     deleteRecursive(apkDir);
 
@@ -194,6 +208,10 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
                         if (projects != null) {
                             for (File proj : projects) {
                                 if (proj.isDirectory()) {
+                                    final String projName = proj.getName();
+                                    runOnUiThread(() -> {
+                                        if (sketchwareStats != null) sketchwareStats.setText(".sketchware Folder: Cleaning build cache for project #" + projName + "...");
+                                    });
                                     File binDir = new File(proj, "bin");
                                     deleteRecursive(binDir);
                                     File genDir = new File(proj, "gen");
@@ -233,16 +251,29 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
         f.delete();
     }
 
-    private long getDirSize(File dir) {
+    private long getDirSizeWithProgress(File dir, File baseDir, long[] state) {
         long size = 0;
         if (dir != null && dir.exists()) {
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File file : files) {
                     if (file.isDirectory()) {
-                        size += getDirSize(file);
+                        String relativePath = baseDir != null ? baseDir.toPath().relativize(file.toPath()).toString() : file.getName();
+                        long now = System.currentTimeMillis();
+                        if (now - state[1] > 80) { // Throttle UI updates to max once per ~80ms
+                            state[1] = now;
+                            long currentSize = state[0] + size;
+                            runOnUiThread(() -> {
+                                if (sketchwareStats != null) {
+                                    sketchwareStats.setText(".sketchware Folder: Scanning " + relativePath + "... (" + formatSize(currentSize) + ")");
+                                }
+                            });
+                        }
+                        size += getDirSizeWithProgress(file, baseDir, state);
                     } else {
-                        size += file.length();
+                        long length = file.length();
+                        size += length;
+                        state[0] += length;
                     }
                 }
             }
