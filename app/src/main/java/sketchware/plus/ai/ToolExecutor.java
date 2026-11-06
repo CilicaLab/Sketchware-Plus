@@ -142,7 +142,7 @@ public class ToolExecutor {
                 ToolCallInfo info = toolCalls.get(i);
                 
                 // Pre-validation Guardrails
-                if ("apply_layout_xml".equals(info.toolName)) {
+                if ("update_layout_xml".equals(info.toolName) || "apply_layout_xml".equals(info.toolName)) {
                     String xml = info.args.optString("xml", "");
                     if (xml.isEmpty()) {
                         throw new IllegalArgumentException("Layout XML cannot be empty.");
@@ -154,10 +154,10 @@ public class ToolExecutor {
                         javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
                         db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
                     } catch (Exception xmlEx) {
-                        Log.e("SketchwarePlusAI", "Pre-validation failed for apply_layout_xml: " + xmlEx.getMessage(), xmlEx);
+                        Log.e("SketchwarePlusAI", "Pre-validation failed for " + info.toolName + ": " + xmlEx.getMessage(), xmlEx);
                         throw new IllegalArgumentException("Invalid layout XML syntax: " + xmlEx.getMessage());
                     }
-                } else if ("patch_java_file".equals(info.toolName) || "patch_manifest_xml".equals(info.toolName) || "add_java_patch".equals(info.toolName) || "add_xml_patch".equals(info.toolName)) {
+                } else if ("modify_java_file".equals(info.toolName) || "patch_java_file".equals(info.toolName) || "modify_manifest_xml".equals(info.toolName) || "patch_manifest_xml".equals(info.toolName) || "add_java_patch".equals(info.toolName) || "add_xml_patch".equals(info.toolName)) {
                     String inputCode = info.args.optString("inputCode", "");
                     if (inputCode.isEmpty()) {
                         Log.e("SketchwarePlusAI", "Pre-validation failed for " + info.toolName + ": patch inputCode is empty.");

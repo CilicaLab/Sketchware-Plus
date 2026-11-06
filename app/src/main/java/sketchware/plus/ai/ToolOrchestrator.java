@@ -262,31 +262,35 @@ public class ToolOrchestrator {
                     "CURRENT FILE CONTENT:\n" + provider.getCodeText() + "\n\n" +
                     "RULES:\n" +
                     "1. Analyze the current file content above.\n" +
-                    "2. When updating or patching code/XML, use apply_layout_xml, patch_java_file, or patch_manifest_xml, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
-                    "3. Call only tools from the provided list. Never invent tools.\n" +
-                    "4. Once you know the action, call the tool immediately. No narration first.\n" +
-                    "5. When finished, reply with a brief summary of changes and make no tool calls.\n" +
-                    "6. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. Execute ONCE and immediately reply to the user.\n" +
-                    "7. CRITICAL PACKAGE RULE: Always preserve and include the 'package <package_name>;' statement at line 1 of Java/Kotlin source files.";
+                    "2. NORMAL CONVERSATION: If the user is engaging in normal conversation, asking a question, or chatting (without requesting code/XML edits), respond naturally, helpfully, and conversationally without forcing tool calls.\n" +
+                    "3. RECALLING PAST CONTEXT: If the user references past conversation history and you need context, you may call 'search_chat_history'. If you already understand what the user is referring to, reply directly without calling any tools.\n" +
+                    "4. When updating or patching code/XML, use update_layout_xml, modify_java_file, or modify_manifest_xml, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
+                    "5. Call only tools from the provided list. Never invent tools.\n" +
+                    "6. When an action or code edit is requested, execute the tool promptly.\n" +
+                    "7. When finished, reply with a brief summary of changes and make no tool calls.\n" +
+                    "8. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. Execute ONCE and immediately reply to the user.\n" +
+                    "9. CRITICAL PACKAGE RULE: Always preserve and include the 'package <package_name>;' statement at line 1 of Java/Kotlin source files.";
         }
         return "You are SK Assistant for Sketchware Plus.\n" +
                 "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
                 "RULES:\n" +
-                "1. Inspect before acting. Use read_layout_xml, view_file_outline, list_methods, search_manifest, " +
+                "1. NORMAL CONVERSATION & CHAT: If the user is just talking naturally, asking a question, asking for advice, or chatting (without requesting project edits or code inspection), reply directly, naturally, and conversationally. You do NOT need to call any tools for normal conversation.\n" +
+                "2. RECALLING PAST CHAT: If the user asks about something previously discussed and you need context, you may use 'search_chat_history'. If you already understand what the user is referring to, reply directly without calling any tools.\n" +
+                "3. Inspect before acting when project tasks are requested. Use get_layout_xml, view_file_outline, list_methods, find_manifest_entries, " +
                 "list_files, find_files, grep_code, search_chat_history, list_components.\n" +
-                "2. Call only tools from the provided list. Never invent tools.\n" +
-                "3. Never web search component IDs. Use list_components.\n" +
-                "4. Once you know the action, call the tool immediately. No narration first.\n" +
-                "5. Modifying layouts and UI views: ALWAYS use apply_layout_xml to modify, add, or update Activity layout views. NEVER use patch_manifest_xml for layout/view XML files like main.xml or Activity layouts.\n" +
-                "6. Manifest inspection & patching: Use search_manifest when checking permissions, activities, or manifest tags. Use patch_manifest_xml EXCLUSIVELY for AndroidManifest.xml (NEVER use patch_manifest_xml for layout/view XML).\n" +
-                "7. manage_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
+                "4. Call only tools from the provided list. Never invent tools.\n" +
+                "5. Never web search component IDs. Use list_components.\n" +
+                "6. When a project modification or inspection is requested, execute the required tool promptly.\n" +
+                "7. Modifying layouts and UI views: ALWAYS use update_layout_xml to modify, add, or update Activity layout views. NEVER use modify_manifest_xml for layout/view XML files like main.xml or Activity layouts.\n" +
+                "8. Manifest inspection & patching: Use find_manifest_entries when checking permissions, activities, or manifest tags. Use modify_manifest_xml EXCLUSIVELY for AndroidManifest.xml (NEVER use modify_manifest_xml for layout/view XML).\n" +
+                "9. toggle_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
                 "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
-                "8. No redundant tool calls. Reuse info already retrieved.\n" +
-                "9. Tool arguments MUST be valid, strict JSON matching the tool schema. Never output raw XML tags (such as <tool_call> or <function=...>) for tool calls.\n" +
-                "10. When finished, reply with a brief summary of changes and make no tool calls.\n" +
-                "11. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
-                "12. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
-                "13. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.";
+                "10. No redundant tool calls. Reuse info already retrieved.\n" +
+                "11. Tool arguments MUST be valid, strict JSON matching the tool schema. Never output raw XML tags (such as <tool_call> or <function=...>) for tool calls.\n" +
+                "12. When finished, reply with a brief summary of changes and make no tool calls.\n" +
+                "13. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
+                "14. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
+                "15. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.";
     }
 
     private String buildMetricsContext() {
@@ -633,6 +637,7 @@ public class ToolOrchestrator {
                 }
                 return SketchwareXmlBridge.getRawXml(context, fragment.scId, fragment.projectFile);
 
+            case "update_layout_xml":
             case "apply_layout_xml":
                 if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
                     SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
@@ -661,9 +666,11 @@ public class ToolOrchestrator {
             //     String mSection = args.optString("section", "full");
             //     return SketchwareManifestBridge.getManifestSection(context, fragment.scId, mSection);
 
+            case "find_manifest_entries":
             case "search_manifest":
                 return SketchwareManifestBridge.searchManifest(context, fragment.scId, args.getString("query"));
 
+            case "add_java_imports":
             case "add_imports":
             case "inject_imports":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
@@ -676,6 +683,7 @@ public class ToolOrchestrator {
                 if (injected) runOnMainSync(() -> fragment.refreshDesigner());
                 return injected ? "Imports injected successfully." : "Imports already exist or injection failed.";
 
+            case "add_source_code":
             case "insert_source_code":
             case "add_source_directly":
             case "add_onCreate_code":
@@ -721,7 +729,9 @@ public class ToolOrchestrator {
                     return SourceCodeAide.findMethod(source, args.getString("methodName")).toString();
                 }
 
+            case "modify_java_file":
             case "patch_java_file":
+            case "modify_manifest_xml":
             case "patch_manifest_xml":
             case "add_java_patch":
             case "add_xml_patch":
@@ -731,14 +741,14 @@ public class ToolOrchestrator {
                     return "Error: 'reference' and 'inputCode' parameters cannot be empty.";
                 }
 
-                if ("patch_manifest_xml".equals(name) || "add_xml_patch".equals(name)) {
+                if ("modify_manifest_xml".equals(name) || "patch_manifest_xml".equals(name) || "add_xml_patch".equals(name)) {
                     String targetXml = args.optString("xmlName", "");
                     if (!"AndroidManifest.xml".equalsIgnoreCase(targetXml)) {
-                        return "Error: 'patch_manifest_xml' is strictly prohibited for layout/view XML files like '" + targetXml + "'. To modify Activity views and layouts, you MUST use the 'apply_layout_xml' tool.";
+                        return "Error: '" + name + "' is strictly prohibited for layout/view XML files like '" + targetXml + "'. To modify Activity views and layouts, you MUST use the 'update_layout_xml' tool.";
                     }
                     String manifestSrc = SourceCodeAide.getGeneratedManifest(context, fragment.scId);
                     if (manifestSrc != null && !manifestSrc.contains(ref)) {
-                        return "Error: Reference anchor line '" + ref + "' was not found in AndroidManifest.xml. Please use search_manifest to find the exact existing tag or line before patching.";
+                        return "Error: Reference anchor line '" + ref + "' was not found in AndroidManifest.xml. Please use find_manifest_entries to find the exact existing tag or line before patching.";
                     }
                 } else {
                     String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
@@ -776,7 +786,7 @@ public class ToolOrchestrator {
                 }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
-                JSONObject patch = ("patch_java_file".equals(name) || "add_java_patch".equals(name)) ? SourceCodeAide.addJavaCommandToManager(
+                JSONObject patch = ("modify_java_file".equals(name) || "patch_java_file".equals(name) || "add_java_patch".equals(name)) ? SourceCodeAide.addJavaCommandToManager(
                     context, fragment.scId, args.getString("javaName"),
                     args.getString("reference"), args.optInt("distance", 0),
                     args.optInt("front", 0), args.optInt("back", 0),
@@ -790,6 +800,7 @@ public class ToolOrchestrator {
                 runOnMainSync(() -> fragment.refreshDesigner());
                 return patch.toString();
 
+            case "toggle_local_library":
             case "manage_local_library":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
@@ -802,6 +813,7 @@ public class ToolOrchestrator {
                 });
                 return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' completed.";
 
+            case "add_manifest_permission":
             case "add_permission":
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
@@ -812,6 +824,7 @@ public class ToolOrchestrator {
                 });
                 return "Permission " + perm + " added successfully.";
 
+            case "add_sketchware_component":
             case "add_component": {
                 int typeId = args.getInt("type");
                 if (!ComponentSpecialist.isValidComponentType(typeId)) {

@@ -29,28 +29,28 @@ public class AssistantToolRegistry {
         t.put(createTool("find_files", "Find files by name",
                 new ParameterBuilder().addProperty("query", "string", "file name or part").setRequired("query").build()));
 
-        t.put(createTool("read_layout_xml", "Get current activity XML + view hierarchy",
+        t.put(createTool("get_layout_xml", "Get current activity XML + view hierarchy",
                 new ParameterBuilder().build()));
 
-        t.put(createTool("apply_layout_xml", "REQUIRED tool to create, modify, or update Activity UI layout views. ALWAYS use apply_layout_xml for any view or layout edits (NEVER use patch_manifest_xml for layouts).",
+        t.put(createTool("update_layout_xml", "REQUIRED tool to create, modify, or update Activity UI layout views. ALWAYS use update_layout_xml for any view or layout edits (NEVER use modify_manifest_xml for layouts).",
                 new ParameterBuilder()
                         .addProperty("xml", "string", "full valid layout XML")
                         .addProperty("summary", "string", "what changed")
                         .setRequired("xml", "summary").build()));
 
-        // t.put(createTool("get_manifest_xml", "Dump AndroidManifest.xml or specific section. NOTE: ALWAYS prefer search_manifest instead when searching for specific permissions, activities, services, or tags to save tokens.",
+        // t.put(createTool("get_manifest_xml", "Dump AndroidManifest.xml or specific section. NOTE: ALWAYS prefer find_manifest_entries instead when searching for specific permissions, activities, services, or tags to save tokens.",
         //         new ParameterBuilder().addProperty("section", "string", "optional section name: permissions|components|application_attributes|full").build()));
 
-        t.put(createTool("search_manifest", "PREFERRED tool to search/inspect AndroidManifest.xml for permissions, activities, services, tags, or keywords. ALWAYS use search_manifest instead of get_manifest_xml whenever looking for specific entries in the manifest.",
+        t.put(createTool("find_manifest_entries", "PREFERRED tool to search/inspect AndroidManifest.xml for permissions, activities, services, tags, or keywords. ALWAYS use find_manifest_entries instead of get_manifest_xml whenever looking for specific entries in the manifest.",
                 new ParameterBuilder().addProperty("query", "string", "keyword, tag, or permission to search (e.g. 'permission', 'activity', 'INTERNET', 'service', 'all')").setRequired("query").build()));
 
-        t.put(createTool("add_imports", "Add imports to current activity",
+        t.put(createTool("add_java_imports", "Add Java imports to current activity",
                 new ParameterBuilder()
                         .addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
-        t.put(createTool("insert_source_code", "PREFERRED tool to add Java code to activity onCreate / initializeLogic via 'Add source directly' block. ALWAYS use this instead of java patches when adding code to onCreate.",
+        t.put(createTool("add_source_code", "PREFERRED tool to add Java code to activity onCreate / initializeLogic via 'Add source directly' block. ALWAYS use this instead of java patches when adding code to onCreate.",
                 new ParameterBuilder()
                         .addProperty("code", "string", "Java code snippet to add")
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
@@ -75,7 +75,7 @@ public class AssistantToolRegistry {
                         .addProperty("contextLines", "integer", "default 2")
                         .setRequired("javaName", "query").build()));
 
-        t.put(createTool("patch_java_file", "Patch generated source code",
+        t.put(createTool("modify_java_file", "Modify/patch generated source code",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "target file")
                         .addProperty("reference", "string", "EXACT anchor line")
@@ -86,7 +86,7 @@ public class AssistantToolRegistry {
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("javaName", "reference", "command", "inputCode").build()));
 
-        t.put(createTool("patch_manifest_xml", "Patch AndroidManifest.xml via XML Command Manager. EXCLUSIVELY for AndroidManifest.xml! NEVER use patch_manifest_xml for layout/view XML files like main.xml or Activity layouts (use apply_layout_xml for layout/view changes).",
+        t.put(createTool("modify_manifest_xml", "Modify/patch AndroidManifest.xml via XML Command Manager. EXCLUSIVELY for AndroidManifest.xml! NEVER use modify_manifest_xml for layout/view XML files like main.xml or Activity layouts (use update_layout_xml for layout/view changes).",
                 new ParameterBuilder()
                         .addProperty("xmlName", "string", "MUST BE 'AndroidManifest.xml'. Do NOT use for layout/view XML files.")
                         .addProperty("reference", "string", "EXACT anchor line in XML")
@@ -97,17 +97,17 @@ public class AssistantToolRegistry {
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("xmlName", "reference", "command", "inputCode").build()));
 
-        t.put(createTool("manage_local_library", "Enable/disable local library",
+        t.put(createTool("toggle_local_library", "Enable/disable (toggle) local library",
                 new ParameterBuilder()
                         .addProperty("libraryName", "string", "library folder name")
                         .addProperty("enabled", "boolean", "true=enable")
                         .setRequired("libraryName", "enabled").build()));
 
-        t.put(createTool("add_permission", "Add permission to manifest",
+        t.put(createTool("add_manifest_permission", "Add permission to AndroidManifest.xml",
                 new ParameterBuilder().addProperty("permission", "string", "e.g. android.permission.CAMERA")
                         .setRequired("permission").build()));
 
-        t.put(createTool("add_component", "Add Sketchware component(s) to activity",
+        t.put(createTool("add_sketchware_component", "Add Sketchware component(s) to activity",
                 new ParameterBuilder()
                         .addProperty("type", "integer", "type ID from list_components")
                         .addProperty("id", "string", "unique instance name or prefix (e.g. 'vibrator' or 'intent')")
