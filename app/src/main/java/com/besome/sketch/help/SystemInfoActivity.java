@@ -82,7 +82,9 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
 
         deviceStats = new TextView(this);
         deviceStats.setText("Device Storage: Calculating...");
-        deviceStats.setTextSize(14f);
+        deviceStats.setTextSize(13f);
+        deviceStats.setSingleLine(true);
+        deviceStats.setEllipsize(android.text.TextUtils.TruncateAt.END);
         deviceStats.setTextColor(MaterialColors.getColor(deviceStats, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF666666));
         deviceStats.setPadding(0, 16, 0, 8);
         layout.addView(deviceStats);
@@ -100,7 +102,9 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
 
         sketchwareStats = new TextView(this);
         sketchwareStats.setText(".sketchware Folder: Calculating...");
-        sketchwareStats.setTextSize(15f);
+        sketchwareStats.setTextSize(13f);
+        sketchwareStats.setSingleLine(true);
+        sketchwareStats.setEllipsize(android.text.TextUtils.TruncateAt.END);
         sketchwareStats.setTypeface(null, android.graphics.Typeface.BOLD);
         sketchwareStats.setTextColor(MaterialColors.getColor(sketchwareStats, R.attr.colorPrimary, 0xFF6200EE));
         sketchwareStats.setPadding(0, 8, 0, 16);
@@ -258,14 +262,18 @@ public class SystemInfoActivity extends BaseAppCompatActivity {
             if (files != null) {
                 for (File file : files) {
                     if (file.isDirectory()) {
-                        String relativePath = baseDir != null ? baseDir.toPath().relativize(file.toPath()).toString() : file.getName();
+                        String relativePath = baseDir != null ? baseDir.toPath().relativize(file.toPath()).toString().replace('\\', '/') : file.getName();
+                        if (relativePath.length() > 22) {
+                            relativePath = "..." + relativePath.substring(relativePath.length() - 19);
+                        }
                         long now = System.currentTimeMillis();
                         if (now - state[1] > 80) { // Throttle UI updates to max once per ~80ms
                             state[1] = now;
                             long currentSize = state[0] + size;
+                            final String displayPath = relativePath;
                             runOnUiThread(() -> {
                                 if (sketchwareStats != null) {
-                                    sketchwareStats.setText(".sketchware Folder: Scanning " + relativePath + "... (" + formatSize(currentSize) + ")");
+                                    sketchwareStats.setText(".sketchware Folder: Scanning " + displayPath + "... (" + formatSize(currentSize) + ")");
                                 }
                             });
                         }
