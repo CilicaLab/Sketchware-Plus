@@ -23,12 +23,21 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
 
+import android.graphics.BitmapFactory;
+
+import org.jetbrains.annotations.NotNull;
+
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.besome.sketch.lib.ui.ColorPickerDialog;
 import com.besome.sketch.projects.MyProjectSettingActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import sketchware.plus.filepicker.FilePickerCallback;
+import sketchware.plus.filepicker.FilePickerDialogFragment;
+import sketchware.plus.filepicker.FilePickerOptions;
+import sketchware.plus.filepicker.SelectionMode;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -511,17 +520,44 @@ public class IconCreatorActivity extends BaseAppCompatActivity {
         builder.setItems(new String[]{
                 Helper.getResString(R.string.myprojects_settings_context_menu_title_choose_gallery),
                 Helper.getResString(R.string.myprojects_settings_context_menu_title_choose_gallery_with_crop),
+                "Choose with File Picker",
                 Helper.getResString(R.string.myprojects_settings_context_menu_title_choose_gallery_default)
         }, (dialog, which) -> {
             switch (which) {
                 case 0 -> pickCustomIcon(REQUEST_CODE_PICK_ICON);
                 case 1 -> pickAndCropCustomIcon();
-                case 2 -> binding.appIcoImg.setBackgroundResource(R.drawable.default_image);
+                case 2 -> pickCustomIconFromFilePicker();
+                case 3 -> binding.appIcoImg.setBackgroundResource(R.drawable.default_image);
             }
         });
         AlertDialog create = builder.create();
         create.setCanceledOnTouchOutside(true);
         create.show();
+    }
+
+    private void pickCustomIconFromFilePicker() {
+        FilePickerOptions options = new FilePickerOptions();
+        options.setSelectionMode(SelectionMode.FILE_ONLY);
+        options.setMultipleSelection(false);
+        options.setExtensions(new String[]{"png", "jpg", "jpeg", "webp"});
+        options.setTitle("Select App Icon Image");
+
+        FilePickerCallback callback = new FilePickerCallback() {
+            @Override
+            public void onFileSelected(@NotNull File file) {
+                Bitmap loadedBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+                if (loadedBitmap != null) {
+                    iconFilePath = file.getAbsolutePath();
+                    saveBitmapTo(loadedBitmap, baseDir() + "app_icon.png");
+                    binding.appIcoImg.setBackground(new android.graphics.drawable.BitmapDrawable(getResources(), loadedBitmap));
+                    appIconBitmap = loadedBitmap;
+                } else {
+                    SketchwareUtil.toastError("Invalid or unsupported image file");
+                }
+            }
+        };
+
+        new FilePickerDialogFragment(options, callback).show(getSupportFragmentManager(), "filePickerAppIcon");
     }
 
     private void saveIconToRes() {

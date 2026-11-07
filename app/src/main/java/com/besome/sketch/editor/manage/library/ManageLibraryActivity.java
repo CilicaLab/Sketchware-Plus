@@ -37,6 +37,8 @@ import mod.hey.studios.activity.managers.nativelib.ManageNativelibsActivity;
 import mod.hey.studios.util.Helper;
 import mod.jbk.editor.manage.library.ExcludeBuiltInLibrariesActivity;
 import mod.jbk.editor.manage.library.ExcludeBuiltInLibrariesLibraryItemView;
+import mod.jbk.editor.manage.library.IncludeBuiltInLibrariesActivity;
+import mod.jbk.editor.manage.library.IncludeBuiltInLibrariesLibraryItemView;
 import sketchware.plus.R;
 import sketchware.plus.utility.UI;
 
@@ -99,6 +101,9 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
         if (type == ProjectLibraryBean.PROJECT_LIB_TYPE_EXCLUDE_BUILTIN_LIBRARIES) {
             libraryItemView = new ExcludeBuiltInLibrariesLibraryItemView(this, sc_id);
             libraryItemView.setData(null);
+        } else if (type == ProjectLibraryBean.PROJECT_LIB_TYPE_INCLUDE_BUILTIN_LIBRARIES) {
+            libraryItemView = new IncludeBuiltInLibrariesLibraryItemView(this, sc_id);
+            libraryItemView.setData(null);
         } else {
             libraryItemView = new Material3LibraryItemView(this);
             libraryItemView.setData(compatLibraryBean);
@@ -133,7 +138,7 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
 
         for (LibraryItemView itemView : libraryItems) {
             Object tag = itemView.getTag();
-            if (itemView instanceof ExcludeBuiltInLibrariesLibraryItemView) {
+            if (itemView instanceof ExcludeBuiltInLibrariesLibraryItemView || itemView instanceof IncludeBuiltInLibrariesLibraryItemView) {
                 itemView.setData(null);
             } else if (itemView instanceof Material3LibraryItemView) {
                 itemView.setData(compatLibraryBean);
@@ -292,6 +297,10 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
                         launchCustomActivity(ExcludeBuiltInLibrariesActivity.class);
                         break;
 
+                    case ProjectLibraryBean.PROJECT_LIB_TYPE_INCLUDE_BUILTIN_LIBRARIES:
+                        launchCustomActivity(IncludeBuiltInLibrariesActivity.class);
+                        break;
+
                     case ProjectLibraryBean.PROJECT_LIB_TYPE_MATERIAL3:
                         toMaterial3Activity();
                 }
@@ -382,7 +391,8 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
         addLibraryItem(new ProjectLibraryBean(ProjectLibraryBean.PROJECT_LIB_TYPE_NATIVE_LIB), externalCategory, false);
 
         LibraryCategoryView advancedCategory = addCategoryItem("Advanced");
-        addCustomLibraryItem(ProjectLibraryBean.PROJECT_LIB_TYPE_EXCLUDE_BUILTIN_LIBRARIES, advancedCategory, false);
+        addCustomLibraryItem(ProjectLibraryBean.PROJECT_LIB_TYPE_EXCLUDE_BUILTIN_LIBRARIES, advancedCategory, true);
+        addCustomLibraryItem(ProjectLibraryBean.PROJECT_LIB_TYPE_INCLUDE_BUILTIN_LIBRARIES, advancedCategory, false);
     }
 
     @Override

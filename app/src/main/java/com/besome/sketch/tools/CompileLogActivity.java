@@ -266,19 +266,34 @@ public class CompileLogActivity extends BaseAppCompatActivity {
                 .show();
     }
 
+    private String trimLogsForAi(String logs) {
+        if (logs == null) return "";
+        if (logs.length() <= 6000) return logs;
+
+        String[] lines = logs.split("\n");
+        StringBuilder errorLines = new StringBuilder();
+        for (String line : lines) {
+            String lower = line.toLowerCase();
+            if (lower.contains("error") || lower.contains("exception") || lower.contains("failed") || lower.contains("cannot find symbol") || lower.contains("syntax")) {
+                errorLines.append(line).append("\n");
+            }
+        }
+
+        if (errorLines.length() > 0 && errorLines.length() <= 6000) {
+            return errorLines.toString();
+        }
+
+        return "..." + logs.substring(logs.length() - 6000);
+    }
+
     public void explainErrorsWithSk(String errorLogs) {
         k();
         SketchwareUtil.toast("Asking SK to explain errors...");
         String systemPrompt = "You are an expert Android developer specializing in Sketchware Plus. The user is using Sketchware Plus, a mobile IDE, which does not use a traditional Gradle/Groovy build system for its project configuration. Explain the following compilation errors clearly and provide specific instructions on how to fix them within the context of Sketchware (e.g., checking blocks, custom code, or local libraries). Avoid suggestions related to editing build.gradle or standard Android Studio IDE settings.";
-        String userPrompt = "Compilation logs:\n" + errorLogs;
+        String trimmedLogs = trimLogsForAi(errorLogs);
+        String userPrompt = "Compilation logs:\n" + trimmedLogs;
 
-        SharedPreferences prefs = getSharedPreferences("P12", MODE_PRIVATE);
-        String provider = prefs.getString("P12_PROVIDER", "custom");
-        String endpoint = prefs.getString("P12I4", "");
-        boolean isGroq = "groq".equalsIgnoreCase(provider) || "grog".equalsIgnoreCase(provider) || endpoint.contains("groq.com");
-        String modelOverride = isGroq ? "allam-2-7b" : null;
-
-        AiClient.askAi(this, systemPrompt, userPrompt, AiClient.AiTemperatureType.ERROR_EXPLANATION, null, modelOverride, new AiClient.AiCallback() {
+        AiClient.askAi(this, systemPrompt, userPrompt, AiClient.AiTemperatureType.ERROR_EXPLANATION, null, null, new AiClient.AiCallback() {
             @Override
             public void onSuccess(String response) {
                 runOnUiThread(() -> {
@@ -292,7 +307,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
                 runOnUiThread(() -> {
                     h();
                     String lower = error != null ? error.toLowerCase() : "";
-                    if (lower.contains("too large") || lower.contains("token") || lower.contains("413") || lower.contains("exceed") || lower.contains("payload")) {
+                    if (lower.contains("413") || lower.contains("context_length_exceeded") || lower.contains("payload too large") || lower.contains("maximum context length")) {
                         new MaterialAlertDialogBuilder(CompileLogActivity.this)
                                 .setTitle("Log Too Large")
                                 .setMessage("The compile log is too large for the AI model to process at once. Please switch to a specific category tab (such as Java / Kotlin or XML / Layout) to narrow down the errors, and try again.")

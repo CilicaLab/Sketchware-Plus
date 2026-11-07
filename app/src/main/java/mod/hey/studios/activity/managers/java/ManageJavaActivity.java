@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 import sketchware.plus.filepicker.FilePickerCallback;
 import sketchware.plus.filepicker.FilePickerDialogFragment;
 import sketchware.plus.filepicker.FilePickerOptions;
+import sketchware.plus.filepicker.SelectionMode;
 import mod.hey.studios.code.SrcCodeEditor;
 import mod.hey.studios.util.Helper;
 import sketchware.plus.R;
@@ -48,7 +49,7 @@ import sketchware.plus.utility.SketchwareUtil;
 public class ManageJavaActivity extends BaseAppCompatActivity {
 
     // works for both Java & Kotlin files
-    private static final String PACKAGE_DECL_REGEX = "package (.*?);?\\n";
+    private static final String PACKAGE_DECL_REGEX = "package (.*?);?(\\r?\\n|$)";
 
     private static final String ACTIVITY_TEMPLATE = """
             package %s;
@@ -248,27 +249,61 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
 
     private void showImportDialog() {
         FilePickerOptions options = new FilePickerOptions();
+        options.setSelectionMode(SelectionMode.BOTH);
         options.setMultipleSelection(true);
         options.setExtensions(new String[]{"java", "kt"});
-        options.setTitle("Select Java/Kotlin file(s)");
+        options.setTitle("Select Java/Kotlin file(s) or folder(s)");
 
         FilePickerCallback callback = new FilePickerCallback() {
             @Override
             public void onFilesSelected(@NotNull List<? extends File> files) {
                 for (File file : files) {
-                    String fileContent = FileUtil.readFile(file.getAbsolutePath());
-
-                    if (fileContent.contains("package ")) {
-                        fileContent = fileContent.replaceFirst(PACKAGE_DECL_REGEX, "package " + getCurrentPkgName() + (file.getName().endsWith(".java") ? ";" : "") + "\n");
-                    }
-
-                    FileUtil.writeFile(new File(current_path, file.getName()).getAbsolutePath(), fileContent);
-                    refresh();
+                    importEntry(file, new File(current_path), getCurrentPkgName());
                 }
+                refresh();
             }
         };
 
         new FilePickerDialogFragment(options, callback).show(getSupportFragmentManager(), "filePicker");
+    }
+
+    private void importEntry(File source, File destinationDir, String pkgName) {
+        if (!source.exists()) return;
+
+        if (source.isDirectory()) {
+            File destFolder = new File(destinationDir, source.getName());
+            if (!destFolder.exists()) {
+                boolean created = destFolder.mkdirs();
+            }
+            String folderPkgName = (pkgName == null || pkgName.isEmpty()) ? source.getName() : pkgName + "." + source.getName();
+            File[] children = source.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    importEntry(child, destFolder, folderPkgName);
+                }
+            }
+        } else if (source.isFile()) {
+            File destFile = new File(destinationDir, source.getName());
+            String fileName = source.getName();
+            if (fileName.endsWith(".java") || fileName.endsWith(".kt")) {
+                String fileContent = FileUtil.readFile(source.getAbsolutePath());
+
+                boolean isJava = fileName.endsWith(".java");
+                if (fileContent.contains("package ")) {
+                    fileContent = fileContent.replaceFirst(PACKAGE_DECL_REGEX, "package " + pkgName + (isJava ? ";" : "") + "\n");
+                } else if (pkgName != null && !pkgName.isEmpty()) {
+                    fileContent = "package " + pkgName + (isJava ? ";" : "") + "\n\n" + fileContent;
+                }
+
+                FileUtil.writeFile(destFile.getAbsolutePath(), fileContent);
+            } else {
+                try {
+                    FileUtil.copyDirectory(source, destFile);
+                } catch (Exception e) {
+                    android.util.Log.e("ManageJavaActivity", "Failed to copy file " + source.getAbsolutePath(), e);
+                }
+            }
+        }
     }
 
     private void showRenameDialog(int position) {

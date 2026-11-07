@@ -67,7 +67,7 @@ public class FilePickerAdapter extends RecyclerView.Adapter<FilePickerAdapter.Vi
     }
 
     public void toggleSelection(File file) {
-        if (file.isDirectory()) return; // Folders are navigational only
+        if (file.isDirectory() && selectionMode == SelectionMode.FILE_ONLY) return;
 
         if (selectedFiles.contains(file)) {
             selectedFiles.remove(file);
@@ -133,19 +133,39 @@ public class FilePickerAdapter extends RecyclerView.Adapter<FilePickerAdapter.Vi
         drawable.setColor(backgroundColor);
         holder.itemContainer.setBackground(drawable);
 
+        boolean canSelectFolder = selectionMode == SelectionMode.BOTH || selectionMode == SelectionMode.DIRECTORY_ONLY;
+        boolean canSelectFile = selectionMode == SelectionMode.BOTH || selectionMode == SelectionMode.FILE_ONLY;
+
         if (file.isDirectory()) {
             holder.imgIcon.setImageResource(R.drawable.ic_mtrl_folder);
-            holder.checkboxSelected.setVisibility(View.GONE);
+            if (canSelectFolder) {
+                holder.checkboxSelected.setVisibility(View.VISIBLE);
+                holder.checkboxSelected.setChecked(selectedFiles.contains(file));
+                holder.checkboxSelected.setOnClickListener(v -> toggleSelection(file));
+            } else {
+                holder.checkboxSelected.setVisibility(View.GONE);
+                holder.checkboxSelected.setOnClickListener(null);
+            }
         } else {
             holder.imgIcon.setImageResource(R.drawable.ic_mtrl_file);
-            holder.checkboxSelected.setVisibility(View.VISIBLE);
-            holder.checkboxSelected.setChecked(selectedFiles.contains(file));
+            if (canSelectFile) {
+                holder.checkboxSelected.setVisibility(View.VISIBLE);
+                holder.checkboxSelected.setChecked(selectedFiles.contains(file));
+                holder.checkboxSelected.setOnClickListener(v -> toggleSelection(file));
+            } else {
+                holder.checkboxSelected.setVisibility(View.GONE);
+                holder.checkboxSelected.setOnClickListener(null);
+            }
         }
 
         holder.itemView.setOnClickListener(v -> {
             if (file.isDirectory()) {
-                listener.onItemClick(file);
-            } else {
+                if (selectionMode == SelectionMode.DIRECTORY_ONLY) {
+                    toggleSelection(file);
+                } else {
+                    listener.onItemClick(file);
+                }
+            } else if (canSelectFile) {
                 toggleSelection(file);
             }
         });

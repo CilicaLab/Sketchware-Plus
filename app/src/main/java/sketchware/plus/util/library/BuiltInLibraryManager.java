@@ -10,6 +10,7 @@ import a.a.a.Jp;
 import a.a.a.ProjectBuilder;
 import mod.jbk.build.BuiltInLibraries;
 import mod.jbk.editor.manage.library.ExcludeBuiltInLibrariesActivity;
+import mod.jbk.editor.manage.library.IncludeBuiltInLibrariesActivity;
 
 /**
  * A class to keep track of a project's built-in libraries.
@@ -17,12 +18,24 @@ import mod.jbk.editor.manage.library.ExcludeBuiltInLibrariesActivity;
 
 public class BuiltInLibraryManager {
 
+    private final String projectId;
     private final ArrayList<String> libraryNames = new ArrayList<>();
     private final ArrayList<Jp> libraries = new ArrayList<>();
     private final List<BuiltInLibraries.BuiltInLibrary> excludedLibraries;
+    private final List<BuiltInLibraries.BuiltInLibrary> includedLibraries;
+    private final boolean isIncludingEnabled;
 
     public BuiltInLibraryManager(String projectId) {
-        excludedLibraries = ExcludeBuiltInLibrariesActivity.getExcludedLibraries(projectId);
+        this.projectId = projectId;
+        this.excludedLibraries = ExcludeBuiltInLibrariesActivity.getExcludedLibraries(projectId);
+        this.includedLibraries = IncludeBuiltInLibrariesActivity.getIncludedLibraries(projectId);
+        this.isIncludingEnabled = IncludeBuiltInLibrariesActivity.isIncludingEnabled(projectId);
+
+        if (isIncludingEnabled) {
+            for (BuiltInLibraries.BuiltInLibrary lib : includedLibraries) {
+                addLibraryInternal(lib.getName());
+            }
+        }
     }
 
     /**
@@ -34,8 +47,10 @@ public class BuiltInLibraryManager {
      */
     public void addLibrary(String libraryName) {
         Optional<BuiltInLibraries.BuiltInLibrary> library = BuiltInLibraries.BuiltInLibrary.ofName(libraryName);
+        boolean forceIncluded = isIncludingEnabled && library.isPresent() && includedLibraries.contains(library.get());
+
         //noinspection SimplifyOptionalCallChains because #isEmpty() isn't available on Android.
-        if (!library.isPresent() || !excludedLibraries.contains(library.get())) {
+        if (forceIncluded || (!library.isPresent() || !excludedLibraries.contains(library.get()))) {
             if (!libraryNames.contains(libraryName)) {
                 Log.d(ProjectBuilder.TAG, "Added built-in library \"" + libraryName + "\" to project's dependencies");
                 libraryNames.add(libraryName);
@@ -47,6 +62,15 @@ public class BuiltInLibraryManager {
         } else {
             Log.v(ProjectBuilder.TAG, "Didn't add built-in library \"" + libraryName + "\" to project's dependencies as it's excluded");
             Log.v(ProjectBuilder.TAG, "Adding its dependencies though");
+            addDependencies(libraryName);
+        }
+    }
+
+    private void addLibraryInternal(String libraryName) {
+        if (!libraryNames.contains(libraryName)) {
+            Log.d(ProjectBuilder.TAG, "Force-added built-in library \"" + libraryName + "\" to project's dependencies");
+            libraryNames.add(libraryName);
+            libraries.add(new Jp(libraryName));
             addDependencies(libraryName);
         }
     }

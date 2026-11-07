@@ -44,6 +44,16 @@ import a.a.a.oB;
 import a.a.a.wB;
 import a.a.a.wq;
 import a.a.a.yB;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.provider.MediaStore;
+
+import org.jetbrains.annotations.NotNull;
+
+import sketchware.plus.filepicker.FilePickerCallback;
+import sketchware.plus.filepicker.FilePickerDialogFragment;
+import sketchware.plus.filepicker.FilePickerOptions;
+import sketchware.plus.filepicker.SelectionMode;
 import mod.hey.studios.project.ProjectSettings;
 import mod.hey.studios.util.Helper;
 import mod.hey.studios.util.ProjectFile;
@@ -60,6 +70,7 @@ import sketchware.plus.utility.SketchwareUtil;
 public class MyProjectSettingActivity extends BaseAppCompatActivity implements View.OnClickListener {
 
     private static final int REQUEST_CODE_CREATE_ICON = 200212;
+    private static final int REQUEST_CODE_PICK_GALLERY_ICON = 200213;
     private final String[] themeColorKeys = {"color_accent", "color_primary", "color_primary_dark", "color_control_highlight", "color_control_normal"};
     private final String[] themeColorLabels = {"colorAccent", "colorPrimary", "colorPrimaryDark", "colorControlHighlight", "colorControlNormal"};
     private final int[] projectThemeColors = new int[themeColorKeys.length];
@@ -201,11 +212,8 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (data == null) {
-            return;
-        }
 
-        if (requestCode == REQUEST_CODE_CREATE_ICON && resultCode == RESULT_OK) {
+        if (requestCode == REQUEST_CODE_CREATE_ICON && resultCode == RESULT_OK && data != null) {
             if (data.getParcelableExtra("appIco") != null) {
                 icon = data.getParcelableExtra("appIco");
 
@@ -213,18 +221,28 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
                 binding.appIcon.setImageBitmap(icon);
                 projectHasCustomIcon = true;
             }
+        } else if (requestCode == REQUEST_CODE_PICK_GALLERY_ICON && resultCode == RESULT_OK && data != null) {
+            Uri selectedImageUri = data.getData();
+            if (selectedImageUri != null) {
+                try {
+                    Bitmap loadedBitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), selectedImageUri);
+                    if (loadedBitmap != null) {
+                        icon = loadedBitmap;
+                        binding.appIcon.setImageBitmap(icon);
+                        projectHasCustomIcon = true;
+                    }
+                } catch (Exception e) {
+                    SketchwareUtil.toastError("Failed to load image");
+                }
+            }
         }
-
     }
 
     @Override
     public void onClick(View v) {
         int id = v.getId();
         if (id == R.id.app_icon_layout) {
-            Intent intent = new Intent();
-            intent.setClass(getApplicationContext(), IconCreatorActivity.class);
-            intent.putExtra("sc_id", sc_id);
-            startActivityForResult(intent, REQUEST_CODE_CREATE_ICON);
+            showChooseIconDialog();
         } else if (id == R.id.ok_button) {
             mB.a(v);
             if (isInputValid()) {
@@ -247,6 +265,61 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
                 showOldVersionControlDialog();
             }
         }
+    }
+
+    private void showChooseIconDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle(Helper.getResString(R.string.myprojects_settings_context_menu_title_choose));
+        String[] options = new String[]{
+                "Icon Creator",
+                Helper.getResString(R.string.myprojects_settings_context_menu_title_choose_gallery),
+                "Choose with File Picker",
+                Helper.getResString(R.string.myprojects_settings_context_menu_title_choose_gallery_default)
+        };
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0 -> {
+                    Intent intent = new Intent();
+                    intent.setClass(getApplicationContext(), IconCreatorActivity.class);
+                    intent.putExtra("sc_id", sc_id);
+                    startActivityForResult(intent, REQUEST_CODE_CREATE_ICON);
+                }
+                case 1 -> pickCustomIconFromGallery();
+                case 2 -> pickCustomIconFromFilePicker();
+                case 3 -> showResetIconConfirmation();
+            }
+        });
+        builder.show();
+    }
+
+    private void pickCustomIconFromGallery() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
+        startActivityForResult(Intent.createChooser(intent, Helper.getResString(R.string.common_word_choose)), REQUEST_CODE_PICK_GALLERY_ICON);
+    }
+
+    private void pickCustomIconFromFilePicker() {
+        FilePickerOptions options = new FilePickerOptions();
+        options.setSelectionMode(SelectionMode.FILE_ONLY);
+        options.setMultipleSelection(false);
+        options.setExtensions(new String[]{"png", "jpg", "jpeg", "webp"});
+        options.setTitle("Select App Icon Image");
+
+        FilePickerCallback callback = new FilePickerCallback() {
+            @Override
+            public void onFileSelected(@NotNull File file) {
+                Bitmap loadedBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+                if (loadedBitmap != null) {
+                    icon = loadedBitmap;
+                    binding.appIcon.setImageBitmap(icon);
+                    projectHasCustomIcon = true;
+                } else {
+                    SketchwareUtil.toastError("Invalid or unsupported image file");
+                }
+            }
+        };
+
+        new FilePickerDialogFragment(options, callback).show(getSupportFragmentManager(), "filePickerAppIcon");
     }
 
     @Override

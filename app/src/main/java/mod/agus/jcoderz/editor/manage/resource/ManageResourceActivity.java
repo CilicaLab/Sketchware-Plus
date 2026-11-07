@@ -122,24 +122,13 @@ public class ManageResourceActivity extends BaseAppCompatActivity {
 
     private void handleFab() {
         var optionsButton = binding.showOptionsButton;
-        if (isInMainDirectory()) {
-            optionsButton.setText("Create new");
-            hideShowOptionsButton(true);
-        } else {
-            optionsButton.setText("Create or import");
-        }
+        optionsButton.setText("Create or import");
     }
 
     private void initToolbar() {
         binding.topAppBar.setTitle("Resource Manager");
         binding.topAppBar.setNavigationOnClickListener(v -> onBackPressed());
-        binding.showOptionsButton.setOnClickListener(view -> {
-            if (isInMainDirectory()) {
-                createNewDialog(true);
-                return;
-            }
-            hideShowOptionsButton(false);
-        });
+        binding.showOptionsButton.setOnClickListener(view -> hideShowOptionsButton(false));
         binding.closeButton.setOnClickListener(view -> hideShowOptionsButton(true));
         binding.createNewButton.setOnClickListener(v -> {
             createNewDialog(isInMainDirectory());

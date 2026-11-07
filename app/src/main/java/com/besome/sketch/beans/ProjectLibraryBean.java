@@ -36,6 +36,7 @@ public class ProjectLibraryBean implements Parcelable {
     public static final int PROJECT_LIB_TYPE_NATIVE_LIB = 5;
     public static final int PROJECT_LIB_TYPE_EXCLUDE_BUILTIN_LIBRARIES = 6;
     public static final int PROJECT_LIB_TYPE_MATERIAL3 = 7;
+    public static final int PROJECT_LIB_TYPE_INCLUDE_BUILTIN_LIBRARIES = 8;
 
     @Expose
     public String appId;
