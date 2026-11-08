@@ -200,7 +200,7 @@ public class ViewPane extends RelativeLayout {
             if (preView != null) preView.setTag(viewBean.id);
             viewBean.preId = "";
         }
-        if (viewBean.id.charAt(0) == '_') {
+        if (viewBean.id != null && !viewBean.id.isEmpty() && viewBean.id.charAt(0) == '_') {
             findViewWithTag = findViewWithTag(viewBean.id);
         } else {
             findViewWithTag = rootLayout.findViewWithTag(viewBean.id);
@@ -211,7 +211,7 @@ public class ViewPane extends RelativeLayout {
 
     public ItemView d(ViewBean viewBean) {
         View findViewWithTag = rootLayout.findViewWithTag(viewBean.id);
-        if (viewBean.id.charAt(0) == '_') {
+        if (viewBean.id != null && !viewBean.id.isEmpty() && viewBean.id.charAt(0) == '_') {
             findViewWithTag = findViewWithTag(viewBean.id);
         }
         String str = viewBean.preParent;
@@ -365,7 +365,7 @@ public class ViewPane extends RelativeLayout {
         ImageBean imageBean;
         String str;
         var injectHandler = new InjectAttributeHandler(viewBean);
-        if (viewBean.id.charAt(0) == '_') {
+        if (viewBean.id != null && !viewBean.id.isEmpty() && viewBean.id.charAt(0) == '_') {
             LayoutParams layoutParams = new LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -637,7 +637,7 @@ public class ViewPane extends RelativeLayout {
     public ItemView findItemViewByTag(String str) {
         View findViewWithTag = viewCache.get(str);
         if (findViewWithTag == null) {
-            if (str.charAt(0) == '_') {
+            if (str != null && !str.isEmpty() && str.charAt(0) == '_') {
                 findViewWithTag = findViewWithTag(str);
             } else {
                 if (rootLayout != null) {

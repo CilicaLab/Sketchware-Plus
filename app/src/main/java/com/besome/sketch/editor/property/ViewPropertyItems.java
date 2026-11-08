@@ -75,7 +75,7 @@ public class ViewPropertyItems extends LinearLayout implements Kw, View.OnClickL
 
     private void a(ViewBean bean, String property) {
         boolean isNotAdview = !bean.getClassInfo().a("AdView");
-        boolean isGeneratedId = bean.id.charAt(0) == '_';
+        boolean isGeneratedId = bean.id != null && !bean.id.isEmpty() && bean.id.charAt(0) == '_';
 
         switch (property) {
             case "property_id" -> {

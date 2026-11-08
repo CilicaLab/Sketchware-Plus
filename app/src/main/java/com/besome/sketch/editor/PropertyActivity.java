@@ -194,10 +194,10 @@ public class PropertyActivity extends BaseAppCompatActivity implements Kw {
         }
 
         String viewId;
-        if (viewBean.id.charAt(0) == '_') {
+        if (viewBean.id != null && !viewBean.id.isEmpty() && viewBean.id.charAt(0) == '_') {
             viewId = viewBean.id.substring(1);
         } else {
-            viewId = viewBean.id;
+            viewId = viewBean.id != null ? viewBean.id : "";
         }
 
         toolbar.setSubtitle(viewId);

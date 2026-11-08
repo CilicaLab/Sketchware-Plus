@@ -45,7 +45,7 @@ public class ToolOrchestrator {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ToolExecutor toolExecutor;
     
-    private static final int MAX_ITERATIONS = 10;
+    private static final int MAX_ITERATIONS = 30;
     private int iterationCount = 0;
     private boolean isCanceled = false;
     
@@ -885,6 +885,84 @@ public class ToolOrchestrator {
                     fragment.refreshDesigner();
                 });
                 return "Applied custom view: " + cvName;
+
+            case "get_project_structure": {
+                String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
+                return ProjectStructureAide.getProjectStructureSummary(fragment.scId, javaName);
+            }
+
+            case "add_variables": {
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
+                JSONArray items = args.optJSONArray("items");
+                final String[] res = new String[1];
+                runOnMainSync(() -> {
+                    res[0] = ProjectStructureAide.addVariables(getContext(), fragment.scId, javaName, items);
+                    fragment.refreshDesigner();
+                });
+                return res[0];
+            }
+
+            case "add_lists": {
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
+                JSONArray items = args.optJSONArray("items");
+                final String[] res = new String[1];
+                runOnMainSync(() -> {
+                    res[0] = ProjectStructureAide.addLists(getContext(), fragment.scId, javaName, items);
+                    fragment.refreshDesigner();
+                });
+                return res[0];
+            }
+
+            case "add_more_block": {
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
+                String mbName = args.getString("name");
+                JSONArray params = args.optJSONArray("params");
+                String returnType = args.optString("returnType", null);
+                String bodyJava = args.optString("body_java", null);
+                final String[] res = new String[1];
+                runOnMainSync(() -> {
+                    res[0] = ProjectStructureAide.addMoreBlock(getContext(), fragment.scId, javaName, mbName, params, returnType, bodyJava);
+                    fragment.refreshDesigner();
+                });
+                return res[0];
+            }
+
+            case "register_event": {
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
+                String targetKind = args.optString("targetKind", "view");
+                String targetId = args.getString("targetId");
+                String eventName = args.getString("eventName");
+                final String[] res = new String[1];
+                runOnMainSync(() -> {
+                    res[0] = ProjectStructureAide.registerEvent(getContext(), fragment.scId, javaName, targetKind, targetId, eventName);
+                    fragment.refreshDesigner();
+                });
+                return res[0];
+            }
+
+            case "create_activity": {
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                String actName = args.getString("name");
+                JSONObject options = args.optJSONObject("options");
+                int orientation = args.optInt("orientation", 0);
+                int keyboardSetting = args.optInt("keyboard", 0);
+                String layoutXml = args.optString("layout_xml", null);
+                final String[] res = new String[1];
+                runOnMainSync(() -> {
+                    res[0] = ProjectStructureAide.createActivity(getContext(), fragment.scId, actName, options, orientation, keyboardSetting, layoutXml);
+                    fragment.refreshDesigner();
+                });
+                return res[0];
+            }
 
             case "search_chat_history":
             case "search_conversation":

@@ -280,6 +280,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
             // Inject a default LinearLayout when creating a blank activity.
             views = new ArrayList<>();
             ViewBean rootBean = new ViewBean();
+            rootBean.id = "linear1";
             rootBean.type = ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
             rootBean.parent = "root";
             rootBean.index = 0;

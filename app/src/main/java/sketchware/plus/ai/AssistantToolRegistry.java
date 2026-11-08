@@ -136,6 +136,49 @@ public class AssistantToolRegistry {
                         .addProperty("startIndex", "integer", "Optional 0-based index to start search from, or negative for counting from recent history (e.g. -15)")
                         .build()));
 
+        t.put(createTool("get_project_structure", "Inspect project activities, custom views, variables, lists, more blocks, components, view IDs, and events.",
+                new ParameterBuilder()
+                        .addProperty("javaName", "string", "optional activity file name, e.g. MainActivity.java or main")
+                        .build()));
+
+        t.put(createTool("add_variables", "Add variables to an activity.",
+                new ParameterBuilder()
+                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
+                        .addProperty("items", "array", "Array of variable objects, e.g. [{\"name\": \"count\", \"type\": \"number\"}]")
+                        .setRequired("items").build()));
+
+        t.put(createTool("add_lists", "Add list variables (ListInt, ListString, ListMap) to an activity.",
+                new ParameterBuilder()
+                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
+                        .addProperty("items", "array", "Array of list objects, e.g. [{\"name\": \"userList\", \"type\": \"string\"}]")
+                        .setRequired("items").build()));
+
+        t.put(createTool("add_more_block", "Create a custom function (More Block) in an activity.",
+                new ParameterBuilder()
+                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
+                        .addProperty("name", "string", "function name, e.g. calculateTotal")
+                        .addProperty("params", "array", "optional array of parameter objects, e.g. [{\"name\": \"x\", \"type\": \"number\"}]")
+                        .addProperty("returnType", "string", "optional return type, e.g. void, String, double, boolean")
+                        .addProperty("body_java", "string", "optional Java implementation for function body")
+                        .setRequired("name").build()));
+
+        t.put(createTool("register_event", "Register an activity, view, or component event listener to obtain an eventKey.",
+                new ParameterBuilder()
+                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
+                        .addProperty("targetKind", "string", "activity|view|component (default 'view')")
+                        .addProperty("targetId", "string", "target ID, e.g. button1, timer1, onCreate")
+                        .addProperty("eventName", "string", "event name, e.g. onClick, onTimer, initializeLogic")
+                        .setRequired("targetId", "eventName").build()));
+
+        t.put(createTool("create_activity", "Create a new Activity in the project.",
+                new ParameterBuilder()
+                        .addProperty("name", "string", "activity name (without .java), e.g. DetailActivity")
+                        .addProperty("options", "object", "optional features: {\"toolbar\": true, \"fullscreen\": false, \"drawer\": false, \"fab\": false}")
+                        .addProperty("orientation", "integer", "orientation: 0=portrait, 1=landscape, 2=both (default 0)")
+                        .addProperty("keyboard", "integer", "keyboard setting: 0=unspecified, 1=visible, 2=hidden (default 0)")
+                        .addProperty("layout_xml", "string", "optional initial layout XML content")
+                        .setRequired("name").build()));
+
         return t;
     }
 

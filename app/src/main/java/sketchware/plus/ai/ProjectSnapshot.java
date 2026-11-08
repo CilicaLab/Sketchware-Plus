@@ -9,6 +9,8 @@ import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ProjectLibraryBean;
 import com.besome.sketch.beans.ViewBean;
 
+import java.io.BufferedReader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +23,8 @@ import a.a.a.yq;
 import sketchware.plus.managers.inject.InjectRootLayoutManager;
 
 public class ProjectSnapshot {
+    public String logicData;
+    public String viewData;
     public ArrayList<ViewBean> views;
     public ArrayList<ProjectFileBean> activities;
     public ArrayList<ProjectFileBean> customViews;
@@ -43,12 +47,50 @@ public class ProjectSnapshot {
         synchronized (dataManager) {
             synchronized (fileManager) {
                 synchronized (libraryManager) {
+                    // Capture full serialized logic and view states via eC string buffers
+                    try {
+                        StringBuffer logicBuf = new StringBuffer();
+                        dataManager.a(logicBuf);
+                        this.logicData = logicBuf.toString();
+
+                        StringBuffer viewBuf = new StringBuffer();
+                        dataManager.b(viewBuf);
+                        this.viewData = viewBuf.toString();
+                    } catch (Exception ignored) {}
+
                     this.views = new ArrayList<>();
-                    for (ViewBean v : dataManager.d(xmlName)) {
-                        this.views.add(v.clone());
+                    ArrayList<ViewBean> currentViews = dataManager.d(xmlName);
+                    if (currentViews != null) {
+                        for (ViewBean v : currentViews) {
+                            if (v != null) {
+                                this.views.add(v.clone());
+                            }
+                        }
                     }
-                    this.activities = new ArrayList<>(fileManager.c);
-                    this.customViews = new ArrayList<>(fileManager.d);
+
+                    // Deep copy activities and custom views so subsequent mutations do not affect snapshot
+                    this.activities = new ArrayList<>();
+                    if (fileManager.c != null) {
+                        for (ProjectFileBean pfb : fileManager.c) {
+                            if (pfb != null) {
+                                ProjectFileBean copy = new ProjectFileBean(pfb.fileType, pfb.fileName);
+                                copy.copy(pfb);
+                                this.activities.add(copy);
+                            }
+                        }
+                    }
+
+                    this.customViews = new ArrayList<>();
+                    if (fileManager.d != null) {
+                        for (ProjectFileBean pfb : fileManager.d) {
+                            if (pfb != null) {
+                                ProjectFileBean copy = new ProjectFileBean(pfb.fileType, pfb.fileName);
+                                copy.copy(pfb);
+                                this.customViews.add(copy);
+                            }
+                        }
+                    }
+
                     this.firebase = libraryManager.d().clone();
                     this.compat = libraryManager.c().clone();
                     this.admob = libraryManager.b().clone();
@@ -122,9 +164,49 @@ public class ProjectSnapshot {
         synchronized (dataManager) {
             synchronized (fileManager) {
                 synchronized (libraryManager) {
+                    // 1. Restore full logic and view data from serialized buffers if available
+                    dataManager.b(); // Clear current memory state
+
+                    if (logicData != null && !logicData.isEmpty()) {
+                        try {
+                            dataManager.a(new BufferedReader(new StringReader(logicData)));
+                        } catch (Exception ignored) {}
+                    }
+
+                    if (viewData != null && !viewData.isEmpty()) {
+                        try {
+                            dataManager.b(new BufferedReader(new StringReader(viewData)));
+                        } catch (Exception ignored) {}
+                    }
+
                     dataManager.c.put(xmlName, views);
-                    fileManager.c = activities;
-                    fileManager.d = customViews;
+
+                    fileManager.c = new ArrayList<>();
+                    if (this.activities != null) {
+                        for (ProjectFileBean pfb : this.activities) {
+                            if (pfb != null) {
+                                ProjectFileBean copy = new ProjectFileBean(pfb.fileType, pfb.fileName);
+                                copy.copy(pfb);
+                                fileManager.c.add(copy);
+                            }
+                        }
+                    }
+
+                    fileManager.d = new ArrayList<>();
+                    if (this.customViews != null) {
+                        for (ProjectFileBean pfb : this.customViews) {
+                            if (pfb != null) {
+                                ProjectFileBean copy = new ProjectFileBean(pfb.fileType, pfb.fileName);
+                                copy.copy(pfb);
+                                fileManager.d.add(copy);
+                            }
+                        }
+                    }
+
+                    fileManager.j(); // Rebuild java and xml lists
+                    fileManager.l(); // Persist activities list to disk
+                    dataManager.a(fileManager); // Sync fileManager with dataManager
+
                     libraryManager.a(admob);
                     libraryManager.b(compat);
                     libraryManager.c(firebase);
@@ -145,7 +227,7 @@ public class ProjectSnapshot {
                                     }
                                 }
                             }
-                            dataManager.h.put(entry.getKey(), list);
+                            this.componentsMap.put(entry.getKey(), list);
                         }
                     }
 
@@ -185,7 +267,7 @@ public class ProjectSnapshot {
                         }
                     }
 
-                    dataManager.k(); // Persist restored events and blocks to disk
+                    dataManager.k(); // Persist restored state to disk
                 }
             }
         }

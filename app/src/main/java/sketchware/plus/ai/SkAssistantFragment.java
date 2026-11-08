@@ -1208,7 +1208,9 @@ public class SkAssistantFragment extends Fragment {
                             sb.append(AiViewTreeManager.buildViewTree(views, rootBean).toString(2)).append("\n");
                         } else if ("LOGIC_ENGINEER".equals(category) || "IMPORT_LOGIC".equals(category)) {
                             String javaCode = new Jx(workspace.N, projectFile, dataManager).generateCode(false, scId);
-                            sb.append("Current Java:\n").append(javaCode).append("\n");
+                            sb.append("Current Java:\n").append(javaCode).append("\n\n");
+
+                            sb.append(ProjectStructureAide.getProjectStructureSummary(scId, projectFile.getJavaName())).append("\n");
 
                             // Current Logic Events
                             ArrayList<EventBean> events = dataManager.i.get(projectFile.getJavaName());

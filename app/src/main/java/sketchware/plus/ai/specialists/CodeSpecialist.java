@@ -28,6 +28,7 @@ import a.a.a.jC;
 import a.a.a.yq;
 import a.a.a.wq;
 import sketchware.plus.ai.AssistantImportInjector;
+import sketchware.plus.ai.ProjectStructureAide;
 import sketchware.plus.ai.LogicIrBridge;
 import sketchware.plus.ai.ProjectSnapshot;
 import sketchware.plus.ai.SkAssistantFragment;
@@ -45,7 +46,7 @@ public class CodeSpecialist extends BaseSpecialist {
     private List<String> stepHistory = new ArrayList<>();
 
     private int iterationCount = 0;
-    private static final int MAX_ITERATIONS = 6;
+    private static final int MAX_ITERATIONS = 30;
     private AlertDialog activePatchDialog = null;
     private static final List<String> VALID_COMMANDS = List.of(
             "insert", "add", "replace", "find-replace", "find-replace-first", "find-replace-all"
@@ -165,22 +166,30 @@ public class CodeSpecialist extends BaseSpecialist {
                             "PREVIOUS STEPS HISTORY:\n" + String.join("\n", stepHistory) + "\n\n" +
                             "INSTRUCTIONS:\n" +
                             "1. Review the code/project state provided in context.\n" +
-                            "2. Decide the SINGLE NEXT ACTION to take toward the goal.\n" +
-                            "3. Available Actions:\n" +
-                            "   - GET_LOGIC_IR: {\"type\": \"GET_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate_initializeLogic\"}\n" +
-                            "   - APPLY_LOGIC_IR: {\"type\": \"APPLY_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate_initializeLogic\", \"javaCode\": \"...\"}\n" +
-                            "   - SEARCH_METHOD: {\"type\": \"SEARCH_METHOD\", \"javaName\": \"main\", \"methodName\": \"initialize\"}\n" +
-                            "   - GET_CODE_RANGE: {\"type\": \"GET_CODE_RANGE\", \"javaName\": \"main\", \"startLine\": 10, \"endLine\": 30}\n" +
-                            "   - FIND_FIELD: {\"type\": \"FIND_FIELD\", \"javaName\": \"main\", \"fieldName\": \"myButton\"}\n" +
-                            "   - ADD_JAVA_COMMAND: {\"type\": \"ADD_JAVA_COMMAND\", \"javaName\": \"main\", \"reference\": \"...\", \"distance\": 0, \"after\": 1, \"before\": 0, \"command\": \"insert\", \"inputCode\": \"...\"}\n" +
+                            "2. Decide the SINGLE NEXT ACTION or sequence of actions to take toward the goal.\n" +
+                            "3. Copy 'javaName' (e.g. 'MainActivity.java') and 'eventKey' (e.g. 'onCreate_initializeLogic') EXACTLY from the context lists.\n" +
+                            "4. Available Actions:\n" +
+                            "   - REGISTER_EVENT: {\"type\": \"REGISTER_EVENT\", \"javaName\": \"MainActivity.java\", \"targetKind\": \"view|component|activity\", \"targetId\": \"button1\", \"eventName\": \"onClick\"}\n" +
+                            "   - ADD_VARIABLES: {\"type\": \"ADD_VARIABLES\", \"javaName\": \"MainActivity.java\", \"items\": [{\"name\": \"count\", \"type\": \"number\"}, {\"name\": \"name\", \"type\": \"string\"}]}\n" +
+                            "   - ADD_LISTS: {\"type\": \"ADD_LISTS\", \"javaName\": \"MainActivity.java\", \"items\": [{\"name\": \"userList\", \"type\": \"string\"}]}\n" +
+                            "   - ADD_MORE_BLOCK: {\"type\": \"ADD_MORE_BLOCK\", \"javaName\": \"MainActivity.java\", \"name\": \"greetUser\", \"params\": [{\"name\": \"username\", \"type\": \"string\"}], \"returnType\": \"void\", \"body_java\": \"...\"}\n" +
+                            "   - CREATE_ACTIVITY: {\"type\": \"CREATE_ACTIVITY\", \"name\": \"DetailActivity\", \"options\": {\"toolbar\": true, \"fullscreen\": false}, \"orientation\": 0, \"keyboard\": 0, \"layout_xml\": \"...\"}\n" +
+                            "   - GET_PROJECT_STRUCTURE: {\"type\": \"GET_PROJECT_STRUCTURE\", \"javaName\": \"MainActivity.java\"}\n" +
+                            "   - GET_LOGIC_IR: {\"type\": \"GET_LOGIC_IR\", \"javaName\": \"MainActivity.java\", \"eventKey\": \"onCreate_initializeLogic\"}\n" +
+                            "   - APPLY_LOGIC_IR: {\"type\": \"APPLY_LOGIC_IR\", \"javaName\": \"MainActivity.java\", \"eventKey\": \"button1_onClick\", \"javaCode\": \"...\"}\n" +
+                            "   - ADD_BLOCK: {\"type\": \"ADD_BLOCK\", \"javaName\": \"MainActivity.java\", \"eventKey\": \"onCreate_initializeLogic\", \"opCode\": \"showMessage\", \"parameters\": [\"Hello\"]}\n" +
+                            "   - ADD_IMPORT: {\"type\": \"ADD_IMPORT\", \"package\": \"java.util.ArrayList\"}\n" +
+                            "   - ADD_JAVA_COMMAND: {\"type\": \"ADD_JAVA_COMMAND\", \"javaName\": \"MainActivity.java\", \"reference\": \"...\", \"distance\": 0, \"after\": 1, \"before\": 0, \"command\": \"insert\", \"inputCode\": \"...\"}\n" +
+                            "   - SEARCH_METHOD: {\"type\": \"SEARCH_METHOD\", \"javaName\": \"MainActivity.java\", \"methodName\": \"initialize\"}\n" +
                             "   - MISSION_COMPLETE: {\"type\": \"MISSION_COMPLETE\", \"summary\": \"Final description of completed task.\"}\n" +
-                            "4. Output ONLY valid JSON containing your thought process and an 'actions' array.\n\n" +
+                            "5. Output ONLY valid JSON containing your thought process and an 'actions' array.\n\n" +
                             "RESPONSE FORMAT (JSON):\n" +
                             "{\n" +
                             "  \"category\": \"LOGIC_ENGINEER\",\n" +
                             "  \"summary\": \"Short description...\",\n" +
                             "  \"actions\": [\n" +
-                            "    { \"type\": \"...\", ... }\n" +
+                            "    { \"type\": \"REGISTER_EVENT\", \"targetId\": \"button1\", \"eventName\": \"onClick\" },\n" +
+                            "    { \"type\": \"APPLY_LOGIC_IR\", \"javaName\": \"MainActivity.java\", \"eventKey\": \"button1_onClick\", \"javaCode\": \"Toast.makeText(getApplicationContext(), \\\"Clicked!\\\", Toast.LENGTH_SHORT).show();\" }\n" +
                             "  ]\n" +
                             "}\n";
 
@@ -337,6 +346,160 @@ public class CodeSpecialist extends BaseSpecialist {
                 log("[CodeSpecialist.handleAction -> ADD_IMPORT] Executing ADD_IMPORT...");
                 applyImport(action.optString("package", action.optString("name", "")));
                 break;
+
+            case "REGISTER_EVENT": {
+                log("[CodeSpecialist.handleAction -> REGISTER_EVENT] Registering event...");
+                String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java");
+                String targetKind = action.optString("targetKind", "view");
+                String targetId = action.optString("targetId", "");
+                String eventName = action.optString("eventName", "");
+
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+
+                String result = ProjectStructureAide.registerEvent(getContext(), getScId(), javaName, targetKind, targetId, eventName);
+                log("  - Register Event Result: " + result);
+                stepHistory.add("REGISTER_EVENT: " + result);
+
+                fragment.getActivity().runOnUiThread(() -> {
+                    fragment.addSystemMessage("Registered Event: " + result);
+                    fragment.refreshDesigner();
+                });
+
+                if (refinedGoal != null) {
+                    process(originalPrompt, "Event registered: " + result + ". Proceeding to next step...");
+                }
+                break;
+            }
+
+            case "ADD_VARIABLES": {
+                log("[CodeSpecialist.handleAction -> ADD_VARIABLES] Adding variables...");
+                String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java");
+                JSONArray items = action.optJSONArray("items");
+                if (items == null && action.has("name")) {
+                    items = new JSONArray();
+                    try {
+                        JSONObject item = new JSONObject();
+                        item.put("name", action.optString("name"));
+                        item.put("type", action.optString("type", "string"));
+                        items.put(item);
+                    } catch (Exception ignored) {}
+                }
+
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+
+                String result = ProjectStructureAide.addVariables(getContext(), getScId(), javaName, items);
+                log("  - Add Variables Result: " + result);
+                stepHistory.add("ADD_VARIABLES: " + result);
+
+                fragment.getActivity().runOnUiThread(() -> {
+                    fragment.addSystemMessage("Add Variables: " + result);
+                    fragment.refreshDesigner();
+                });
+
+                if (refinedGoal != null) {
+                    process(originalPrompt, "Variables result: " + result + ". Proceeding to next step...");
+                }
+                break;
+            }
+
+            case "ADD_LISTS": {
+                log("[CodeSpecialist.handleAction -> ADD_LISTS] Adding lists...");
+                String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java");
+                JSONArray items = action.optJSONArray("items");
+                if (items == null && action.has("name")) {
+                    items = new JSONArray();
+                    try {
+                        JSONObject item = new JSONObject();
+                        item.put("name", action.optString("name"));
+                        item.put("type", action.optString("type", "string"));
+                        items.put(item);
+                    } catch (Exception ignored) {}
+                }
+
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+
+                String result = ProjectStructureAide.addLists(getContext(), getScId(), javaName, items);
+                log("  - Add Lists Result: " + result);
+                stepHistory.add("ADD_LISTS: " + result);
+
+                fragment.getActivity().runOnUiThread(() -> {
+                    fragment.addSystemMessage("Add Lists: " + result);
+                    fragment.refreshDesigner();
+                });
+
+                if (refinedGoal != null) {
+                    process(originalPrompt, "Lists result: " + result + ". Proceeding to next step...");
+                }
+                break;
+            }
+
+            case "ADD_MORE_BLOCK": {
+                log("[CodeSpecialist.handleAction -> ADD_MORE_BLOCK] Creating More Block...");
+                String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java");
+                String mbName = action.optString("name", action.optString("funcName", ""));
+                JSONArray params = action.optJSONArray("params");
+                String returnType = action.optString("returnType", null);
+                String bodyJava = action.optString("body_java", action.optString("bodyJava", null));
+
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+
+                String result = ProjectStructureAide.addMoreBlock(getContext(), getScId(), javaName, mbName, params, returnType, bodyJava);
+                log("  - Add More Block Result: " + result);
+                stepHistory.add("ADD_MORE_BLOCK: " + result);
+
+                fragment.getActivity().runOnUiThread(() -> {
+                    fragment.addSystemMessage("Created More Block: " + result);
+                    fragment.refreshDesigner();
+                });
+
+                if (refinedGoal != null) {
+                    process(originalPrompt, "More Block result: " + result + ". Proceeding to next step...");
+                }
+                break;
+            }
+
+            case "CREATE_ACTIVITY": {
+                log("[CodeSpecialist.handleAction -> CREATE_ACTIVITY] Creating activity...");
+                String actName = action.optString("name", action.optString("activityName", ""));
+                JSONObject options = action.optJSONObject("options");
+                int orientation = action.optInt("orientation", 0);
+                int keyboardSetting = action.optInt("keyboard", 0);
+                String layoutXml = action.optString("layout_xml", action.optString("xml", null));
+
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+
+                String result = ProjectStructureAide.createActivity(getContext(), getScId(), actName, options, orientation, keyboardSetting, layoutXml);
+                log("  - Create Activity Result: " + result);
+                stepHistory.add("CREATE_ACTIVITY: " + result);
+
+                fragment.getActivity().runOnUiThread(() -> {
+                    fragment.addSystemMessage("Create Activity: " + result);
+                    fragment.refreshDesigner();
+                });
+
+                if (refinedGoal != null) {
+                    process(originalPrompt, "Activity created: " + result + ". Proceeding to next step...");
+                }
+                break;
+            }
+
+            case "GET_PROJECT_STRUCTURE": {
+                log("[CodeSpecialist.handleAction -> GET_PROJECT_STRUCTURE] Reading project structure...");
+                String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java");
+                String summaryStr = ProjectStructureAide.getProjectStructureSummary(getScId(), javaName);
+                log("  - Structure Summary:\n" + summaryStr);
+                stepHistory.add("GET_PROJECT_STRUCTURE:\n" + summaryStr);
+
+                if (refinedGoal != null) {
+                    process(originalPrompt, "Project structure retrieved:\n" + summaryStr + "\nProceeding to next step...");
+                }
+                break;
+            }
 
             default:
                 log("[CodeSpecialist.handleAction] WARNING: Unknown action type '" + type + "'. Raw action JSON:\n" + formatJson(action));
@@ -685,17 +848,22 @@ public class CodeSpecialist extends BaseSpecialist {
             return;
         }
 
-        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
+        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+        fragment.setUndoVisible(true);
         log("[CodeSpecialist.applyAddBlock] Snapshot created for undo.");
 
         Runnable r = () -> {
             String scId = getScId();
             eC dataManager = jC.a(scId);
-            String javaName = getProjectFile().getJavaName();
+            String javaName = getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java";
             log("[CodeSpecialist.applyAddBlock] Target Java Name: " + javaName + ", Event Key: " + normalizedEventKey);
 
             synchronized (dataManager) {
-                LogicIrBridge.ensureEventRegistered(dataManager, javaName, normalizedEventKey);
+                boolean registered = LogicIrBridge.ensureEventRegistered(dataManager, javaName, normalizedEventKey);
+                if (!registered) {
+                    log("[CodeSpecialist.applyAddBlock] ERROR: Could not register event " + normalizedEventKey + " for " + javaName);
+                    return;
+                }
                 ArrayList<BlockBean> blocks = dataManager.a(javaName, normalizedEventKey);
                 if (blocks == null) {
                     blocks = new ArrayList<>();

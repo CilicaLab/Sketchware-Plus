@@ -2,12 +2,16 @@ package sketchware.plus.ai;
 
 import android.graphics.Color;
 import android.util.Log;
+import android.util.Pair;
 
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.ComponentBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ViewBean;
+
+import mod.hey.studios.moreblock.ReturnMoreblockManager;
+import mod.hilal.saif.events.EventsHandler;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -85,9 +89,13 @@ public class LogicIrBridge {
     }
 
     /**
-     * Checks whether an opCode or block type is valid according to Sketchware built-in and extra block specs or control structures.
+     * Checks whether an opCode or block type is valid according to Sketchware built-in, extra block specs, declared more-blocks, or control structures.
      */
     public static boolean isOpCodeValid(String opCode, String type) {
+        return isOpCodeValid(opCode, type, null, null);
+    }
+
+    public static boolean isOpCodeValid(String opCode, String type, String scId, String javaName) {
         ensureBlockSpecCache();
 
         if (opCode == null) opCode = "";
@@ -110,15 +118,41 @@ public class LogicIrBridge {
         }
 
         // Check built-in and extra blockSpecCache
-        return blockSpecCache.containsKey(opCode);
+        if (blockSpecCache.containsKey(opCode)) {
+            return true;
+        }
+
+        // Check declared custom functions (More Blocks) in target activity
+        if (scId != null && !scId.trim().isEmpty() && javaName != null && !javaName.trim().isEmpty()) {
+            javaName = ProjectStructureAide.resolveJavaName(scId, javaName);
+            eC dataManager = jC.a(scId);
+            if (dataManager != null) {
+                ArrayList<Pair<String, String>> mbs = dataManager.i(javaName);
+                if (mbs != null) {
+                    for (Pair<String, String> mb : mbs) {
+                        if (mb == null || mb.first == null) continue;
+                        String name = ReturnMoreblockManager.getMbName(mb.first);
+                        if (opCode.equalsIgnoreCase(name)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private static void validateIrNode(Object nodeObj, List<String> invalidOpcodes) {
+        validateIrNode(nodeObj, null, null, invalidOpcodes);
+    }
+
+    private static void validateIrNode(Object nodeObj, String scId, String javaName, List<String> invalidOpcodes) {
         if (nodeObj == null) return;
 
         if (nodeObj instanceof JSONArray arr) {
             for (int i = 0; i < arr.length(); i++) {
-                validateIrNode(arr.opt(i), invalidOpcodes);
+                validateIrNode(arr.opt(i), scId, javaName, invalidOpcodes);
             }
             return;
         }
@@ -127,33 +161,34 @@ public class LogicIrBridge {
             String type = node.optString("type", "statement");
             String opCode = node.optString("opCode", "");
 
-            if (!isOpCodeValid(opCode, type)) {
+            if (!isOpCodeValid(opCode, type, scId, javaName)) {
                 String displayOp = (opCode != null && !opCode.trim().isEmpty()) ? opCode.trim() : type;
-                if (!invalidOpcodes.contains(displayOp)) {
-                    invalidOpcodes.add(displayOp);
+                String err = "Unknown opcode '" + displayOp + "'";
+                if (!invalidOpcodes.contains(err)) {
+                    invalidOpcodes.add(err);
                 }
             }
 
             if (node.has("condition")) {
-                validateIrNode(node.opt("condition"), invalidOpcodes);
+                validateIrNode(node.opt("condition"), scId, javaName, invalidOpcodes);
             }
             if (node.has("count")) {
-                validateIrNode(node.opt("count"), invalidOpcodes);
+                validateIrNode(node.opt("count"), scId, javaName, invalidOpcodes);
             }
             if (node.has("then")) {
-                validateIrNode(node.optJSONArray("then"), invalidOpcodes);
+                validateIrNode(node.optJSONArray("then"), scId, javaName, invalidOpcodes);
             }
             if (node.has("else")) {
-                validateIrNode(node.optJSONArray("else"), invalidOpcodes);
+                validateIrNode(node.optJSONArray("else"), scId, javaName, invalidOpcodes);
             }
             if (node.has("body")) {
-                validateIrNode(node.optJSONArray("body"), invalidOpcodes);
+                validateIrNode(node.optJSONArray("body"), scId, javaName, invalidOpcodes);
             }
             if (node.has("parameters")) {
                 JSONArray params = node.optJSONArray("parameters");
                 if (params != null) {
                     for (int p = 0; p < params.length(); p++) {
-                        validateIrNode(params.opt(p), invalidOpcodes);
+                        validateIrNode(params.opt(p), scId, javaName, invalidOpcodes);
                     }
                 }
             }
@@ -167,6 +202,10 @@ public class LogicIrBridge {
      * @return ValidationResult indicating whether the IR is safe to apply.
      */
     public static ValidationResult validateIr(JSONObject ir) {
+        return validateIr(ir, null, null);
+    }
+
+    public static ValidationResult validateIr(JSONObject ir, String scId, String javaName) {
         log("validateIr ENTRY - ir present: " + (ir != null));
         if (ir == null) {
             log("validateIr ERROR: IR JSON object is null");
@@ -180,9 +219,9 @@ public class LogicIrBridge {
 
             // Inspect body items for basic structural validity and unknown opCodes
             List<String> unknownOpcodes = new ArrayList<>();
-            validateIrNode(ir, unknownOpcodes);
+            validateIrNode(ir, scId, javaName, unknownOpcodes);
             if (!unknownOpcodes.isEmpty()) {
-                String errorMsg = "Unknown or unsupported opCodes in IR: " + String.join(", ", unknownOpcodes);
+                String errorMsg = "Validation failed: " + String.join(", ", unknownOpcodes);
                 log("validateIr ERROR: " + errorMsg);
                 return new ValidationResult(false, errorMsg, "", 0);
             }
@@ -1223,39 +1262,57 @@ public class LogicIrBridge {
     // =========================================================================
 
     /**
-     * Normalizes event key aliases (e.g., converts "onCreate" to "onCreate_initializeLogic").
+     * Normalizes event key aliases (e.g., converts "onCreate" or "initializeLogic" to "onCreate_initializeLogic").
      *
      * @param eventKey The input event key.
      * @return The normalized event key for Sketchware project data lookups.
      */
     public static String normalizeEventKey(String eventKey) {
-        if (eventKey == null || eventKey.trim().isEmpty() || "onCreate".equalsIgnoreCase(eventKey.trim())) {
+        if (eventKey == null || eventKey.trim().isEmpty()) {
             return "onCreate_initializeLogic";
         }
-        return eventKey.trim();
+        String trimmed = eventKey.trim();
+        if ("onCreate".equalsIgnoreCase(trimmed) || "initializeLogic".equalsIgnoreCase(trimmed)) {
+            return "onCreate_initializeLogic";
+        }
+        if ("Import".equalsIgnoreCase(trimmed)) {
+            return "Import_Import";
+        }
+        if (!trimmed.contains("_")) {
+            String[] actEvents = EventsHandler.getActivityEvents();
+            if (actEvents != null) {
+                for (String ae : actEvents) {
+                    if (trimmed.equalsIgnoreCase(ae)) {
+                        return ae + "_" + ae;
+                    }
+                }
+            }
+        }
+        return trimmed;
     }
 
     /**
-     * Ensures that an EventBean for the given eventKey is registered in project storage (manager.i).
-     * If the event is not already registered in manager.g(javaName), infers eventType, targetType, targetId,
-     * and eventName and registers it.
+     * Ensures that an EventBean for the given eventKey is registered in project storage (manager.g).
+     * If the event is not already registered, infers eventType, targetType, targetId, and eventName and registers it.
      *
      * @param manager The eC project data manager instance.
-     * @param javaName The target activity/file name (e.g. "main" or "MainActivity.java").
+     * @param rawJavaName The target activity/file name (e.g. "main" or "MainActivity.java").
      * @param eventKey The normalized event key (e.g. "onCreate_initializeLogic", "button1_onClick", "timer1_onTimer").
+     * @return true if the event is registered or was newly registered, false if registration failed.
      */
-    public static void ensureEventRegistered(eC manager, String javaName, String eventKey) {
-        if (manager == null || javaName == null || javaName.trim().isEmpty() || eventKey == null || eventKey.trim().isEmpty()) {
-            return;
+    public static boolean ensureEventRegistered(eC manager, String rawJavaName, String eventKey) {
+        if (manager == null || rawJavaName == null || rawJavaName.trim().isEmpty() || eventKey == null || eventKey.trim().isEmpty()) {
+            return false;
         }
+        String javaName = ProjectStructureAide.resolveJavaName(null, rawJavaName);
         eventKey = normalizeEventKey(eventKey);
 
         synchronized (manager) {
             ArrayList<EventBean> events = manager.g(javaName);
             if (events != null) {
                 for (EventBean e : events) {
-                    if (e != null && eventKey.equals(e.getEventKey())) {
-                        return; // Already registered
+                    if (e != null && eventKey.equalsIgnoreCase(e.getEventKey())) {
+                        return true; // Already registered
                     }
                 }
             }
@@ -1268,19 +1325,23 @@ public class LogicIrBridge {
                         + ", targetId=" + eventToRegister.targetId
                         + ", eventName=" + eventToRegister.eventName
                         + ", targetType=" + eventToRegister.targetType + ")");
+                return true;
             }
+            return false;
         }
     }
 
     /**
      * Overload for convenience using scId.
      */
-    public static void ensureEventRegistered(String scId, String javaName, String eventKey) {
-        if (scId == null || scId.trim().isEmpty()) return;
+    public static boolean ensureEventRegistered(String scId, String rawJavaName, String eventKey) {
+        if (scId == null || scId.trim().isEmpty()) return false;
         eC manager = jC.a(scId);
         if (manager != null) {
-            ensureEventRegistered(manager, javaName, eventKey);
+            String javaName = ProjectStructureAide.resolveJavaName(scId, rawJavaName);
+            return ensureEventRegistered(manager, javaName, eventKey);
         }
+        return false;
     }
 
     /**
@@ -1289,6 +1350,10 @@ public class LogicIrBridge {
     public static EventBean inferEventBean(eC manager, String javaName, String eventKey) {
         if ("onCreate_initializeLogic".equalsIgnoreCase(eventKey)) {
             return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, "onCreate", "initializeLogic");
+        }
+
+        if ("Import_Import".equalsIgnoreCase(eventKey)) {
+            return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, "Import", "Import");
         }
 
         if (eventKey.endsWith("_moreBlock")) {
@@ -1331,17 +1396,30 @@ public class LogicIrBridge {
                 }
             } catch (Exception ignored) {}
 
-            // 4. Activity events with targetId/eventName (e.g. "onCreate")
-            if ("onCreate".equalsIgnoreCase(targetId)) {
-                return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, targetId, eventName);
+            // 4. Activity events
+            if (targetId.equalsIgnoreCase(eventName)) {
+                String[] actEvents = EventsHandler.getActivityEvents();
+                if (actEvents != null) {
+                    for (String ae : actEvents) {
+                        if (ae.equalsIgnoreCase(targetId)) {
+                            return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, ae, ae);
+                        }
+                    }
+                }
             }
-
-            // Fallback: If split by underscore, treat as a View event
-            return new EventBean(EventBean.EVENT_TYPE_VIEW, 0, targetId, eventName);
+        } else {
+            // Single token event key
+            String[] actEvents = EventsHandler.getActivityEvents();
+            if (actEvents != null) {
+                for (String ae : actEvents) {
+                    if (ae.equalsIgnoreCase(eventKey)) {
+                        return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, ae, ae);
+                    }
+                }
+            }
         }
 
-        // Single token event key (e.g. "onBackPressed", "onStart", "Import")
-        return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, eventKey, eventKey);
+        return null;
     }
 
     /**
@@ -1349,11 +1427,12 @@ public class LogicIrBridge {
      * Safely wrapped with error handling around internal Sketchware APIs.
      *
      * @param scId The project ID (e.g. "601").
-     * @param javaName The activity/file name (e.g. "main").
+     * @param rawJavaName The activity/file name (e.g. "main").
      * @param eventKey The event key (e.g. "onCreate_initializeLogic" or "button1_onClick").
      * @return JSONObject representing the IR.
      */
-    public static JSONObject loadIrFromProject(String scId, String javaName, String eventKey) {
+    public static JSONObject loadIrFromProject(String scId, String rawJavaName, String eventKey) {
+        String javaName = ProjectStructureAide.resolveJavaName(scId, rawJavaName);
         eventKey = normalizeEventKey(eventKey);
         try {
             eC manager = jC.a(scId);
@@ -1381,17 +1460,17 @@ public class LogicIrBridge {
      * Safely wrapped with error handling around internal Sketchware APIs.
      *
      * @param scId The project ID (e.g. "601").
-     * @param javaName The activity/file name (e.g. "main").
+     * @param rawJavaName The activity/file name (e.g. "main").
      * @param eventKey The event key (e.g. "onCreate_initializeLogic" or "button1_onClick").
      * @param ir The IR JSONObject to apply.
      * @return true if successful.
      */
-    public static boolean saveIrToProject(String scId, String javaName, String eventKey, JSONObject ir) {
+    public static boolean saveIrToProject(String scId, String rawJavaName, String eventKey, JSONObject ir) {
+        String javaName = ProjectStructureAide.resolveJavaName(scId, rawJavaName);
         eventKey = normalizeEventKey(eventKey);
         try {
             if (ir == null) return false;
 
-            ArrayList<BlockBean> newBlocks = irToBlocks(ir);
             eC manager = jC.a(scId);
             if (manager == null) {
                 Log.e(TAG, "saveIrToProject: eC manager is null for scId: " + scId);
@@ -1399,7 +1478,13 @@ public class LogicIrBridge {
             }
 
             synchronized (manager) {
-                ensureEventRegistered(manager, javaName, eventKey);
+                boolean registered = ensureEventRegistered(manager, javaName, eventKey);
+                if (!registered) {
+                    Log.e(TAG, "saveIrToProject: Could not register event '" + eventKey + "' for " + javaName);
+                    return false;
+                }
+
+                ArrayList<BlockBean> newBlocks = irToBlocks(ir);
                 manager.a(javaName, eventKey, newBlocks);
                 manager.k(); // Persist changes to disk
             }
