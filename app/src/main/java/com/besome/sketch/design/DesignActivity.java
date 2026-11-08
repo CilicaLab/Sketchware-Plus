@@ -357,10 +357,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     } else {
                         xmlLayoutOrientation.setImageResource(R.drawable.ic_screen_rotation_grey600_24dp);
                     }
-                    if (lastRefreshedViewProjectFile == null || !lastRefreshedViewProjectFile.equals(projectFile)) {
-                        lastRefreshedViewProjectFile = projectFile;
-                        viewTabAdapter.initialize(projectFile);
-                    }
+                    lastRefreshedViewProjectFile = projectFile;
+                    viewTabAdapter.initialize(projectFile);
                 }
             });
         });

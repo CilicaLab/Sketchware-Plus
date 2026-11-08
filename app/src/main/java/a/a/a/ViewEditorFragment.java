@@ -141,8 +141,11 @@ public class ViewEditorFragment extends qA {
         i();
         invalidateOptionsMenu();
 
-        // Defer palette loading to improve perceived startup time
-        viewEditor.post(this::e);
+        if (viewEditor.isAttachedToWindow()) {
+            e();
+        } else {
+            viewEditor.post(this::e);
+        }
     }
 
     private void a(ViewBean viewBean) {
@@ -231,6 +234,10 @@ public class ViewEditorFragment extends qA {
     }
 
     public void e() {
+        if (!isAdded() || getContext() == null || viewEditor == null || viewEditor.paletteWidget == null) {
+            return;
+        }
+
         viewEditor.removeWidgetsAndLayouts();
         viewEditor.setPaletteLayoutVisible(View.VISIBLE);
         viewEditor.addWidgetLayout(PaletteWidget.a.a, "");
@@ -240,7 +247,7 @@ public class ViewEditorFragment extends qA {
         viewEditor.addWidgetLayout(PaletteWidget.a.d, "");
         viewEditor.extraWidgetLayout("", "RadioGroup");
         viewEditor.extraWidgetLayout("", "RelativeLayout");
-        widgetsCreatorManager.addWidgetsByTitle("Layouts");
+        safelyAddCustomWidgets("Layouts");
 
         viewEditor.paletteWidget.extraTitle("AndroidX", 0);
         viewEditor.extraWidgetLayout("", "TabLayout");
@@ -249,7 +256,7 @@ public class ViewEditorFragment extends qA {
         viewEditor.extraWidgetLayout("", "CardView");
         viewEditor.extraWidgetLayout("", "TextInputLayout");
         viewEditor.extraWidgetLayout("", "SwipeRefreshLayout");
-        widgetsCreatorManager.addWidgetsByTitle("AndroidX");
+        safelyAddCustomWidgets("AndroidX");
 
         viewEditor.addWidget(PaletteWidget.b.c, "", "EditText", "Edit Text");
         viewEditor.extraWidget("", "AutoCompleteTextView", "AutoCompleteTextView");
@@ -267,7 +274,7 @@ public class ViewEditorFragment extends qA {
         viewEditor.extraWidget("", "SearchView", "SearchView");
         viewEditor.extraWidget("", "VideoView", "VideoView");
         viewEditor.addWidget(PaletteWidget.b.h, "", "WebView", "WebView");
-        widgetsCreatorManager.addWidgetsByTitle("Widgets");
+        safelyAddCustomWidgets("Widgets");
 
         viewEditor.paletteWidget.extraTitle("List", 1);
         viewEditor.addWidget(PaletteWidget.b.e, "", "ListView", "ListView");
@@ -275,7 +282,7 @@ public class ViewEditorFragment extends qA {
         viewEditor.extraWidget("", "RecyclerView", "RecyclerView");
         viewEditor.addWidget(PaletteWidget.b.f, "", "Spinner", "Spinner");
         viewEditor.extraWidget("", "ViewPager", "ViewPager");
-        widgetsCreatorManager.addWidgetsByTitle("List");
+        safelyAddCustomWidgets("List");
 
         viewEditor.paletteWidget.extraTitle("Library", 1);
         viewEditor.extraWidget("", "WaveSideBar", "WaveSideBar");
@@ -283,14 +290,14 @@ public class ViewEditorFragment extends qA {
         viewEditor.extraWidget("", "CodeView", "CodeView");
         viewEditor.extraWidget("", "LottieAnimation", "LottieAnimation");
         viewEditor.extraWidget("", "OTPView", "OTPView");
-        widgetsCreatorManager.addWidgetsByTitle("Library");
+        safelyAddCustomWidgets("Library");
 
         viewEditor.paletteWidget.extraTitle("Google", 1);
         viewEditor.addWidget(PaletteWidget.b.l, "", "AdView", "AdView");
         viewEditor.addWidget(PaletteWidget.b.n, "", "MapView", "MapView");
         viewEditor.extraWidget("", "SignInButton", "SignInButton");
         viewEditor.extraWidget("", "YoutubePlayer", "YoutubePlayer");
-        widgetsCreatorManager.addWidgetsByTitle("Google");
+        safelyAddCustomWidgets("Google");
 
         viewEditor.paletteWidget.extraTitle("Date & Time", 1);
         viewEditor.extraWidget("", "AnalogClock", "AnalogClock");
@@ -298,8 +305,23 @@ public class ViewEditorFragment extends qA {
         viewEditor.extraWidget("", "TimePicker", "TimePicker");
         viewEditor.extraWidget("", "DatePicker", "DatePicker");
         viewEditor.addWidget(PaletteWidget.b.k, "", "CalendarView", "CalendarView");
-        widgetsCreatorManager.addWidgetsByTitle("Date & Time");
-        widgetsCreatorManager.addExtraClasses();
+        safelyAddCustomWidgets("Date & Time");
+
+        if (widgetsCreatorManager != null) {
+            try {
+                widgetsCreatorManager.addExtraClasses();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void safelyAddCustomWidgets(String category) {
+        if (widgetsCreatorManager != null) {
+            try {
+                widgetsCreatorManager.addWidgetsByTitle(category);
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     private void startAnimation() {
