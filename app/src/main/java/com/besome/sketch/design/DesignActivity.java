@@ -912,8 +912,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         dialog.setIcon(R.drawable.ic_mtrl_exit);
         dialog.setMessage(Helper.getResString(R.string.design_quit_message_confirm_save));
         dialog.setPositiveButton(Helper.getResString(R.string.design_quit_button_save_and_exit), (v, which) -> {
+            v.dismiss();
             if (!mB.a()) {
-                v.dismiss();
                 try {
                     saveChangesAndCloseProject();
                 } catch (Exception e) {
@@ -925,8 +925,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             }
         });
         dialog.setNegativeButton(Helper.getResString(R.string.common_word_exit), (v, which) -> {
+            v.dismiss();
             if (!mB.a()) {
-                v.dismiss();
                 try {
                     DiscardChangesProjectCloser discardChangesProjectCloser = new DiscardChangesProjectCloser(this);
                     discardChangesProjectCloser.execute();
@@ -961,6 +961,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         dialog.setTitle(Helper.getResString(R.string.design_restore_data_title));
         dialog.setMessage(Helper.getResString(R.string.design_restore_data_message_confirm));
         dialog.setPositiveButton(Helper.getResString(R.string.common_word_restore), (v, which) -> {
+            v.dismiss();
+            B = false;
             if (!mB.a()) {
                 boolean g;
                 synchronized (jC.c(sc_id)) {
@@ -1015,8 +1017,6 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     }
                 }
                 refresh();
-                B = false;
-                v.dismiss();
             }
         });
         dialog.setNegativeButton(Helper.getResString(R.string.common_word_no), (v, which) -> {
