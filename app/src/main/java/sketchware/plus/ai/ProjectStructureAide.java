@@ -14,7 +14,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import a.a.a.eC;
 import a.a.a.hC;
@@ -31,51 +33,108 @@ public class ProjectStructureAide {
     private static final String TAG = "ProjectStructureAide";
 
     /**
+     * Returns the default activity javaName for the project (first activity or MainActivity.java).
+     */
+    public static String getDefaultJavaName(String scId) {
+        if (scId != null && !scId.trim().isEmpty()) {
+            hC fileManager = jC.b(scId);
+            if (fileManager != null && fileManager.c != null) {
+                for (ProjectFileBean pfb : fileManager.c) {
+                    if (pfb != null) return pfb.getJavaName();
+                }
+            }
+        }
+        return "MainActivity.java";
+    }
+
+    /**
      * Resolves various alias forms ("main", "main.xml", "MainActivity", "MainActivity.java")
      * into the canonical Java file key used by eC maps (e.g. "MainActivity.java").
+     * Returns defaultJavaName if input is empty, or null if input does not match any activity.
      */
-    public static String resolveJavaName(String scId, String input) {
+    public static String findActivityJavaName(String scId, String input, String defaultJavaName) {
         if (input == null || input.trim().isEmpty()) {
-            return "MainActivity.java";
+            return defaultJavaName != null ? defaultJavaName : getDefaultJavaName(scId);
         }
         String trimmed = input.trim();
         if (scId != null && !scId.trim().isEmpty()) {
             hC fileManager = jC.b(scId);
-            if (fileManager != null) {
-                if (fileManager.c != null) {
-                    for (ProjectFileBean pfb : fileManager.c) {
-                        if (pfb == null) continue;
-                        if (trimmed.equalsIgnoreCase(pfb.fileName)
-                                || trimmed.equalsIgnoreCase(pfb.getJavaName())
-                                || trimmed.equalsIgnoreCase(pfb.getXmlName())
-                                || trimmed.equalsIgnoreCase(pfb.getActivityName())) {
-                            return pfb.getJavaName();
-                        }
-                    }
-                }
-                if (fileManager.d != null) {
-                    for (ProjectFileBean pfb : fileManager.d) {
-                        if (pfb == null) continue;
-                        if (trimmed.equalsIgnoreCase(pfb.fileName)
-                                || trimmed.equalsIgnoreCase(pfb.getJavaName())
-                                || trimmed.equalsIgnoreCase(pfb.getXmlName())
-                                || trimmed.equalsIgnoreCase(pfb.getActivityName())) {
-                            return pfb.getJavaName();
-                        }
+            if (fileManager != null && fileManager.c != null) {
+                for (ProjectFileBean pfb : fileManager.c) {
+                    if (pfb == null) continue;
+                    if (trimmed.equalsIgnoreCase(pfb.fileName)
+                            || trimmed.equalsIgnoreCase(pfb.getJavaName())
+                            || trimmed.equalsIgnoreCase(pfb.getXmlName())
+                            || trimmed.equalsIgnoreCase(pfb.getActivityName())) {
+                        return pfb.getJavaName();
                     }
                 }
             }
         }
+        return null;
+    }
 
-        // Fallback heuristics when scId is not available or file is not in list
-        if (trimmed.endsWith(".java")) {
+    /**
+     * Legacy resolution fallback for callers that do not pass a default javaName.
+     */
+    public static String resolveJavaName(String scId, String input) {
+        String res = findActivityJavaName(scId, input, null);
+        if (res != null) return res;
+        if (input == null || input.trim().isEmpty()) return getDefaultJavaName(scId);
+        String trimmed = input.trim();
+        if (trimmed.endsWith(".java")) return trimmed;
+        if (trimmed.endsWith(".xml")) return ProjectFileBean.getJavaName(trimmed.substring(0, trimmed.length() - 4));
+        return ProjectFileBean.getJavaName(trimmed);
+    }
+
+    /**
+     * Returns a comma-separated list of all activity names available in the project.
+     */
+    public static String getAvailableActivitiesList(String scId) {
+        if (scId != null && !scId.trim().isEmpty()) {
+            hC fileManager = jC.b(scId);
+            if (fileManager != null && fileManager.c != null && !fileManager.c.isEmpty()) {
+                List<String> names = new ArrayList<>();
+                for (ProjectFileBean pfb : fileManager.c) {
+                    if (pfb != null) names.add(pfb.getJavaName());
+                }
+                return String.join(", ", names);
+            }
+        }
+        return "MainActivity.java";
+    }
+
+    /**
+     * Returns the XML layout file name (e.g. "main.xml") corresponding to the given activity javaName or alias.
+     */
+    public static String getXmlNameForActivity(String scId, String rawJavaName) {
+        if (rawJavaName == null || rawJavaName.trim().isEmpty()) {
+            return "main.xml";
+        }
+        String trimmed = rawJavaName.trim();
+        if (trimmed.endsWith(".xml")) {
             return trimmed;
         }
-        if (trimmed.endsWith(".xml")) {
-            String base = trimmed.substring(0, trimmed.length() - 4);
-            return ProjectFileBean.getJavaName(base);
+        String canonJava = resolveJavaName(scId, trimmed);
+        if (scId != null && !scId.trim().isEmpty()) {
+            hC fileManager = jC.b(scId);
+            if (fileManager != null && fileManager.c != null) {
+                for (ProjectFileBean pfb : fileManager.c) {
+                    if (pfb != null && (canonJava.equalsIgnoreCase(pfb.getJavaName())
+                            || trimmed.equalsIgnoreCase(pfb.fileName)
+                            || trimmed.equalsIgnoreCase(pfb.getActivityName()))) {
+                        return pfb.getXmlName();
+                    }
+                }
+            }
         }
-        return ProjectFileBean.getJavaName(trimmed);
+        String base = canonJava;
+        if (base.endsWith(".java")) base = base.substring(0, base.length() - 5);
+        if (base.endsWith("Activity")) base = base.substring(0, base.length() - 8);
+        if (base.startsWith("Activity")) base = base.substring(8);
+        String lowerBase = base.toLowerCase();
+        if (lowerBase.isEmpty()) lowerBase = "main";
+        return lowerBase + ".xml";
     }
 
     /**
@@ -89,7 +148,7 @@ public class ProjectStructureAide {
             return "Name cannot be empty.";
         }
         String trimmed = name.trim();
-        if (trimmed.isEmpty() || trimmed.length() > 100) {
+        if (trimmed.length() > 100) {
             return "Name length must be between 1 and 100 characters.";
         }
         if (!Character.isLetter(trimmed.charAt(0))) {
@@ -132,16 +191,18 @@ public class ProjectStructureAide {
                 }
             }
 
-            if (dataManager != null) {
-                ProjectFileBean targetPfb = null;
-                if (fileManager != null) {
-                    targetPfb = fileManager.a(javaName);
+            if (fileManager != null) {
+                ProjectFileBean targetPfb = fileManager.a(javaName);
+                if (targetPfb == null) {
+                    return "Error: Unknown activity '" + javaName + "'. Available activities: " + getAvailableActivitiesList(scId);
                 }
-                ArrayList<String> takenNames = dataManager.a(targetPfb);
-                if (takenNames != null) {
-                    for (String taken : takenNames) {
-                        if (lower.equals(taken.toLowerCase())) {
-                            return "Name '" + trimmed + "' conflicts with an existing variable, list, component, function, or view ID.";
+                if (dataManager != null) {
+                    ArrayList<String> takenNames = dataManager.a(targetPfb);
+                    if (takenNames != null) {
+                        for (String taken : takenNames) {
+                            if (lower.equals(taken.toLowerCase())) {
+                                return "Name '" + trimmed + "' conflicts with an existing variable, list, component, function, or view ID.";
+                            }
                         }
                     }
                 }
@@ -155,7 +216,12 @@ public class ProjectStructureAide {
      * Reads and returns project structure details as a formatted string.
      */
     public static String getProjectStructureSummary(String scId, String rawJavaName) {
-        String javaName = resolveJavaName(scId, rawJavaName);
+        String defaultJava = getDefaultJavaName(scId);
+        String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
+        if (javaName == null) {
+            return "Error: Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId);
+        }
+
         eC dataManager = jC.a(scId);
         hC fileManager = jC.b(scId);
 
@@ -188,7 +254,7 @@ public class ProjectStructureAide {
 
         if (dataManager != null) {
             sb.append("\nTarget Activity: ").append(javaName).append("\n");
-            String xmlName = ProjectFileBean.getXmlName(javaName);
+            String xmlName = getXmlNameForActivity(scId, javaName);
 
             // Variables (dataManager.k(javaName))
             ArrayList<Pair<Integer, String>> vars = dataManager.k(javaName);
@@ -295,7 +361,12 @@ public class ProjectStructureAide {
      * Adds variables to the specified activity. Idempotent.
      */
     public static String addVariables(Context context, String scId, String rawJavaName, JSONArray items) {
-        String javaName = resolveJavaName(scId, rawJavaName);
+        String defaultJava = getDefaultJavaName(scId);
+        String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
+        if (javaName == null) {
+            return "Error: Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId);
+        }
+
         eC dataManager = jC.a(scId);
         if (dataManager == null) {
             return "Error: Project data manager not found for scId: " + scId;
@@ -315,17 +386,21 @@ public class ProjectStructureAide {
                 if (item == null) continue;
 
                 String varName = item.optString("name", "").trim();
-                String typeStr = item.optString("type", "string").trim().toLowerCase();
+                String typeStr = item.optString("type", "").trim().toLowerCase();
 
-                int typeInt = switch (typeStr) {
-                    case "boolean", "bool" -> 0;
-                    case "number", "double", "int", "integer" -> 1;
-                    case "string", "str" -> 2;
-                    case "map" -> 3;
-                    default -> 2;
-                };
+                int typeInt;
+                switch (typeStr) {
+                    case "boolean", "bool" -> typeInt = 0;
+                    case "number", "double", "int", "integer" -> typeInt = 1;
+                    case "string", "str" -> typeInt = 2;
+                    case "map" -> typeInt = 3;
+                    default -> {
+                        errors.add(varName + ": Unknown variable type '" + typeStr + "'. Valid types: boolean, number, string, map.");
+                        continue;
+                    }
+                }
 
-                // Check exists in eC
+                // Check exists in eC (dataManager.f checks variables)
                 if (dataManager.f(javaName, typeInt, varName)) {
                     existing.add(varName);
                     continue;
@@ -337,7 +412,6 @@ public class ProjectStructureAide {
                     continue;
                 }
 
-                // eC.c(javaName, type, name) adds variable
                 dataManager.c(javaName, typeInt, varName);
                 added.add(varName + " (" + typeStr + ")");
             }
@@ -350,7 +424,7 @@ public class ProjectStructureAide {
             res.append("Successfully added variables: ").append(String.join(", ", added)).append(". ");
         }
         if (!existing.isEmpty()) {
-            res.append("Variables already exist: ").append(String.join(", ", existing)).append(". ");
+            res.append("Variables already exist (skipped): ").append(String.join(", ", existing)).append(". ");
         }
         if (!errors.isEmpty()) {
             res.append("Failed items: ").append(String.join("; ", errors)).append(".");
@@ -362,7 +436,12 @@ public class ProjectStructureAide {
      * Adds lists to the specified activity. Idempotent.
      */
     public static String addLists(Context context, String scId, String rawJavaName, JSONArray items) {
-        String javaName = resolveJavaName(scId, rawJavaName);
+        String defaultJava = getDefaultJavaName(scId);
+        String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
+        if (javaName == null) {
+            return "Error: Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId);
+        }
+
         eC dataManager = jC.a(scId);
         if (dataManager == null) {
             return "Error: Project data manager not found for scId: " + scId;
@@ -382,17 +461,21 @@ public class ProjectStructureAide {
                 if (item == null) continue;
 
                 String listName = item.optString("name", "").trim();
-                String typeStr = item.optString("type", "string").trim().toLowerCase();
+                String typeStr = item.optString("type", "").trim().toLowerCase();
 
-                int typeInt = switch (typeStr) {
-                    case "number", "double", "int", "integer" -> 1; // ListInt
-                    case "string", "str" -> 2; // ListString
-                    case "map" -> 3; // ListMap
-                    default -> 2;
-                };
+                int typeInt;
+                switch (typeStr) {
+                    case "number", "double", "int", "integer" -> typeInt = 1; // ListInt
+                    case "string", "str" -> typeInt = 2; // ListString
+                    case "map" -> typeInt = 3; // ListMap
+                    default -> {
+                        errors.add(listName + ": Unknown list type '" + typeStr + "'. Valid types: number, string, map.");
+                        continue;
+                    }
+                }
 
-                // Check exists in eC
-                if (dataManager.f(javaName, typeInt, listName)) {
+                // Check exists in eC (dataManager.e checks lists)
+                if (dataManager.e(javaName, typeInt, listName)) {
                     existing.add(listName);
                     continue;
                 }
@@ -403,7 +486,6 @@ public class ProjectStructureAide {
                     continue;
                 }
 
-                // eC.b(javaName, type, name) adds list
                 dataManager.b(javaName, typeInt, listName);
                 added.add(listName + " (" + typeStr + ")");
             }
@@ -416,7 +498,7 @@ public class ProjectStructureAide {
             res.append("Successfully added lists: ").append(String.join(", ", added)).append(". ");
         }
         if (!existing.isEmpty()) {
-            res.append("Lists already exist: ").append(String.join(", ", existing)).append(". ");
+            res.append("Lists already exist (skipped): ").append(String.join(", ", existing)).append(". ");
         }
         if (!errors.isEmpty()) {
             res.append("Failed items: ").append(String.join("; ", errors)).append(".");
@@ -428,7 +510,12 @@ public class ProjectStructureAide {
      * Adds a custom function (More Block) to the activity.
      */
     public static String addMoreBlock(Context context, String scId, String rawJavaName, String name, JSONArray params, String returnType, String bodyJava) {
-        String javaName = resolveJavaName(scId, rawJavaName);
+        String defaultJava = getDefaultJavaName(scId);
+        String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
+        if (javaName == null) {
+            return "Error: Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId);
+        }
+
         eC dataManager = jC.a(scId);
         if (dataManager == null) {
             return "Error: Project data manager not found for scId: " + scId;
@@ -440,62 +527,115 @@ public class ProjectStructureAide {
             return "Error validating function name: " + err;
         }
 
+        // Validate returnType against V3 set
+        String rTypeLower = returnType != null ? returnType.trim().toLowerCase() : "void";
+        String typeChar;
+        String returnTypeEncoded;
+
+        if (rTypeLower.isEmpty() || "void".equals(rTypeLower) || " ".equals(rTypeLower)) {
+            typeChar = " ";
+            returnTypeEncoded = "";
+        } else if ("string".equals(rTypeLower) || "str".equals(rTypeLower) || "s".equals(rTypeLower)) {
+            typeChar = "s";
+            returnTypeEncoded = "[String]";
+        } else if ("number".equals(rTypeLower) || "double".equals(rTypeLower) || "int".equals(rTypeLower) || "integer".equals(rTypeLower) || "d".equals(rTypeLower)) {
+            typeChar = "d";
+            returnTypeEncoded = "[double]";
+        } else if ("boolean".equals(rTypeLower) || "bool".equals(rTypeLower) || "b".equals(rTypeLower)) {
+            typeChar = "b";
+            returnTypeEncoded = "[boolean]";
+        } else if ("map".equals(rTypeLower) || "a|map".equals(rTypeLower)) {
+            typeChar = "a|Map";
+            returnTypeEncoded = "[a|Map]";
+        } else if ("list string".equals(rTypeLower) || "liststring".equals(rTypeLower) || "l|list string".equals(rTypeLower)) {
+            typeChar = "l|List String";
+            returnTypeEncoded = "[l|List String]";
+        } else if ("list map".equals(rTypeLower) || "listmap".equals(rTypeLower) || "l|list map".equals(rTypeLower)) {
+            typeChar = "l|List Map";
+            returnTypeEncoded = "[l|List Map]";
+        } else if ("view".equals(rTypeLower) || "v|view".equals(rTypeLower)) {
+            typeChar = "v|View";
+            returnTypeEncoded = "[v|View]";
+        } else {
+            return "Error: Unknown return type '" + returnType + "'. Valid types: void, string, double, boolean, map, list string, list map, view.";
+        }
+
+        // Validate parameter names and types
+        List<String> paramNames = new ArrayList<>();
+        StringBuilder specBuilder = new StringBuilder(funcName).append(returnTypeEncoded);
+        Set<String> seenParams = new HashSet<>();
+
+        if (params != null && params.length() > 0) {
+            for (int i = 0; i < params.length(); i++) {
+                JSONObject p = params.optJSONObject(i);
+                if (p == null) continue;
+
+                String pName = p.optString("name", "").trim();
+                String pType = p.optString("type", "string").trim().toLowerCase();
+
+                if (pName.isEmpty() || !pName.matches("^[a-zA-Z][a-zA-Z0-9_]*$")) {
+                    return "Error: Invalid parameter name '" + pName + "'. Must start with a letter and contain only alphanumeric characters or underscores.";
+                }
+
+                if (pName.equalsIgnoreCase(funcName)) {
+                    return "Error: Parameter name '" + pName + "' cannot be equal to the function name.";
+                }
+
+                String pLower = pName.toLowerCase();
+                if (seenParams.contains(pLower)) {
+                    return "Error: Duplicate parameter name '" + pName + "' in function definition.";
+                }
+                seenParams.add(pLower);
+
+                String pToken = switch (pType) {
+                    case "boolean", "bool" -> "%b." + pName;
+                    case "number", "double", "int", "integer" -> "%d." + pName;
+                    case "string", "str" -> "%s." + pName;
+                    default -> null;
+                };
+
+                if (pToken == null) {
+                    return "Error: Unknown parameter type '" + pType + "' for parameter '" + pName + "'. Valid types: string, number, boolean.";
+                }
+
+                specBuilder.append(" ").append(pToken);
+                paramNames.add(pName);
+            }
+        }
+
+        String spec = specBuilder.toString();
+        String bodyKeyBase = funcName + returnTypeEncoded;
+
         synchronized (dataManager) {
             // Check if function already exists in eC.i(javaName)
             ArrayList<Pair<String, String>> existingMbs = dataManager.i(javaName);
             if (existingMbs != null) {
                 for (Pair<String, String> mb : existingMbs) {
-                    String existingName = ReturnMoreblockManager.getMbName(mb.first);
-                    if (funcName.equalsIgnoreCase(existingName)) {
-                        return "More block '" + funcName + "' already exists in " + javaName + ".";
+                    if (mb != null && mb.first != null) {
+                        String existingName = ReturnMoreblockManager.getMbName(mb.first);
+                        if (funcName.equalsIgnoreCase(existingName)) {
+                            return "More block '" + funcName + "' already exists in " + javaName + ".";
+                        }
                     }
                 }
             }
 
-            // Build spec and signature
-            StringBuilder specBuilder = new StringBuilder(funcName);
-            if (returnType != null && !returnType.trim().isEmpty() && !"void".equalsIgnoreCase(returnType.trim())) {
-                specBuilder.append("[").append(returnType.trim()).append("]");
-            }
+            // 1. Add Pair(X, Y) to eC.a(javaName, X, Y)
+            dataManager.a(javaName, bodyKeyBase, spec);
 
-            String signature = specBuilder.toString();
-
-            if (params != null && params.length() > 0) {
-                for (int i = 0; i < params.length(); i++) {
-                    JSONObject p = params.optJSONObject(i);
-                    if (p == null) continue;
-
-                    String pName = p.optString("name", "").trim();
-                    String pType = p.optString("type", "string").trim().toLowerCase();
-
-                    String pToken = switch (pType) {
-                        case "boolean", "bool" -> "%b." + pName;
-                        case "number", "double", "int", "integer" -> "%d." + pName;
-                        case "string", "str" -> "%s." + pName;
-                        default -> "%s." + pName;
-                    };
-
-                    specBuilder.append(" ").append(pToken);
-                }
-            }
-
-            String spec = specBuilder.toString();
-
-            // 1. Add pair to eC.a(javaName, spec, signature)
-            dataManager.a(javaName, spec, signature);
-
-            // 2. Register event in eC.a(javaName, EventBean)
-            EventBean eb = new EventBean(EventBean.EVENT_TYPE_ETC, -1, funcName, "moreBlock");
-            dataManager.a(javaName, eb);
-
-            // 3. Initialize block list for funcName_moreBlock
-            String blockKey = funcName + "_moreBlock";
+            // 2. Initialize root block definedFunc
+            String blockKey = bodyKeyBase + "_moreBlock";
             ArrayList<BlockBean> initialBlocks = new ArrayList<>();
-            BlockBean root = new BlockBean("0", spec, "f", "definedFunc", "definedFunc");
+
+            BlockBean root = new BlockBean("0", spec, typeChar, "definedFunc", "definedFunc");
+            root.color = -11751600;
+            root.parameters = new ArrayList<>(paramNames);
+            root.nextBlock = -1;
             initialBlocks.add(root);
 
+            String bodyError = null;
+
             if (bodyJava != null && !bodyJava.trim().isEmpty()) {
-                // If body Java is provided, attempt conversion and validation
                 try {
                     JSONObject ir = LogicIrBridge.javaToIr(bodyJava);
                     if (ir != null && ir.has("body")) {
@@ -503,19 +643,37 @@ public class ProjectStructureAide {
                         if (vResult.isValid) {
                             ArrayList<BlockBean> convertedBlocks = LogicIrBridge.irToBlocks(ir);
                             if (convertedBlocks != null && !convertedBlocks.isEmpty()) {
+                                // Shift block IDs to start from 1 to avoid collision with root id="0"
+                                int firstBodyBlockId = 1;
+                                for (int bIdx = 0; bIdx < convertedBlocks.size(); bIdx++) {
+                                    BlockBean b = convertedBlocks.get(bIdx);
+                                    int oldId = Integer.parseInt(b.id);
+                                    b.id = String.valueOf(oldId + firstBodyBlockId);
+                                    if (b.nextBlock != -1) {
+                                        b.nextBlock = b.nextBlock + firstBodyBlockId;
+                                    }
+                                }
+                                root.nextBlock = firstBodyBlockId;
                                 initialBlocks.addAll(convertedBlocks);
                             }
                         } else {
-                            Log.w(TAG, "addMoreBlock: bodyJava validation failed -> " + vResult.errorMessage);
+                            bodyError = vResult.errorMessage;
                         }
+                    } else {
+                        bodyError = "Could not parse bodyJava into valid IR structure.";
                     }
                 } catch (Exception e) {
-                    Log.w(TAG, "addMoreBlock: Exception parsing bodyJava", e);
+                    bodyError = e.getMessage();
                 }
             }
 
             dataManager.a(javaName, blockKey, initialBlocks);
             dataManager.k(); // Persist changes
+
+            if (bodyError != null) {
+                return "More block '" + funcName + "' created, but bodyJava failed to apply: " + bodyError + " (created empty function).";
+            }
+
             return "More block '" + funcName + "' created successfully in " + javaName + ".";
         }
     }
@@ -524,7 +682,12 @@ public class ProjectStructureAide {
      * Registers an event for a target view, component, or activity.
      */
     public static String registerEvent(Context context, String scId, String rawJavaName, String targetKind, String targetId, String eventName) {
-        String javaName = resolveJavaName(scId, rawJavaName);
+        String defaultJava = getDefaultJavaName(scId);
+        String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
+        if (javaName == null) {
+            return "Error: Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId);
+        }
+
         eC dataManager = jC.a(scId);
         if (dataManager == null) {
             return "Error: Project data manager not found for scId: " + scId;
@@ -538,28 +701,18 @@ public class ProjectStructureAide {
         String evName = eventName.trim();
         String kind = targetKind != null ? targetKind.trim().toLowerCase() : "view";
 
-        String eventKey;
-        if ("activity".equals(kind)) {
-            if ("onCreate".equalsIgnoreCase(target) || "initializeLogic".equalsIgnoreCase(evName)) {
-                eventKey = "onCreate_initializeLogic";
-            } else if ("Import".equalsIgnoreCase(target) || "Import".equalsIgnoreCase(evName)) {
-                eventKey = "Import_Import";
-            } else {
-                eventKey = evName + "_" + evName;
-            }
-        } else {
-            eventKey = target + "_" + evName;
-        }
-
         synchronized (dataManager) {
-            boolean registered = LogicIrBridge.ensureEventRegistered(dataManager, javaName, eventKey);
+            boolean registered = LogicIrBridge.ensureEventRegistered(dataManager, javaName, kind, target, evName);
 
             if (!registered) {
-                return "Error: Failed to register event '" + eventKey + "'. Please verify that target '" + target + "' exists and event '" + evName + "' is valid for it.";
+                return "Error: Failed to register event for target '" + target + "' (" + kind + ") and event '" + evName + "'. Please verify that target exists and event name is valid.";
             }
 
             dataManager.k(); // Persist
-            return "Event '" + eventKey + "' registered successfully. Use 'eventKey': '" + eventKey + "' when calling APPLY_LOGIC_IR or ADD_BLOCK.";
+            String eventKey = ("activity".equals(kind) && ("onCreate".equalsIgnoreCase(target) || "initializeLogic".equalsIgnoreCase(evName)))
+                    ? "onCreate_initializeLogic" : target + "_" + evName;
+
+            return "Event '" + eventKey + "' registered successfully for target '" + target + "'. Use 'eventKey': '" + eventKey + "' when calling APPLY_LOGIC_IR or ADD_BLOCK.";
         }
     }
 
@@ -592,13 +745,31 @@ public class ProjectStructureAide {
             return "Error: Project file manager not available for scId: " + scId;
         }
 
+        String targetXml = canonName + ".xml";
+
         synchronized (dataManager) {
             synchronized (fileManager) {
-                // Check if activity already exists
+                // Check XML name uniqueness against activities, custom views, and fileManager.a
+                if (fileManager.a != null) {
+                    for (String fname : fileManager.a) {
+                        if (targetXml.equalsIgnoreCase(fname) || canonName.equalsIgnoreCase(fname)) {
+                            return "Error: Activity or layout name '" + canonName + "' already exists in project file list.";
+                        }
+                    }
+                }
+
                 if (fileManager.c != null) {
                     for (ProjectFileBean pfb : fileManager.c) {
-                        if (pfb != null && (canonName.equalsIgnoreCase(pfb.fileName) || canonName.equalsIgnoreCase(pfb.getActivityName()))) {
-                            return "Activity '" + canonName + "' (" + pfb.getJavaName() + ") already exists.";
+                        if (pfb != null && (canonName.equalsIgnoreCase(pfb.fileName) || canonName.equalsIgnoreCase(pfb.getActivityName()) || targetXml.equalsIgnoreCase(pfb.getXmlName()))) {
+                            return "Error: Activity '" + canonName + "' (" + pfb.getJavaName() + ") already exists.";
+                        }
+                    }
+                }
+
+                if (fileManager.d != null) {
+                    for (ProjectFileBean pfb : fileManager.d) {
+                        if (pfb != null && (targetXml.equalsIgnoreCase(pfb.getXmlName()) || canonName.equalsIgnoreCase(pfb.fileName))) {
+                            return "Error: Custom view or layout '" + canonName + "' already exists.";
                         }
                     }
                 }
@@ -619,39 +790,56 @@ public class ProjectStructureAide {
                         drawer
                 );
 
-                if (fileManager.c == null) {
-                    fileManager.c = new ArrayList<>();
-                }
-                fileManager.c.add(newActivity);
+                ProjectFileBean drawerBean = null;
 
-                if (drawer) {
-                    ProjectFileBean drawerBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_CUSTOM_VIEW, newActivity.getDrawerName());
-                    if (fileManager.d == null) {
-                        fileManager.d = new ArrayList<>();
+                try {
+                    if (fileManager.c == null) {
+                        fileManager.c = new ArrayList<>();
                     }
-                    if (!fileManager.d.contains(drawerBean)) {
-                        fileManager.d.add(drawerBean);
+                    fileManager.c.add(newActivity);
+
+                    if (drawer) {
+                        drawerBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_CUSTOM_VIEW, newActivity.getDrawerName());
+                        if (fileManager.d == null) {
+                            fileManager.d = new ArrayList<>();
+                        }
+                        if (!fileManager.d.contains(drawerBean)) {
+                            fileManager.d.add(drawerBean);
+                        }
                     }
-                }
 
-                fileManager.j(); // Rebuild java and xml name lists
-                fileManager.l(); // Persist activity file list to disk
-                dataManager.a(fileManager); // Sync file list into dataManager
+                    fileManager.j(); // Rebuild java and xml name lists
+                    fileManager.l(); // Persist activity file list to disk
+                    dataManager.a(fileManager); // Sync file list into dataManager
 
-                String xmlName = newActivity.getXmlName();
-                if (layoutXml != null && !layoutXml.trim().isEmpty()) {
-                    try {
-                        SketchwareXmlBridge.applyAiXmlToSketchware(context, scId, xmlName, layoutXml);
-                    } catch (Exception e) {
-                        Log.w(TAG, "createActivity: Layout XML application failed, injecting default layout", e);
+                    String xmlName = newActivity.getXmlName();
+                    if (layoutXml != null && !layoutXml.trim().isEmpty()) {
+                        try {
+                            SketchwareXmlBridge.applyAiXmlToSketchware(context, scId, xmlName, layoutXml);
+                        } catch (Exception e) {
+                            Log.w(TAG, "createActivity: Layout XML application failed, injecting default layout", e);
+                            injectDefaultLayout(dataManager, xmlName);
+                        }
+                    } else {
                         injectDefaultLayout(dataManager, xmlName);
                     }
-                } else {
-                    injectDefaultLayout(dataManager, xmlName);
-                }
 
-                dataManager.k(); // Persist logic & view data
-                return "Activity '" + newActivity.getJavaName() + "' (" + xmlName + ") created successfully.";
+                    dataManager.k(); // Persist logic & view data
+                    return "Activity '" + newActivity.getJavaName() + "' (" + xmlName + ") created successfully.";
+                } catch (Exception e) {
+                    // Rollback on failure
+                    Log.e(TAG, "createActivity failed, performing rollback", e);
+                    if (fileManager.c != null) {
+                        fileManager.c.remove(newActivity);
+                    }
+                    if (drawer && drawerBean != null && fileManager.d != null) {
+                        fileManager.d.remove(drawerBean);
+                    }
+                    fileManager.j();
+                    fileManager.l();
+                    dataManager.a(fileManager);
+                    return "Error creating activity '" + canonName + "': " + e.getMessage() + ". (Rollback performed).";
+                }
             }
         }
     }
@@ -659,7 +847,6 @@ public class ProjectStructureAide {
     private static void injectDefaultLayout(eC dataManager, String xmlName) {
         ArrayList<ViewBean> views = new ArrayList<>();
         ViewBean rootBean = new ViewBean();
-        rootBean.id = "linear1";
         rootBean.type = ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
         rootBean.parent = "root";
         rootBean.index = 0;

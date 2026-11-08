@@ -28,6 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import a.a.a.eC;
+import a.a.a.hC;
 import a.a.a.jC;
 import a.a.a.wq;
 import dev.aldi.sayuti.block.ExtraBlockFile;
@@ -1300,12 +1301,45 @@ public class LogicIrBridge {
      * @param eventKey The normalized event key (e.g. "onCreate_initializeLogic", "button1_onClick", "timer1_onTimer").
      * @return true if the event is registered or was newly registered, false if registration failed.
      */
-    public static boolean ensureEventRegistered(eC manager, String rawJavaName, String eventKey) {
-        if (manager == null || rawJavaName == null || rawJavaName.trim().isEmpty() || eventKey == null || eventKey.trim().isEmpty()) {
+    /**
+     * Ensures that an EventBean for the given target parts is registered in project storage (manager.g).
+     *
+     * @param manager The eC project data manager instance.
+     * @param rawJavaName The target activity/file name.
+     * @param targetKind view | component | activity | etc.
+     * @param targetId target ID (e.g. button1, timer1, onCreate)
+     * @param eventName event name (e.g. onClick, onTimer, initializeLogic)
+     * @return true if registered or already registered, false if failed.
+     */
+    public static boolean ensureEventRegistered(eC manager, String rawJavaName, String targetKind, String targetId, String eventName) {
+        if (manager == null || rawJavaName == null || rawJavaName.trim().isEmpty() || eventName == null || eventName.trim().isEmpty()) {
             return false;
         }
-        String javaName = ProjectStructureAide.resolveJavaName(null, rawJavaName);
-        eventKey = normalizeEventKey(eventKey);
+
+        String scId = manager.a;
+        String javaName = ProjectStructureAide.findActivityJavaName(scId, rawJavaName, rawJavaName);
+        if (javaName == null) {
+            javaName = ProjectStructureAide.resolveJavaName(scId, rawJavaName);
+        }
+
+        String target = targetId != null ? targetId.trim() : "";
+        String evName = eventName.trim();
+        String kind = targetKind != null ? targetKind.trim().toLowerCase() : "view";
+
+        String eventKey;
+        if ("activity".equals(kind)) {
+            if ("onCreate".equalsIgnoreCase(target) || "initializeLogic".equalsIgnoreCase(evName)) {
+                eventKey = "onCreate_initializeLogic";
+            } else if ("Import".equalsIgnoreCase(target) || "Import".equalsIgnoreCase(evName)) {
+                eventKey = "Import_Import";
+            } else {
+                eventKey = evName + "_" + evName;
+            }
+        } else if (target.isEmpty()) {
+            eventKey = evName;
+        } else {
+            eventKey = target + "_" + evName;
+        }
 
         synchronized (manager) {
             ArrayList<EventBean> events = manager.g(javaName);
@@ -1332,14 +1366,49 @@ public class LogicIrBridge {
     }
 
     /**
+     * Ensures that an EventBean for the given eventKey is registered in project storage (manager.g).
+     */
+    public static boolean ensureEventRegistered(eC manager, String rawJavaName, String eventKey) {
+        if (manager == null || rawJavaName == null || rawJavaName.trim().isEmpty() || eventKey == null || eventKey.trim().isEmpty()) {
+            return false;
+        }
+        eventKey = normalizeEventKey(eventKey);
+
+        String targetKind = "view";
+        String targetId = "";
+        String eventName = eventKey;
+
+        if ("onCreate_initializeLogic".equalsIgnoreCase(eventKey)) {
+            targetKind = "activity";
+            targetId = "onCreate";
+            eventName = "initializeLogic";
+        } else if ("Import_Import".equalsIgnoreCase(eventKey)) {
+            targetKind = "activity";
+            targetId = "Import";
+            eventName = "Import";
+        } else if (eventKey.endsWith("_moreBlock")) {
+            targetKind = "etc";
+            targetId = eventKey.substring(0, eventKey.length() - "_moreBlock".length());
+            eventName = "moreBlock";
+        } else {
+            int lastUnderscore = eventKey.lastIndexOf('_');
+            if (lastUnderscore > 0 && lastUnderscore < eventKey.length() - 1) {
+                targetId = eventKey.substring(0, lastUnderscore);
+                eventName = eventKey.substring(lastUnderscore + 1);
+            }
+        }
+
+        return ensureEventRegistered(manager, rawJavaName, targetKind, targetId, eventName);
+    }
+
+    /**
      * Overload for convenience using scId.
      */
     public static boolean ensureEventRegistered(String scId, String rawJavaName, String eventKey) {
         if (scId == null || scId.trim().isEmpty()) return false;
         eC manager = jC.a(scId);
         if (manager != null) {
-            String javaName = ProjectStructureAide.resolveJavaName(scId, rawJavaName);
-            return ensureEventRegistered(manager, javaName, eventKey);
+            return ensureEventRegistered(manager, rawJavaName, eventKey);
         }
         return false;
     }
@@ -1366,7 +1435,8 @@ public class LogicIrBridge {
             String targetId = eventKey.substring(0, lastUnderscore);
             String eventName = eventKey.substring(lastUnderscore + 1);
 
-            String xmlName = ProjectFileBean.getXmlName(javaName);
+            String scId = manager != null ? manager.a : null;
+            String xmlName = ProjectStructureAide.getXmlNameForActivity(scId, javaName);
 
             // 1. Check if targetId matches a View in the layout XML
             try {
@@ -1376,13 +1446,25 @@ public class LogicIrBridge {
                 }
             } catch (Exception ignored) {}
 
+            // Direct scan of views list manager.d(xmlName)
+            try {
+                ArrayList<ViewBean> views = manager.d(xmlName);
+                if (views != null) {
+                    for (ViewBean vb : views) {
+                        if (vb != null && targetId.equalsIgnoreCase(vb.id)) {
+                            return new EventBean(EventBean.EVENT_TYPE_VIEW, vb.type, vb.id, eventName);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
             // 2. Check if targetId matches a Component in the Activity
             try {
                 ArrayList<ComponentBean> components = manager.e(javaName);
                 if (components != null) {
                     for (ComponentBean cb : components) {
-                        if (cb != null && targetId.equals(cb.componentId)) {
-                            return new EventBean(EventBean.EVENT_TYPE_COMPONENT, cb.type, targetId, eventName);
+                        if (cb != null && targetId.equalsIgnoreCase(cb.componentId)) {
+                            return new EventBean(EventBean.EVENT_TYPE_COMPONENT, cb.type, cb.componentId, eventName);
                         }
                     }
                 }
@@ -1391,12 +1473,31 @@ public class LogicIrBridge {
             // 3. Check FAB in layout XML
             try {
                 ViewBean fab = manager.h(xmlName);
-                if (fab != null && targetId.equals(fab.id)) {
-                    return new EventBean(EventBean.EVENT_TYPE_VIEW, fab.type, targetId, eventName);
+                if (fab != null && targetId.equalsIgnoreCase(fab.id)) {
+                    return new EventBean(EventBean.EVENT_TYPE_VIEW, fab.type, fab.id, eventName);
                 }
             } catch (Exception ignored) {}
 
-            // 4. Activity events
+            // 4. Check Drawer View XML if activity has drawer
+            try {
+                ProjectFileBean pfb = null;
+                if (scId != null) {
+                    hC fileManager = jC.b(scId);
+                    if (fileManager != null) pfb = fileManager.a(javaName);
+                }
+                if (pfb != null && pfb.hasActivityOption(ProjectFileBean.OPTION_ACTIVITY_DRAWER)) {
+                    ArrayList<ViewBean> drawerViews = manager.d(pfb.getDrawerXmlName());
+                    if (drawerViews != null) {
+                        for (ViewBean dvb : drawerViews) {
+                            if (dvb != null && targetId.equalsIgnoreCase(dvb.id)) {
+                                return new EventBean(EventBean.EVENT_TYPE_DRAWER_VIEW, dvb.type, dvb.id, eventName);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // 5. Activity events with targetId == eventName
             if (targetId.equalsIgnoreCase(eventName)) {
                 String[] actEvents = EventsHandler.getActivityEvents();
                 if (actEvents != null) {
@@ -1407,6 +1508,9 @@ public class LogicIrBridge {
                     }
                 }
             }
+
+            // Fallback for View Event: construct valid EVENT_TYPE_VIEW EventBean
+            return new EventBean(EventBean.EVENT_TYPE_VIEW, ViewBean.VIEW_TYPE_WIDGET_BUTTON, targetId, eventName);
         } else {
             // Single token event key
             String[] actEvents = EventsHandler.getActivityEvents();
