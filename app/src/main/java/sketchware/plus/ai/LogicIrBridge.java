@@ -4,6 +4,10 @@ import android.graphics.Color;
 import android.util.Log;
 
 import com.besome.sketch.beans.BlockBean;
+import com.besome.sketch.beans.ComponentBean;
+import com.besome.sketch.beans.EventBean;
+import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.ViewBean;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -22,6 +26,7 @@ import java.util.regex.Pattern;
 import a.a.a.eC;
 import a.a.a.jC;
 import a.a.a.wq;
+import dev.aldi.sayuti.block.ExtraBlockFile;
 import mod.hilal.saif.blocks.BlocksHandler;
 import java.io.File;
 import java.io.FileWriter;
@@ -80,6 +85,82 @@ public class LogicIrBridge {
     }
 
     /**
+     * Checks whether an opCode or block type is valid according to Sketchware built-in and extra block specs or control structures.
+     */
+    public static boolean isOpCodeValid(String opCode, String type) {
+        ensureBlockSpecCache();
+
+        if (opCode == null) opCode = "";
+        if (type == null) type = "";
+
+        // Standard control structures & raw code
+        if ("raw_code".equals(type) || "addSourceDirectly".equals(opCode)) {
+            return true;
+        }
+        if ("if".equals(type) || "ifElse".equals(type) || "repeat".equals(type) || "while".equals(type) || "forever".equals(type)) {
+            return true;
+        }
+        if ("if".equals(opCode) || "ifElse".equals(opCode) || "repeat".equals(opCode) || "while".equals(opCode) || "forever".equals(opCode)) {
+            return true;
+        }
+
+        // Variable getters (e.g. getVar, getVarInt, getVarDouble, getVarString, getVarBool)
+        if (opCode.startsWith("getVar")) {
+            return true;
+        }
+
+        // Check built-in and extra blockSpecCache
+        return blockSpecCache.containsKey(opCode);
+    }
+
+    private static void validateIrNode(Object nodeObj, List<String> invalidOpcodes) {
+        if (nodeObj == null) return;
+
+        if (nodeObj instanceof JSONArray arr) {
+            for (int i = 0; i < arr.length(); i++) {
+                validateIrNode(arr.opt(i), invalidOpcodes);
+            }
+            return;
+        }
+
+        if (nodeObj instanceof JSONObject node) {
+            String type = node.optString("type", "statement");
+            String opCode = node.optString("opCode", "");
+
+            if (!isOpCodeValid(opCode, type)) {
+                String displayOp = (opCode != null && !opCode.trim().isEmpty()) ? opCode.trim() : type;
+                if (!invalidOpcodes.contains(displayOp)) {
+                    invalidOpcodes.add(displayOp);
+                }
+            }
+
+            if (node.has("condition")) {
+                validateIrNode(node.opt("condition"), invalidOpcodes);
+            }
+            if (node.has("count")) {
+                validateIrNode(node.opt("count"), invalidOpcodes);
+            }
+            if (node.has("then")) {
+                validateIrNode(node.optJSONArray("then"), invalidOpcodes);
+            }
+            if (node.has("else")) {
+                validateIrNode(node.optJSONArray("else"), invalidOpcodes);
+            }
+            if (node.has("body")) {
+                validateIrNode(node.optJSONArray("body"), invalidOpcodes);
+            }
+            if (node.has("parameters")) {
+                JSONArray params = node.optJSONArray("parameters");
+                if (params != null) {
+                    for (int p = 0; p < params.length(); p++) {
+                        validateIrNode(params.opt(p), invalidOpcodes);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Validates an IR JSON structure via a dry-run conversion without touching any project files.
      *
      * @param ir The proposed IR JSONObject.
@@ -97,12 +178,13 @@ public class LogicIrBridge {
                 return new ValidationResult(false, "IR JSON is missing 'body' array", "", 0);
             }
 
-            // Inspect body items for basic structural validity
-            for (int i = 0; i < body.length(); i++) {
-                JSONObject blockItem = body.optJSONObject(i);
-                if (blockItem == null) {
-                    return new ValidationResult(false, "IR body contains null or invalid block item at index " + i, "", 0);
-                }
+            // Inspect body items for basic structural validity and unknown opCodes
+            List<String> unknownOpcodes = new ArrayList<>();
+            validateIrNode(ir, unknownOpcodes);
+            if (!unknownOpcodes.isEmpty()) {
+                String errorMsg = "Unknown or unsupported opCodes in IR: " + String.join(", ", unknownOpcodes);
+                log("validateIr ERROR: " + errorMsg);
+                return new ValidationResult(false, errorMsg, "", 0);
             }
 
             // Dry-run IR -> BlockBeans
@@ -156,8 +238,15 @@ public class LogicIrBridge {
         try {
             ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
             BlocksHandler.builtInBlocks(blockList);
+            try {
+                ArrayList<HashMap<String, Object>> extraBlockData = ExtraBlockFile.getExtraBlockData();
+                if (extraBlockData != null) {
+                    blockList.addAll(extraBlockData);
+                }
+            } catch (Exception ignored) {}
 
             for (HashMap<String, Object> def : blockList) {
+                if (def == null) continue;
                 String name = (String) def.get("name");
                 if (name == null || name.isEmpty()) continue;
 
@@ -1134,15 +1223,138 @@ public class LogicIrBridge {
     // =========================================================================
 
     /**
+     * Normalizes event key aliases (e.g., converts "onCreate" to "onCreate_initializeLogic").
+     *
+     * @param eventKey The input event key.
+     * @return The normalized event key for Sketchware project data lookups.
+     */
+    public static String normalizeEventKey(String eventKey) {
+        if (eventKey == null || eventKey.trim().isEmpty() || "onCreate".equalsIgnoreCase(eventKey.trim())) {
+            return "onCreate_initializeLogic";
+        }
+        return eventKey.trim();
+    }
+
+    /**
+     * Ensures that an EventBean for the given eventKey is registered in project storage (manager.i).
+     * If the event is not already registered in manager.g(javaName), infers eventType, targetType, targetId,
+     * and eventName and registers it.
+     *
+     * @param manager The eC project data manager instance.
+     * @param javaName The target activity/file name (e.g. "main" or "MainActivity.java").
+     * @param eventKey The normalized event key (e.g. "onCreate_initializeLogic", "button1_onClick", "timer1_onTimer").
+     */
+    public static void ensureEventRegistered(eC manager, String javaName, String eventKey) {
+        if (manager == null || javaName == null || javaName.trim().isEmpty() || eventKey == null || eventKey.trim().isEmpty()) {
+            return;
+        }
+        eventKey = normalizeEventKey(eventKey);
+
+        synchronized (manager) {
+            ArrayList<EventBean> events = manager.g(javaName);
+            if (events != null) {
+                for (EventBean e : events) {
+                    if (e != null && eventKey.equals(e.getEventKey())) {
+                        return; // Already registered
+                    }
+                }
+            }
+
+            EventBean eventToRegister = inferEventBean(manager, javaName, eventKey);
+            if (eventToRegister != null) {
+                manager.a(javaName, eventToRegister);
+                Log.d(TAG, "ensureEventRegistered: Registered missing event -> " + eventKey
+                        + " (type=" + eventToRegister.eventType
+                        + ", targetId=" + eventToRegister.targetId
+                        + ", eventName=" + eventToRegister.eventName
+                        + ", targetType=" + eventToRegister.targetType + ")");
+            }
+        }
+    }
+
+    /**
+     * Overload for convenience using scId.
+     */
+    public static void ensureEventRegistered(String scId, String javaName, String eventKey) {
+        if (scId == null || scId.trim().isEmpty()) return;
+        eC manager = jC.a(scId);
+        if (manager != null) {
+            ensureEventRegistered(manager, javaName, eventKey);
+        }
+    }
+
+    /**
+     * Infers an EventBean for an unregistered eventKey based on project layouts, components, and event structure.
+     */
+    public static EventBean inferEventBean(eC manager, String javaName, String eventKey) {
+        if ("onCreate_initializeLogic".equalsIgnoreCase(eventKey)) {
+            return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, "onCreate", "initializeLogic");
+        }
+
+        if (eventKey.endsWith("_moreBlock")) {
+            String targetId = eventKey.substring(0, eventKey.length() - "_moreBlock".length());
+            return new EventBean(EventBean.EVENT_TYPE_ETC, -1, targetId, "moreBlock");
+        }
+
+        int lastUnderscore = eventKey.lastIndexOf('_');
+        if (lastUnderscore > 0 && lastUnderscore < eventKey.length() - 1) {
+            String targetId = eventKey.substring(0, lastUnderscore);
+            String eventName = eventKey.substring(lastUnderscore + 1);
+
+            String xmlName = ProjectFileBean.getXmlName(javaName);
+
+            // 1. Check if targetId matches a View in the layout XML
+            try {
+                ViewBean vb = manager.c(xmlName, targetId);
+                if (vb != null) {
+                    return new EventBean(EventBean.EVENT_TYPE_VIEW, vb.type, targetId, eventName);
+                }
+            } catch (Exception ignored) {}
+
+            // 2. Check if targetId matches a Component in the Activity
+            try {
+                ArrayList<ComponentBean> components = manager.e(javaName);
+                if (components != null) {
+                    for (ComponentBean cb : components) {
+                        if (cb != null && targetId.equals(cb.componentId)) {
+                            return new EventBean(EventBean.EVENT_TYPE_COMPONENT, cb.type, targetId, eventName);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // 3. Check FAB in layout XML
+            try {
+                ViewBean fab = manager.h(xmlName);
+                if (fab != null && targetId.equals(fab.id)) {
+                    return new EventBean(EventBean.EVENT_TYPE_VIEW, fab.type, targetId, eventName);
+                }
+            } catch (Exception ignored) {}
+
+            // 4. Activity events with targetId/eventName (e.g. "onCreate")
+            if ("onCreate".equalsIgnoreCase(targetId)) {
+                return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, targetId, eventName);
+            }
+
+            // Fallback: If split by underscore, treat as a View event
+            return new EventBean(EventBean.EVENT_TYPE_VIEW, 0, targetId, eventName);
+        }
+
+        // Single token event key (e.g. "onBackPressed", "onStart", "Import")
+        return new EventBean(EventBean.EVENT_TYPE_ACTIVITY, 0, eventKey, eventKey);
+    }
+
+    /**
      * Loads event logic from Sketchware project storage and converts it directly into IR JSON.
      * Safely wrapped with error handling around internal Sketchware APIs.
      *
      * @param scId The project ID (e.g. "601").
      * @param javaName The activity/file name (e.g. "main").
-     * @param eventKey The event key (e.g. "onCreate" or "button1_onClick").
+     * @param eventKey The event key (e.g. "onCreate_initializeLogic" or "button1_onClick").
      * @return JSONObject representing the IR.
      */
     public static JSONObject loadIrFromProject(String scId, String javaName, String eventKey) {
+        eventKey = normalizeEventKey(eventKey);
         try {
             eC manager = jC.a(scId);
             if (manager == null) {
@@ -1170,11 +1382,12 @@ public class LogicIrBridge {
      *
      * @param scId The project ID (e.g. "601").
      * @param javaName The activity/file name (e.g. "main").
-     * @param eventKey The event key (e.g. "onCreate" or "button1_onClick").
+     * @param eventKey The event key (e.g. "onCreate_initializeLogic" or "button1_onClick").
      * @param ir The IR JSONObject to apply.
      * @return true if successful.
      */
     public static boolean saveIrToProject(String scId, String javaName, String eventKey, JSONObject ir) {
+        eventKey = normalizeEventKey(eventKey);
         try {
             if (ir == null) return false;
 
@@ -1186,6 +1399,7 @@ public class LogicIrBridge {
             }
 
             synchronized (manager) {
+                ensureEventRegistered(manager, javaName, eventKey);
                 manager.a(javaName, eventKey, newBlocks);
                 manager.k(); // Persist changes to disk
             }

@@ -297,7 +297,7 @@ public class SkAssistantFragment extends Fragment {
         if (fabScrollBottom != null) {
             fabScrollBottom.setOnClickListener(v -> {
                 HapticManager.vibrateRun(v);
-                scrollToBottom();
+                scrollToBottom(true);
             });
         }
 
@@ -309,7 +309,7 @@ public class SkAssistantFragment extends Fragment {
             }
         });
 
-        scrollToBottom();
+        scrollToBottom(true);
 
         tokenUsageContainer = view.findViewById(R.id.token_usage_container);
         tvTokenUsage = view.findViewById(R.id.tv_token_usage);
@@ -457,8 +457,28 @@ public class SkAssistantFragment extends Fragment {
         }
     }
 
+    public boolean isAtBottom() {
+        if (recyclerView == null || adapter == null) return true;
+        RecyclerView.LayoutManager lm = recyclerView.getLayoutManager();
+        if (lm instanceof LinearLayoutManager llm) {
+            int lastVisiblePos = llm.findLastVisibleItemPosition();
+            int totalItems = adapter.getItemCount();
+            if (totalItems <= 0 || lastVisiblePos == RecyclerView.NO_POSITION) return true;
+            return (totalItems - 1 - lastVisiblePos) <= 3;
+        }
+        return true;
+    }
+
     public void scrollToBottom() {
+        scrollToBottom(false);
+    }
+
+    public void scrollToBottom(boolean force) {
         if (recyclerView == null || messages == null || messages.isEmpty()) return;
+        if (!force && !isAtBottom()) {
+            updateFabScrollBottomVisibility();
+            return;
+        }
         recyclerView.post(() -> {
             if (adapter != null && messages.size() > 0) {
                 int targetPos = messages.size() - 1;
@@ -468,7 +488,7 @@ public class SkAssistantFragment extends Fragment {
                         recyclerView.scrollToPosition(messages.size() - 1);
                         updateFabScrollBottomVisibility();
                     }
-                }, 100);
+                }, 50);
             }
         });
     }
@@ -486,7 +506,7 @@ public class SkAssistantFragment extends Fragment {
 
         messages.add(new Message("user", prompt));
         adapter.notifyItemInserted(messages.size() - 1);
-        scrollToBottom();
+        scrollToBottom(true);
         saveHistory();
 
         setStatus(model +" is reasoning...");
@@ -512,19 +532,30 @@ public class SkAssistantFragment extends Fragment {
             getActivity().runOnUiThread(() -> {
                 updateSendButtonState(isThinking);
 
-
+                int existingStatusIndex = -1;
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     if ("status".equals(messages.get(i).role)) {
-                        messages.remove(i);
-                        adapter.notifyItemRemoved(i);
+                        existingStatusIndex = i;
+                        break;
                     }
                 }
 
                 if (status != null && !status.isEmpty()) {
-                    Message statusMsg = new Message("status", status);
-                    messages.add(statusMsg);
-                    adapter.notifyItemInserted(messages.size() - 1);
-                    scrollToBottom();
+                    if (existingStatusIndex != -1) {
+                        Message statusMsg = messages.get(existingStatusIndex);
+                        statusMsg.content = status;
+                        adapter.notifyItemChanged(existingStatusIndex);
+                    } else {
+                        Message statusMsg = new Message("status", status);
+                        messages.add(statusMsg);
+                        adapter.notifyItemInserted(messages.size() - 1);
+                    }
+                    scrollToBottom(false);
+                } else {
+                    if (existingStatusIndex != -1) {
+                        messages.remove(existingStatusIndex);
+                        adapter.notifyItemRemoved(existingStatusIndex);
+                    }
                 }
                 
                 // Toggle File/Activity selector clickable state based on AI status
@@ -1611,7 +1642,7 @@ public class SkAssistantFragment extends Fragment {
                 if (adapter != null) {
                     adapter.notifyDataSetChanged();
                 }
-                scrollToBottom();
+                scrollToBottom(true);
             });
         }
     }

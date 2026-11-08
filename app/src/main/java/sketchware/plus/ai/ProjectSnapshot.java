@@ -2,7 +2,9 @@ package sketchware.plus.ai;
 
 import android.content.Context;
 
+import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.ComponentBean;
+import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ProjectLibraryBean;
 import com.besome.sketch.beans.ViewBean;
@@ -28,6 +30,8 @@ public class ProjectSnapshot {
     public ProjectLibraryBean googleMap;
     public InjectRootLayoutManager.Root rootLayout;
     public HashMap<String, ArrayList<ComponentBean>> componentsMap;
+    public HashMap<String, ArrayList<EventBean>> eventsMap;
+    public HashMap<String, HashMap<String, ArrayList<BlockBean>>> blocksMap;
     public int permissions;
 
     public ProjectSnapshot(String scId, String xmlName) {
@@ -66,6 +70,44 @@ public class ProjectSnapshot {
                             this.componentsMap.put(entry.getKey(), list);
                         }
                     }
+
+                    // Snapshot Events (dataManager.i)
+                    this.eventsMap = new HashMap<>();
+                    if (dataManager.i != null) {
+                        for (Map.Entry<String, ArrayList<EventBean>> entry : dataManager.i.entrySet()) {
+                            ArrayList<EventBean> eventList = new ArrayList<>();
+                            if (entry.getValue() != null) {
+                                for (EventBean eb : entry.getValue()) {
+                                    if (eb != null) {
+                                        eventList.add(new EventBean(eb.eventType, eb.targetType, eb.targetId, eb.eventName));
+                                    }
+                                }
+                            }
+                            this.eventsMap.put(entry.getKey(), eventList);
+                        }
+                    }
+
+                    // Snapshot Logic Blocks (dataManager.d)
+                    this.blocksMap = new HashMap<>();
+                    if (dataManager.d != null) {
+                        for (Map.Entry<String, HashMap<String, ArrayList<BlockBean>>> javaEntry : dataManager.d.entrySet()) {
+                            HashMap<String, ArrayList<BlockBean>> javaBlocks = new HashMap<>();
+                            if (javaEntry.getValue() != null) {
+                                for (Map.Entry<String, ArrayList<BlockBean>> eventEntry : javaEntry.getValue().entrySet()) {
+                                    ArrayList<BlockBean> blockList = new ArrayList<>();
+                                    if (eventEntry.getValue() != null) {
+                                        for (BlockBean bb : eventEntry.getValue()) {
+                                            if (bb != null) {
+                                                blockList.add(bb.clone());
+                                            }
+                                        }
+                                    }
+                                    javaBlocks.put(eventEntry.getKey(), blockList);
+                                }
+                            }
+                            this.blocksMap.put(javaEntry.getKey(), javaBlocks);
+                        }
+                    }
                 }
             }
         }
@@ -77,30 +119,74 @@ public class ProjectSnapshot {
         iC libraryManager = jC.c(scId);
         InjectRootLayoutManager rootManager = new InjectRootLayoutManager(scId);
 
-        dataManager.c.put(xmlName, views);
-        fileManager.c = activities;
-        fileManager.d = customViews;
-        libraryManager.a(admob);
-        libraryManager.b(compat);
-        libraryManager.c(firebase);
-        libraryManager.d(googleMap);
-        if (rootLayout != null) {
-            rootManager.set(xmlName, rootLayout);
-        }
-        dataManager.l.q = permissions;
+        synchronized (dataManager) {
+            synchronized (fileManager) {
+                synchronized (libraryManager) {
+                    dataManager.c.put(xmlName, views);
+                    fileManager.c = activities;
+                    fileManager.d = customViews;
+                    libraryManager.a(admob);
+                    libraryManager.b(compat);
+                    libraryManager.c(firebase);
+                    libraryManager.d(googleMap);
+                    if (rootLayout != null) {
+                        rootManager.set(xmlName, rootLayout);
+                    }
+                    dataManager.l.q = permissions;
 
-        if (componentsMap != null) {
-            dataManager.h = new HashMap<>();
-            for (Map.Entry<String, ArrayList<ComponentBean>> entry : componentsMap.entrySet()) {
-                ArrayList<ComponentBean> list = new ArrayList<>();
-                if (entry.getValue() != null) {
-                    for (ComponentBean cb : entry.getValue()) {
-                        if (cb != null) {
-                            list.add(new ComponentBean(cb.type, cb.componentId, cb.param1, cb.param2, cb.param3));
+                    if (componentsMap != null) {
+                        dataManager.h = new HashMap<>();
+                        for (Map.Entry<String, ArrayList<ComponentBean>> entry : componentsMap.entrySet()) {
+                            ArrayList<ComponentBean> list = new ArrayList<>();
+                            if (entry.getValue() != null) {
+                                for (ComponentBean cb : entry.getValue()) {
+                                    if (cb != null) {
+                                        list.add(new ComponentBean(cb.type, cb.componentId, cb.param1, cb.param2, cb.param3));
+                                    }
+                                }
+                            }
+                            dataManager.h.put(entry.getKey(), list);
                         }
                     }
+
+                    if (eventsMap != null) {
+                        dataManager.i = new HashMap<>();
+                        for (Map.Entry<String, ArrayList<EventBean>> entry : eventsMap.entrySet()) {
+                            ArrayList<EventBean> eventList = new ArrayList<>();
+                            if (entry.getValue() != null) {
+                                for (EventBean eb : entry.getValue()) {
+                                    if (eb != null) {
+                                        eventList.add(new EventBean(eb.eventType, eb.targetType, eb.targetId, eb.eventName));
+                                    }
+                                }
+                            }
+                            dataManager.i.put(entry.getKey(), eventList);
+                        }
+                    }
+
+                    if (blocksMap != null) {
+                        dataManager.d = new HashMap<>();
+                        for (Map.Entry<String, HashMap<String, ArrayList<BlockBean>>> javaEntry : blocksMap.entrySet()) {
+                            HashMap<String, ArrayList<BlockBean>> javaBlocks = new HashMap<>();
+                            if (javaEntry.getValue() != null) {
+                                for (Map.Entry<String, ArrayList<BlockBean>> eventEntry : javaEntry.getValue().entrySet()) {
+                                    ArrayList<BlockBean> blockList = new ArrayList<>();
+                                    if (eventEntry.getValue() != null) {
+                                        for (BlockBean bb : eventEntry.getValue()) {
+                                            if (bb != null) {
+                                                blockList.add(bb.clone());
+                                            }
+                                        }
+                                    }
+                                    javaBlocks.put(eventEntry.getKey(), blockList);
+                                }
+                            }
+                            dataManager.d.put(javaEntry.getKey(), javaBlocks);
+                        }
+                    }
+
+                    dataManager.k(); // Persist restored events and blocks to disk
                 }
-                dataManager.h.put(entry.getKey(), list);
             }
         }
 

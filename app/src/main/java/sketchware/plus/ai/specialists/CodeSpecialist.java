@@ -167,8 +167,8 @@ public class CodeSpecialist extends BaseSpecialist {
                             "1. Review the code/project state provided in context.\n" +
                             "2. Decide the SINGLE NEXT ACTION to take toward the goal.\n" +
                             "3. Available Actions:\n" +
-                            "   - GET_LOGIC_IR: {\"type\": \"GET_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate\"}\n" +
-                            "   - APPLY_LOGIC_IR: {\"type\": \"APPLY_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate\", \"javaCode\": \"...\"}\n" +
+                            "   - GET_LOGIC_IR: {\"type\": \"GET_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate_initializeLogic\"}\n" +
+                            "   - APPLY_LOGIC_IR: {\"type\": \"APPLY_LOGIC_IR\", \"javaName\": \"main\", \"eventKey\": \"onCreate_initializeLogic\", \"javaCode\": \"...\"}\n" +
                             "   - SEARCH_METHOD: {\"type\": \"SEARCH_METHOD\", \"javaName\": \"main\", \"methodName\": \"initialize\"}\n" +
                             "   - GET_CODE_RANGE: {\"type\": \"GET_CODE_RANGE\", \"javaName\": \"main\", \"startLine\": 10, \"endLine\": 30}\n" +
                             "   - FIND_FIELD: {\"type\": \"FIND_FIELD\", \"javaName\": \"main\", \"fieldName\": \"myButton\"}\n" +
@@ -346,7 +346,7 @@ public class CodeSpecialist extends BaseSpecialist {
 
     private void applyGetLogicIr(JSONObject action) {
         String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "main");
-        String eventKey = action.optString("eventKey", "onCreate");
+        String eventKey = LogicIrBridge.normalizeEventKey(action.optString("eventKey", "onCreate_initializeLogic"));
         log("[CodeSpecialist.applyGetLogicIr] Input -> javaName: " + javaName + ", eventKey: " + eventKey);
 
         jC.projectOperationsExecutor.execute(() -> {
@@ -375,7 +375,7 @@ public class CodeSpecialist extends BaseSpecialist {
         }
 
         String javaName = action.optString("javaName", getProjectFile() != null ? getProjectFile().getJavaName() : "main");
-        String eventKey = action.optString("eventKey", "onCreate");
+        String eventKey = LogicIrBridge.normalizeEventKey(action.optString("eventKey", "onCreate_initializeLogic"));
         log("[CodeSpecialist.applyLogicIrWithGuardrails] Input -> javaName: " + javaName + ", eventKey: " + eventKey);
 
         JSONObject proposedIr = action.optJSONObject("ir");
@@ -466,6 +466,9 @@ public class CodeSpecialist extends BaseSpecialist {
                     .setView(scrollView)
                     .setPositiveButton("Apply Logic", (dialog, which) -> {
                         log("[CodeSpecialist.applyLogicIrWithGuardrails] Step 4: User APPROVED logic change dialog.");
+                        fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                        fragment.setUndoVisible(true);
+
                         // Guardrail Step 4: Backup original blocks before saving
                         ArrayList<BlockBean> originalBlocks = jC.a(scId).a(javaName, eventKey);
                         log("[CodeSpecialist.applyLogicIrWithGuardrails] Backed up " + (originalBlocks != null ? originalBlocks.size() : 0) + " original blocks.");
@@ -473,6 +476,7 @@ public class CodeSpecialist extends BaseSpecialist {
                         boolean success = LogicIrBridge.saveIrToProject(scId, javaName, eventKey, finalIr);
                         if (success) {
                             log("[CodeSpecialist.applyLogicIrWithGuardrails] SUCCESS: Logic saved to project file!");
+                            fragment.setUndoVisible(true);
                             fragment.addSystemMessage(" Logic applied successfully to " + eventKey + " (" + validation.blockCount + " blocks).");
                         } else {
                             log("[CodeSpecialist.applyLogicIrWithGuardrails] ERROR: Failed to save logic! Restoring original blocks...");
@@ -669,13 +673,14 @@ public class CodeSpecialist extends BaseSpecialist {
     }
 
     public void applyAddBlock(String eventKey, String opCode, JSONArray jParams, boolean isSync) {
+        final String normalizedEventKey = LogicIrBridge.normalizeEventKey(eventKey);
         log("[CodeSpecialist.applyAddBlock] Input Arguments:");
-        log("  - eventKey: " + eventKey);
+        log("  - eventKey: " + eventKey + " (normalized: " + normalizedEventKey + ")");
         log("  - opCode: " + opCode);
         log("  - jParams: " + (jParams != null ? jParams.toString() : "null"));
         log("  - isSync: " + isSync);
 
-        if (eventKey == null || opCode == null) {
+        if (normalizedEventKey == null || opCode == null) {
             log("[CodeSpecialist.applyAddBlock] ERROR: eventKey or opCode is null!");
             return;
         }
@@ -687,55 +692,52 @@ public class CodeSpecialist extends BaseSpecialist {
             String scId = getScId();
             eC dataManager = jC.a(scId);
             String javaName = getProjectFile().getJavaName();
-            log("[CodeSpecialist.applyAddBlock] Target Java Name: " + javaName + ", Event Key: " + eventKey);
+            log("[CodeSpecialist.applyAddBlock] Target Java Name: " + javaName + ", Event Key: " + normalizedEventKey);
 
-            ArrayList<BlockBean> blocks = dataManager.a(javaName, eventKey);
-            if (blocks == null) {
-                log("[CodeSpecialist.applyAddBlock] Event logic block list is null. Creating new activity event entry...");
-                dataManager.a(javaName, EventBean.EVENT_TYPE_ACTIVITY, 0, "", eventKey);
-                blocks = dataManager.a(javaName, eventKey);
-            }
-            if (blocks == null) {
-                log("[CodeSpecialist.applyAddBlock] ERROR: Failed to obtain or create block list!");
-                return;
-            }
-
-            int maxId = 0;
-            for (BlockBean b : blocks) {
-                try { maxId = Math.max(maxId, Integer.parseInt(b.id)); } catch (Exception ignored) {}
-            }
-            String newBlockId = String.valueOf(maxId + 1);
-            log("[CodeSpecialist.applyAddBlock] Calculated new Block ID: " + newBlockId + " (existing blocks: " + blocks.size() + ")");
-
-            ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
-            BlocksHandler.builtInBlocks(blockList);
-            String type = " ", typeName = "", spec = "";
-            for (HashMap<String, Object> bDef : blockList) {
-                if (opCode.equals(bDef.get("name"))) {
-                    type = (String) bDef.getOrDefault("type", " ");
-                    typeName = (String) bDef.getOrDefault("typeName", "");
-                    spec = (String) bDef.getOrDefault("spec", "");
-                    break;
+            synchronized (dataManager) {
+                LogicIrBridge.ensureEventRegistered(dataManager, javaName, normalizedEventKey);
+                ArrayList<BlockBean> blocks = dataManager.a(javaName, normalizedEventKey);
+                if (blocks == null) {
+                    blocks = new ArrayList<>();
                 }
-            }
 
-            log("[CodeSpecialist.applyAddBlock] Matched Built-in Block Definition -> opCode: " + opCode + ", type: '" + type + "', typeName: '" + typeName + "', spec: '" + spec + "'");
+                int maxId = 0;
+                for (BlockBean b : blocks) {
+                    try { maxId = Math.max(maxId, Integer.parseInt(b.id)); } catch (Exception ignored) {}
+                }
+                String newBlockId = String.valueOf(maxId + 1);
+                log("[CodeSpecialist.applyAddBlock] Calculated new Block ID: " + newBlockId + " (existing blocks: " + blocks.size() + ")");
 
-            BlockBean block = new BlockBean(newBlockId, spec, type, typeName, opCode);
-            if (jParams != null) {
-                for (int i = 0; i < jParams.length(); i++) {
-                    try {
-                        String paramVal = jParams.getString(i);
-                        block.parameters.add(paramVal);
-                        log("  - Parameter [" + i + "]: " + paramVal);
-                    } catch (Exception e) {
-                        log("  - Parameter [" + i + "] ERROR parsing: " + e.getMessage());
+                ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
+                BlocksHandler.builtInBlocks(blockList);
+                String type = " ", typeName = "", spec = "";
+                for (HashMap<String, Object> bDef : blockList) {
+                    if (opCode.equals(bDef.get("name"))) {
+                        type = (String) bDef.getOrDefault("type", " ");
+                        typeName = (String) bDef.getOrDefault("typeName", "");
+                        spec = (String) bDef.getOrDefault("spec", "");
+                        break;
                     }
                 }
+
+                log("[CodeSpecialist.applyAddBlock] Matched Built-in Block Definition -> opCode: " + opCode + ", type: '" + type + "', typeName: '" + typeName + "', spec: '" + spec + "'");
+
+                BlockBean block = new BlockBean(newBlockId, spec, type, typeName, opCode);
+                if (jParams != null) {
+                    for (int i = 0; i < jParams.length(); i++) {
+                        try {
+                            String paramVal = jParams.getString(i);
+                            block.parameters.add(paramVal);
+                            log("  - Parameter [" + i + "]: " + paramVal);
+                        } catch (Exception e) {
+                            log("  - Parameter [" + i + "] ERROR parsing: " + e.getMessage());
+                        }
+                    }
+                }
+                blocks.add(block);
+                dataManager.k();
+                log("[CodeSpecialist.applyAddBlock] BlockBean [id=" + newBlockId + ", opCode=" + opCode + "] added and dataManager saved successfully!");
             }
-            blocks.add(block);
-            dataManager.k();
-            log("[CodeSpecialist.applyAddBlock] BlockBean [id=" + newBlockId + ", opCode=" + opCode + "] added and dataManager saved successfully!");
         };
 
         if (isSync) {
