@@ -30,20 +30,20 @@ import sketchware.plus.utility.SketchwareUtil;
 public class BlockLoader {
 
     private static ArrayList<ExtraBlockInfo> blocks;
+    private static HashMap<String, ExtraBlockInfo> blockMap;
 
     static {
         loadCustomBlocks();
     }
 
     public static ExtraBlockInfo getBlockInfo(String block_name) {
-        if (blocks == null) {
+        if (blocks == null || blockMap == null) {
             loadCustomBlocks();
         }
 
-        for (ExtraBlockInfo info : blocks) {
-            if (info.getName().equals(block_name)) {
-                return info;
-            }
+        ExtraBlockInfo info = blockMap.get(block_name);
+        if (info != null) {
+            return info;
         }
 
         ExtraBlockInfo in = new ExtraBlockInfo();
@@ -83,6 +83,7 @@ public class BlockLoader {
         ArrayList<HashMap<String, Object>> palettes = new PaletteSelector().getPaletteSelector();
 
         blocks = new ArrayList<>();
+        blockMap = new HashMap<>();
 
         ArrayList<HashMap<String, Object>> arrList = ExtraBlockFile.getExtraBlockData();
 
@@ -195,6 +196,9 @@ public class BlockLoader {
             }
 
             blocks.add(info);
+            if (info.getName() != null && !info.getName().isEmpty()) {
+                blockMap.put(info.getName(), info);
+            }
         }
     }
 

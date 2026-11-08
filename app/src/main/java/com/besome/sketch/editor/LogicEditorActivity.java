@@ -251,9 +251,9 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
         if (eventBlocks != null) {
             if (eventBlocks.isEmpty()) {
                 runOnUiThread(() -> e(X));
+                return;
             }
 
-            boolean needToFindRoot = true;
             HashMap<Integer, Rs> blockIdsAndBlocks = new HashMap<>();
             for (BlockBean next : eventBlocks) {
                 if (eventName.equals("onTextChanged") && next.opCode.equals("getArg") && next.spec.equals("text")) {
@@ -262,51 +262,54 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
                 Rs b2 = b(next);
                 blockIdsAndBlocks.put((Integer) b2.getTag(), b2);
                 o.g = Math.max(o.g, (Integer) b2.getTag() + 1);
-                runOnUiThread(() -> {
-                    o.a(b2, 0, 0);
-                    b2.setOnTouchListener(this);
-                });
-                if (needToFindRoot) {
-                    runOnUiThread(() -> o.getRoot().b(b2));
-                    needToFindRoot = false;
-                }
             }
-            for (BlockBean next2 : eventBlocks) {
-                Rs block = blockIdsAndBlocks.get(Integer.valueOf(next2.id));
-                if (block != null) {
-                    Rs subStack1RootBlock;
-                    if (next2.subStack1 >= 0 && (subStack1RootBlock = blockIdsAndBlocks.get(next2.subStack1)) != null) {
-                        runOnUiThread(() -> block.e(subStack1RootBlock));
+
+            runOnUiThread(() -> {
+                boolean needToFindRoot = true;
+                for (BlockBean next : eventBlocks) {
+                    Rs b2 = blockIdsAndBlocks.get(Integer.valueOf(next.id));
+                    if (b2 != null) {
+                        o.a(b2, 0, 0);
+                        b2.setOnTouchListener(this);
+                        if (needToFindRoot) {
+                            o.getRoot().b(b2);
+                            needToFindRoot = false;
+                        }
                     }
-                    Rs subStack2RootBlock;
-                    if (next2.subStack2 >= 0 && (subStack2RootBlock = blockIdsAndBlocks.get(next2.subStack2)) != null) {
-                        runOnUiThread(() -> block.f(subStack2RootBlock));
-                    }
-                    Rs nextBlock;
-                    if (next2.nextBlock >= 0 && (nextBlock = blockIdsAndBlocks.get(next2.nextBlock)) != null) {
-                        runOnUiThread(() -> block.b(nextBlock));
-                    }
-                    for (int i = 0; i < next2.parameters.size(); i++) {
-                        String parameter = next2.parameters.get(i);
-                        if (parameter != null && !parameter.isEmpty()) {
-                            if (parameter.charAt(0) == '@') {
-                                Rs parameterBlock = blockIdsAndBlocks.get(Integer.valueOf(parameter.substring(1)));
-                                if (parameterBlock != null) {
-                                    int finalI = i;
-                                    runOnUiThread(() -> block.a((Ts) block.V.get(finalI), parameterBlock));
-                                }
-                            } else {
-                                int finalI = i;
-                                runOnUiThread(() -> {
-                                    ((Ss) block.V.get(finalI)).setArgValue(parameter);
+                }
+
+                for (BlockBean next2 : eventBlocks) {
+                    Rs block = blockIdsAndBlocks.get(Integer.valueOf(next2.id));
+                    if (block != null) {
+                        Rs subStack1RootBlock;
+                        if (next2.subStack1 >= 0 && (subStack1RootBlock = blockIdsAndBlocks.get(next2.subStack1)) != null) {
+                            block.e(subStack1RootBlock);
+                        }
+                        Rs subStack2RootBlock;
+                        if (next2.subStack2 >= 0 && (subStack2RootBlock = blockIdsAndBlocks.get(next2.subStack2)) != null) {
+                            block.f(subStack2RootBlock);
+                        }
+                        Rs nextBlock;
+                        if (next2.nextBlock >= 0 && (nextBlock = blockIdsAndBlocks.get(next2.nextBlock)) != null) {
+                            block.b(nextBlock);
+                        }
+                        for (int i = 0; i < next2.parameters.size(); i++) {
+                            String parameter = next2.parameters.get(i);
+                            if (parameter != null && !parameter.isEmpty()) {
+                                if (parameter.charAt(0) == '@') {
+                                    Rs parameterBlock = blockIdsAndBlocks.get(Integer.valueOf(parameter.substring(1)));
+                                    if (parameterBlock != null) {
+                                        block.a((Ts) block.V.get(i), parameterBlock);
+                                    }
+                                } else {
+                                    ((Ss) block.V.get(i)).setArgValue(parameter);
                                     block.m();
-                                });
+                                }
                             }
                         }
                     }
                 }
-            }
-            runOnUiThread(() -> {
+
                 o.getRoot().k();
                 o.b();
             });
