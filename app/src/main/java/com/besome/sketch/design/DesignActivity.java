@@ -869,6 +869,18 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         if (freeMegabytes < 100L && freeMegabytes > 0L) {
             warnAboutInsufficientStorageSpace();
         }
+
+        if (viewPager != null && viewPager.getAdapter() != null) {
+            int currentCount = viewPager.getAdapter().getCount();
+            int expectedCount = AiClient.isAiEnabled(this) ? 4 : 3;
+            if (currentCount != expectedCount) {
+                viewPager.setAdapter(new ViewPagerAdapter(getSupportFragmentManager()));
+                TabLayout tabLayout = findViewById(R.id.tab_layout);
+                if (tabLayout != null) {
+                    tabLayout.setupWithViewPager(viewPager);
+                }
+            }
+        }
     }
 
     @Override
@@ -1866,9 +1878,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
     private class ViewPagerAdapter extends FragmentPagerAdapter {
         private final String[] labels;
+        private final int count;
 
         public ViewPagerAdapter(FragmentManager fragmentManager) {
             super(fragmentManager);
+            this.count = AiClient.isAiEnabled(DesignActivity.this) ? 4 : 3;
             labels = new String[]{
                     Helper.getResString(R.string.design_tab_title_view),
                     Helper.getResString(R.string.design_tab_title_event),
@@ -1878,7 +1892,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
         @Override
         public int getCount() {
-            return AiClient.isAiEnabled(DesignActivity.this) ? 4 : 3;
+            return count;
         }
 
         @Override
