@@ -38,9 +38,6 @@ public class AssistantToolRegistry {
                         .addProperty("summary", "string", "what changed")
                         .setRequired("xml", "summary").build()));
 
-        // t.put(createTool("get_manifest_xml", "Dump AndroidManifest.xml or specific section. NOTE: ALWAYS prefer find_manifest_entries instead when searching for specific permissions, activities, services, or tags to save tokens.",
-        //         new ParameterBuilder().addProperty("section", "string", "optional section name: permissions|components|application_attributes|full").build()));
-
         t.put(createTool("find_manifest_entries", "PREFERRED tool to search/inspect AndroidManifest.xml for permissions, activities, services, tags, or keywords. ALWAYS use find_manifest_entries instead of get_manifest_xml whenever looking for specific entries in the manifest.",
                 new ParameterBuilder().addProperty("query", "string", "keyword, tag, or permission to search (e.g. 'permission', 'activity', 'INTERNET', 'service', 'all')").setRequired("query").build()));
 
@@ -157,9 +154,10 @@ public class AssistantToolRegistry {
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
                         .addProperty("name", "string", "function name, e.g. calculateTotal")
-                        .addProperty("params", "array", "optional array of parameter objects, e.g. [{\"name\": \"x\", \"type\": \"number\"}]")
-                        .addProperty("returnType", "string", "optional return type, e.g. void, String, double, boolean")
+                        .addProperty("params", "array", "optional array of parameter objects or string names. Parameter objects have 'name' (string) and 'type' (enum: string, number, boolean, map, list string, list map, view). Default parameter type is string.")
+                        .addPropertyEnum("returnType", "string", "optional return type", new String[]{"void", "string", "number", "boolean", "map", "list string", "list map", "view"})
                         .addProperty("body_java", "string", "optional Java implementation for function body")
+                        .addProperty("allow_empty_on_body_error", "boolean", "optional flag (default false). If false, aborts function creation if body_java fails parsing. If true, creates an empty function definition if body_java fails.")
                         .setRequired("name").build()));
 
         t.put(createTool("register_event", "Register an activity, view, or component event listener to obtain an eventKey.",
@@ -214,6 +212,19 @@ public class AssistantToolRegistry {
                 if (itemsType != null && type.equals("array")) {
                     prop.put("items", new JSONObject().put("type", itemsType));
                 }
+                properties.put(name, prop);
+            } catch (Exception ignored) {}
+            return this;
+        }
+
+        public ParameterBuilder addPropertyEnum(String name, String type, String description, String[] enumValues) {
+            try {
+                JSONArray enumArr = new JSONArray();
+                for (String v : enumValues) enumArr.put(v);
+                JSONObject prop = new JSONObject()
+                    .put("type", type)
+                    .put("description", description)
+                    .put("enum", enumArr);
                 properties.put(name, prop);
             } catch (Exception ignored) {}
             return this;

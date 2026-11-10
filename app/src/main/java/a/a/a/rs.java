@@ -380,6 +380,7 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
             ArrayList<Gx> paramClassInfo = next.getParamClassInfo();
             if (!paramClassInfo.isEmpty()) {
                 for (int i = 0; i < paramClassInfo.size(); i++) {
+                    if (i >= next.parameters.size()) continue;
                     Gx gx = paramClassInfo.get(i);
                     String parameter = next.parameters.get(i);
 

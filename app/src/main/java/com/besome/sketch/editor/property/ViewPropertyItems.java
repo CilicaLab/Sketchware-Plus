@@ -889,7 +889,7 @@ public class ViewPropertyItems extends LinearLayout implements Kw, View.OnClickL
                                 ArrayList<Gx> paramClassInfo = blockBean.getParamClassInfo();
                                 if (paramClassInfo != null && !paramClassInfo.isEmpty()) {
                                     for (int i = 0; i < paramClassInfo.size(); ++i) {
-                                        if (paramClassInfo.get(i).d() && blockBean.parameters.get(i).equals(viewBinding ? "binding." + ViewBindingBuilder.generateParameterFromId(bean.preId) : bean.preId)) {
+                                        if (i < blockBean.parameters.size() && paramClassInfo.get(i).d() && blockBean.parameters.get(i).equals(viewBinding ? "binding." + ViewBindingBuilder.generateParameterFromId(bean.preId) : bean.preId)) {
                                             blockBean.parameters.set(i, viewBinding ? "binding." + ViewBindingBuilder.generateParameterFromId(bean.id) : bean.id);
                                         }
                                     }
@@ -925,7 +925,7 @@ public class ViewPropertyItems extends LinearLayout implements Kw, View.OnClickL
                                 ArrayList<Gx> paramClassInfo = blockBean.getParamClassInfo();
                                 if (paramClassInfo != null && !paramClassInfo.isEmpty()) {
                                     for (int i = 0; i < paramClassInfo.size(); ++i) {
-                                        if (paramClassInfo.get(i).d() && blockBean.parameters.get(i).equals(viewBinding ? "binding." + ViewBindingBuilder.generateParameterFromId(bean.preId) : bean.preId)) {
+                                        if (i < blockBean.parameters.size() && paramClassInfo.get(i).d() && blockBean.parameters.get(i).equals(viewBinding ? "binding." + ViewBindingBuilder.generateParameterFromId(bean.preId) : bean.preId)) {
                                             blockBean.parameters.set(i, viewBinding ? "binding." + ViewBindingBuilder.generateParameterFromId(bean.id) : bean.id);
                                         }
                                     }

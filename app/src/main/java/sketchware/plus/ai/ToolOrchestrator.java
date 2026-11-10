@@ -918,16 +918,34 @@ public class ToolOrchestrator {
             }
 
             case "add_more_block": {
-                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main.xml");
-                fragment.setUndoVisible(true);
-                String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
-                String mbName = args.getString("name");
+                String rawMbName = args.optString("name", null);
+                if (rawMbName == null || rawMbName.trim().isEmpty()) {
+                    JSONObject errJson = new JSONObject();
+                    try {
+                        errJson.put("ok", false);
+                        errJson.put("error", "Missing required argument 'name' for add_more_block.");
+                    } catch (Exception ignored) {}
+                    return errJson.toString();
+                }
+
+                String defaultJava = (fragment.projectFile != null) ? fragment.projectFile.getJavaName() : "MainActivity.java";
+                String rawJavaName = args.optString("javaName", defaultJava);
+                String resolvedJavaName = ProjectStructureAide.findActivityJavaName(fragment.scId, rawJavaName, defaultJava);
+
+                if (resolvedJavaName != null) {
+                    fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, resolvedJavaName);
+                    fragment.setUndoVisible(true);
+                }
+
                 JSONArray params = args.optJSONArray("params");
                 String returnType = args.optString("returnType", null);
                 String bodyJava = args.optString("body_java", null);
+                boolean allowEmptyOnBodyError = args.optBoolean("allow_empty_on_body_error", false);
+
                 final String[] res = new String[1];
+                final String finalJavaName = rawJavaName;
                 runOnMainSync(() -> {
-                    res[0] = ProjectStructureAide.addMoreBlock(getContext(), fragment.scId, javaName, mbName, params, returnType, bodyJava);
+                    res[0] = ProjectStructureAide.addMoreBlock(getContext(), fragment.scId, finalJavaName, rawMbName, params, returnType, bodyJava, allowEmptyOnBodyError, fragment);
                     fragment.refreshDesigner();
                 });
                 return res[0];

@@ -9,11 +9,13 @@ import com.besome.sketch.beans.ComponentBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ViewBean;
+import com.besome.sketch.editor.LogicEditorActivity;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +34,23 @@ public class ProjectStructureAide {
 
     private static final String TAG = "ProjectStructureAide";
 
+    private static final Set<String> JAVA_KEYWORDS = new HashSet<>(Arrays.asList(
+            "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+            "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+            "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+            "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp", "super",
+            "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile", "while"
+    ));
+
+    private static final Set<String> RESERVED_LITERALS = new HashSet<>(Arrays.asList(
+            "true", "false", "null"
+    ));
+
+    private static final Set<String> GENERATED_METHOD_NAMES = new HashSet<>(Arrays.asList(
+            "oncreate", "onstart", "onresume", "onpause", "onstop", "ondestroy", "onbackpressed",
+            "initialize", "initializelogic", "onactivityresult"
+    ));
+
     /**
      * Returns the default activity javaName for the project (first activity or MainActivity.java).
      */
@@ -40,7 +59,7 @@ public class ProjectStructureAide {
             hC fileManager = jC.b(scId);
             if (fileManager != null && fileManager.c != null) {
                 for (ProjectFileBean pfb : fileManager.c) {
-                    if (pfb != null) return pfb.getJavaName();
+                    if (pfb != null && pfb.getJavaName() != null) return pfb.getJavaName();
                 }
             }
         }
@@ -50,16 +69,25 @@ public class ProjectStructureAide {
     /**
      * Resolves various alias forms ("main", "main.xml", "MainActivity", "MainActivity.java")
      * into the canonical Java file key used by eC maps (e.g. "MainActivity.java").
-     * Returns defaultJavaName if input is empty, or null if input does not match any activity.
+     * Checks against the actual activity list in the project.
+     * Returns defaultJavaName if input is empty, or null if input does not match any existing activity.
      */
     public static String findActivityJavaName(String scId, String input, String defaultJavaName) {
-        if (input == null || input.trim().isEmpty()) {
-            return defaultJavaName != null ? defaultJavaName : getDefaultJavaName(scId);
-        }
-        String trimmed = input.trim();
         if (scId != null && !scId.trim().isEmpty()) {
             hC fileManager = jC.b(scId);
-            if (fileManager != null && fileManager.c != null) {
+            if (fileManager != null && fileManager.c != null && !fileManager.c.isEmpty()) {
+                if (input == null || input.trim().isEmpty()) {
+                    if (defaultJavaName != null && !defaultJavaName.trim().isEmpty()) {
+                        for (ProjectFileBean pfb : fileManager.c) {
+                            if (pfb != null && defaultJavaName.equalsIgnoreCase(pfb.getJavaName())) {
+                                return pfb.getJavaName();
+                            }
+                        }
+                    }
+                    return fileManager.c.get(0).getJavaName();
+                }
+
+                String trimmed = input.trim();
                 for (ProjectFileBean pfb : fileManager.c) {
                     if (pfb == null) continue;
                     if (trimmed.equalsIgnoreCase(pfb.fileName)
@@ -69,7 +97,12 @@ public class ProjectStructureAide {
                         return pfb.getJavaName();
                     }
                 }
+                return null;
             }
+        }
+
+        if (input == null || input.trim().isEmpty()) {
+            return defaultJavaName != null ? defaultJavaName : "MainActivity.java";
         }
         return null;
     }
@@ -138,8 +171,8 @@ public class ProjectStructureAide {
     }
 
     /**
-     * Validates an identifier name against Sketchware PropertyNameValidator rules,
-     * Java keywords, reserved method names, and existing project identifiers.
+     * Validates a function or identifier name against Java syntax rules, reserved keywords,
+     * generated activity methods, and existing project identifiers.
      *
      * @return null if valid, or an error description string if invalid.
      */
@@ -152,44 +185,29 @@ public class ProjectStructureAide {
             return "Name length must be between 1 and 100 characters.";
         }
         if (!Character.isLetter(trimmed.charAt(0))) {
-            return "Name must start with a letter.";
+            return "Name '" + trimmed + "' must start with a letter.";
         }
         if (!trimmed.matches("^[a-zA-Z][a-zA-Z0-9_]*$")) {
-            return "Name can only contain letters, numbers, and underscores.";
+            return "Name '" + trimmed + "' can only contain letters, numbers, and underscores.";
+        }
+
+        if (RESERVED_LITERALS.contains(trimmed)) {
+            return "Name '" + trimmed + "' is a reserved literal value.";
+        }
+
+        if (JAVA_KEYWORDS.contains(trimmed)) {
+            return "Name '" + trimmed + "' is a Java reserved keyword.";
         }
 
         String lower = trimmed.toLowerCase();
 
-        // 1. Check Java reserved keywords (uq.b)
-        if (uq.b != null) {
-            for (String reserved : uq.b) {
-                if (lower.equals(reserved.toLowerCase())) {
-                    return "Name '" + trimmed + "' is a Java reserved keyword.";
-                }
-            }
+        if (GENERATED_METHOD_NAMES.contains(lower)) {
+            return "Name '" + trimmed + "' collides with a generated activity method name.";
         }
 
-        // 2. Check Android / Sketchware reserved method names (uq.a())
-        if (uq.a() != null) {
-            for (String reserved : uq.a()) {
-                if (lower.equals(reserved.toLowerCase())) {
-                    return "Name '" + trimmed + "' is a reserved method name.";
-                }
-            }
-        }
-
-        // 3. Check existing file names and project-wide identifiers
-        if (scId != null && !scId.isEmpty()) {
+        if (scId != null && !scId.trim().isEmpty()) {
             eC dataManager = jC.a(scId);
             hC fileManager = jC.b(scId);
-
-            if (fileManager != null && fileManager.a != null) {
-                for (String fname : fileManager.a) {
-                    if (lower.equals(fname.toLowerCase())) {
-                        return "Name '" + trimmed + "' conflicts with an existing file name.";
-                    }
-                }
-            }
 
             if (fileManager != null) {
                 ProjectFileBean targetPfb = fileManager.a(javaName);
@@ -201,7 +219,7 @@ public class ProjectStructureAide {
                     if (takenNames != null) {
                         for (String taken : takenNames) {
                             if (lower.equals(taken.toLowerCase())) {
-                                return "Name '" + trimmed + "' conflicts with an existing variable, list, component, function, or view ID.";
+                                return "Name '" + trimmed + "' conflicts with an existing variable, list, component, function, or view ID in " + javaName + ".";
                             }
                         }
                     }
@@ -209,7 +227,7 @@ public class ProjectStructureAide {
             }
         }
 
-        return null; // Valid
+        return null;
     }
 
     /**
@@ -256,7 +274,6 @@ public class ProjectStructureAide {
             sb.append("\nTarget Activity: ").append(javaName).append("\n");
             String xmlName = getXmlNameForActivity(scId, javaName);
 
-            // Variables (dataManager.k(javaName))
             ArrayList<Pair<Integer, String>> vars = dataManager.k(javaName);
             sb.append("Variables: ");
             if (vars != null && !vars.isEmpty()) {
@@ -276,7 +293,6 @@ public class ProjectStructureAide {
                 sb.append("none");
             }
 
-            // Lists (dataManager.j(javaName))
             ArrayList<Pair<Integer, String>> lists = dataManager.j(javaName);
             sb.append("\nLists: ");
             if (lists != null && !lists.isEmpty()) {
@@ -295,7 +311,6 @@ public class ProjectStructureAide {
                 sb.append("none");
             }
 
-            // More Blocks (dataManager.i(javaName))
             ArrayList<Pair<String, String>> mbs = dataManager.i(javaName);
             sb.append("\nMore Blocks: ");
             if (mbs != null && !mbs.isEmpty()) {
@@ -308,7 +323,6 @@ public class ProjectStructureAide {
                 sb.append("none");
             }
 
-            // Registered Events (dataManager.g(javaName))
             ArrayList<EventBean> events = dataManager.g(javaName);
             sb.append("\nRegistered Events: ");
             if (events != null && !events.isEmpty()) {
@@ -323,7 +337,6 @@ public class ProjectStructureAide {
                 sb.append("none");
             }
 
-            // Components (dataManager.e(javaName))
             ArrayList<ComponentBean> components = dataManager.e(javaName);
             sb.append("\nComponents: ");
             if (components != null && !components.isEmpty()) {
@@ -338,7 +351,6 @@ public class ProjectStructureAide {
                 sb.append("none");
             }
 
-            // View IDs (dataManager.d(xmlName))
             ArrayList<ViewBean> views = dataManager.d(xmlName);
             sb.append("\nViews in Layout (").append(xmlName).append("): ");
             if (views != null && !views.isEmpty()) {
@@ -400,7 +412,6 @@ public class ProjectStructureAide {
                     }
                 }
 
-                // Check exists in eC (dataManager.f checks variables)
                 if (dataManager.f(javaName, typeInt, varName)) {
                     existing.add(varName);
                     continue;
@@ -416,7 +427,7 @@ public class ProjectStructureAide {
                 added.add(varName + " (" + typeStr + ")");
             }
 
-            dataManager.k(); // Persist changes
+            dataManager.k();
         }
 
         StringBuilder res = new StringBuilder();
@@ -465,16 +476,15 @@ public class ProjectStructureAide {
 
                 int typeInt;
                 switch (typeStr) {
-                    case "number", "double", "int", "integer" -> typeInt = 1; // ListInt
-                    case "string", "str" -> typeInt = 2; // ListString
-                    case "map" -> typeInt = 3; // ListMap
+                    case "number", "double", "int", "integer" -> typeInt = 1;
+                    case "string", "str" -> typeInt = 2;
+                    case "map" -> typeInt = 3;
                     default -> {
                         errors.add(listName + ": Unknown list type '" + typeStr + "'. Valid types: number, string, map.");
                         continue;
                     }
                 }
 
-                // Check exists in eC (dataManager.e checks lists)
                 if (dataManager.e(javaName, typeInt, listName)) {
                     existing.add(listName);
                     continue;
@@ -490,7 +500,7 @@ public class ProjectStructureAide {
                 added.add(listName + " (" + typeStr + ")");
             }
 
-            dataManager.k(); // Persist changes
+            dataManager.k();
         }
 
         StringBuilder res = new StringBuilder();
@@ -506,28 +516,46 @@ public class ProjectStructureAide {
         return res.toString();
     }
 
+    public static String addMoreBlock(Context context, String scId, String rawJavaName, String name, JSONArray params, String returnType, String bodyJava) {
+        return addMoreBlock(context, scId, rawJavaName, name, params, returnType, bodyJava, false, null);
+    }
+
     /**
      * Adds a custom function (More Block) to the activity.
      */
-    public static String addMoreBlock(Context context, String scId, String rawJavaName, String name, JSONArray params, String returnType, String bodyJava) {
-        String defaultJava = getDefaultJavaName(scId);
+    public static String addMoreBlock(Context context, String scId, String rawJavaName, String name, JSONArray params, String returnType, String bodyJava, boolean allowEmptyOnBodyError, SkAssistantFragment fragment) {
+        JSONObject resJson = new JSONObject();
+        JSONArray warnings = new JSONArray();
+
+        String defaultJava = (fragment != null && fragment.projectFile != null) ? fragment.projectFile.getJavaName() : getDefaultJavaName(scId);
         String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
         if (javaName == null) {
-            return "Error: Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId);
+            try {
+                resJson.put("ok", false);
+                resJson.put("error", "Unknown activity '" + rawJavaName + "'. Available activities: " + getAvailableActivitiesList(scId));
+            } catch (Exception ignored) {}
+            return resJson.toString();
         }
 
         eC dataManager = jC.a(scId);
         if (dataManager == null) {
-            return "Error: Project data manager not found for scId: " + scId;
+            try {
+                resJson.put("ok", false);
+                resJson.put("error", "Project data manager not found for scId: " + scId);
+            } catch (Exception ignored) {}
+            return resJson.toString();
         }
 
         String funcName = name != null ? name.trim() : "";
         String err = validateName(context, scId, javaName, funcName);
         if (err != null) {
-            return "Error validating function name: " + err;
+            try {
+                resJson.put("ok", false);
+                resJson.put("error", "Error validating function name: " + err);
+            } catch (Exception ignored) {}
+            return resJson.toString();
         }
 
-        // Validate returnType against V3 set
         String rTypeLower = returnType != null ? returnType.trim().toLowerCase() : "void";
         String typeChar;
         String returnTypeEncoded;
@@ -557,45 +585,96 @@ public class ProjectStructureAide {
             typeChar = "v|View";
             returnTypeEncoded = "[v|View]";
         } else {
-            return "Error: Unknown return type '" + returnType + "'. Valid types: void, string, double, boolean, map, list string, list map, view.";
+            try {
+                resJson.put("ok", false);
+                resJson.put("error", "Error: Unknown return type '" + returnType + "'. Valid types: void, string, double, boolean, map, list string, list map, view.");
+            } catch (Exception ignored) {}
+            return resJson.toString();
         }
 
-        // Validate parameter names and types
         List<String> paramNames = new ArrayList<>();
         StringBuilder specBuilder = new StringBuilder(funcName).append(returnTypeEncoded);
         Set<String> seenParams = new HashSet<>();
 
         if (params != null && params.length() > 0) {
             for (int i = 0; i < params.length(); i++) {
-                JSONObject p = params.optJSONObject(i);
-                if (p == null) continue;
+                String pName;
+                String pType;
 
-                String pName = p.optString("name", "").trim();
-                String pType = p.optString("type", "string").trim().toLowerCase();
+                Object item = params.opt(i);
+                if (item instanceof JSONObject pObj) {
+                    pName = pObj.optString("name", "").trim();
+                    pType = pObj.optString("type", "string").trim().toLowerCase();
+                } else if (item instanceof String strItem) {
+                    pName = strItem.trim();
+                    pType = "string";
+                } else {
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Invalid parameter item at index " + i + ": expected parameter object or string name.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
+                }
 
                 if (pName.isEmpty() || !pName.matches("^[a-zA-Z][a-zA-Z0-9_]*$")) {
-                    return "Error: Invalid parameter name '" + pName + "'. Must start with a letter and contain only alphanumeric characters or underscores.";
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Error: Invalid parameter name '" + pName + "' at index " + i + ". Must start with a letter and contain only alphanumeric characters or underscores.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
+                }
+
+                if (RESERVED_LITERALS.contains(pName)) {
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Error: Parameter name '" + pName + "' is a reserved literal value.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
+                }
+
+                if (JAVA_KEYWORDS.contains(pName)) {
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Error: Parameter name '" + pName + "' is a Java reserved keyword.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
                 }
 
                 if (pName.equalsIgnoreCase(funcName)) {
-                    return "Error: Parameter name '" + pName + "' cannot be equal to the function name.";
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Error: Parameter name '" + pName + "' cannot be equal to the function name.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
                 }
 
                 String pLower = pName.toLowerCase();
                 if (seenParams.contains(pLower)) {
-                    return "Error: Duplicate parameter name '" + pName + "' in function definition.";
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Error: Duplicate parameter name '" + pName + "' in function definition.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
                 }
                 seenParams.add(pLower);
 
                 String pToken = switch (pType) {
                     case "boolean", "bool" -> "%b." + pName;
-                    case "number", "double", "int", "integer" -> "%d." + pName;
-                    case "string", "str" -> "%s." + pName;
+                    case "number", "double", "int", "integer", "d" -> "%d." + pName;
+                    case "string", "str", "s" -> "%s." + pName;
+                    case "map" -> "%m.map." + pName;
+                    case "list string", "liststring" -> "%m.listString." + pName;
+                    case "list map", "listmap" -> "%m.listMap." + pName;
+                    case "view" -> "%m.view." + pName;
                     default -> null;
                 };
 
                 if (pToken == null) {
-                    return "Error: Unknown parameter type '" + pType + "' for parameter '" + pName + "'. Valid types: string, number, boolean.";
+                    try {
+                        resJson.put("ok", false);
+                        resJson.put("error", "Error: Unknown parameter type '" + pType + "' for parameter '" + pName + "'. Valid types: string, number, boolean, map, list string, list map, view.");
+                    } catch (Exception ignored) {}
+                    return resJson.toString();
                 }
 
                 specBuilder.append(" ").append(pToken);
@@ -607,23 +686,22 @@ public class ProjectStructureAide {
         String bodyKeyBase = funcName + returnTypeEncoded;
 
         synchronized (dataManager) {
-            // Check if function already exists in eC.i(javaName)
             ArrayList<Pair<String, String>> existingMbs = dataManager.i(javaName);
             if (existingMbs != null) {
                 for (Pair<String, String> mb : existingMbs) {
                     if (mb != null && mb.first != null) {
                         String existingName = ReturnMoreblockManager.getMbName(mb.first);
                         if (funcName.equalsIgnoreCase(existingName)) {
-                            return "More block '" + funcName + "' already exists in " + javaName + ".";
+                            try {
+                                resJson.put("ok", false);
+                                resJson.put("error", "More block '" + funcName + "' already exists in " + javaName + ".");
+                            } catch (Exception ignored) {}
+                            return resJson.toString();
                         }
                     }
                 }
             }
 
-            // 1. Add Pair(X, Y) to eC.a(javaName, X, Y)
-            dataManager.a(javaName, bodyKeyBase, spec);
-
-            // 2. Initialize root block definedFunc
             String blockKey = bodyKeyBase + "_moreBlock";
             ArrayList<BlockBean> initialBlocks = new ArrayList<>();
 
@@ -634,6 +712,7 @@ public class ProjectStructureAide {
             initialBlocks.add(root);
 
             String bodyError = null;
+            int convertedCount = 0;
 
             if (bodyJava != null && !bodyJava.trim().isEmpty()) {
                 try {
@@ -643,18 +722,13 @@ public class ProjectStructureAide {
                         if (vResult.isValid) {
                             ArrayList<BlockBean> convertedBlocks = LogicIrBridge.irToBlocks(ir);
                             if (convertedBlocks != null && !convertedBlocks.isEmpty()) {
-                                // Shift block IDs to start from 1 to avoid collision with root id="0"
-                                int firstBodyBlockId = 1;
-                                for (int bIdx = 0; bIdx < convertedBlocks.size(); bIdx++) {
-                                    BlockBean b = convertedBlocks.get(bIdx);
-                                    int oldId = Integer.parseInt(b.id);
-                                    b.id = String.valueOf(oldId + firstBodyBlockId);
-                                    if (b.nextBlock != -1) {
-                                        b.nextBlock = b.nextBlock + firstBodyBlockId;
-                                    }
+                                try {
+                                    root.nextBlock = Integer.parseInt(convertedBlocks.get(0).id);
+                                } catch (Exception ignored) {
+                                    root.nextBlock = 1;
                                 }
-                                root.nextBlock = firstBodyBlockId;
                                 initialBlocks.addAll(convertedBlocks);
+                                convertedCount = convertedBlocks.size();
                             }
                         } else {
                             bodyError = vResult.errorMessage;
@@ -665,22 +739,46 @@ public class ProjectStructureAide {
                 } catch (Exception e) {
                     bodyError = e.getMessage();
                 }
+
+                if (bodyError != null) {
+                    Log.w(TAG, "bodyJava processing failed for More Block '" + funcName + "': " + bodyError);
+                    if (!allowEmptyOnBodyError) {
+                        try {
+                            resJson.put("ok", false);
+                            resJson.put("error", "Failed to parse/validate bodyJava: " + bodyError);
+                        } catch (Exception ignored) {}
+                        return resJson.toString();
+                    } else {
+                        warnings.put("bodyJava failed to apply (" + bodyError + "), created empty function.");
+                    }
+                }
             }
 
+            dataManager.a(javaName, bodyKeyBase, spec);
             dataManager.a(javaName, blockKey, initialBlocks);
-            dataManager.k(); // Persist changes
+            dataManager.k();
 
-            if (bodyError != null) {
-                return "More block '" + funcName + "' created, but bodyJava failed to apply: " + bodyError + " (created empty function).";
+            if (fragment != null && fragment.getActivity() instanceof LogicEditorActivity logicEditorActivity) {
+                try {
+                    logicEditorActivity.c(bodyKeyBase, spec);
+                } catch (Exception e) {
+                    Log.w(TAG, "Failed to refresh open LogicEditorActivity palette", e);
+                }
             }
 
-            return "More block '" + funcName + "' created successfully in " + javaName + ".";
+            try {
+                resJson.put("ok", true);
+                resJson.put("name", funcName);
+                resJson.put("spec", spec);
+                resJson.put("javaName", javaName);
+                resJson.put("blocksCreated", convertedCount + 1);
+                resJson.put("warnings", warnings);
+            } catch (Exception ignored) {}
+
+            return resJson.toString();
         }
     }
 
-    /**
-     * Registers an event for a target view, component, or activity.
-     */
     public static String registerEvent(Context context, String scId, String rawJavaName, String targetKind, String targetId, String eventName) {
         String defaultJava = getDefaultJavaName(scId);
         String javaName = findActivityJavaName(scId, rawJavaName, defaultJava);
@@ -708,7 +806,7 @@ public class ProjectStructureAide {
                 return "Error: Failed to register event for target '" + target + "' (" + kind + ") and event '" + evName + "'. Please verify that target exists and event name is valid.";
             }
 
-            dataManager.k(); // Persist
+            dataManager.k();
             String eventKey = ("activity".equals(kind) && ("onCreate".equalsIgnoreCase(target) || "initializeLogic".equalsIgnoreCase(evName)))
                     ? "onCreate_initializeLogic" : target + "_" + evName;
 
@@ -716,9 +814,6 @@ public class ProjectStructureAide {
         }
     }
 
-    /**
-     * Creates a new Activity in the project.
-     */
     public static String createActivity(Context context, String scId, String name, JSONObject options, int orientation, int keyboardSetting, String layoutXml) {
         if (name == null || name.trim().isEmpty()) {
             return "Error: Activity name cannot be empty.";
@@ -749,7 +844,6 @@ public class ProjectStructureAide {
 
         synchronized (dataManager) {
             synchronized (fileManager) {
-                // Check XML name uniqueness against activities, custom views, and fileManager.a
                 if (fileManager.a != null) {
                     for (String fname : fileManager.a) {
                         if (targetXml.equalsIgnoreCase(fname) || canonName.equalsIgnoreCase(fname)) {
@@ -808,9 +902,9 @@ public class ProjectStructureAide {
                         }
                     }
 
-                    fileManager.j(); // Rebuild java and xml name lists
-                    fileManager.l(); // Persist activity file list to disk
-                    dataManager.a(fileManager); // Sync file list into dataManager
+                    fileManager.j();
+                    fileManager.l();
+                    dataManager.a(fileManager);
 
                     String xmlName = newActivity.getXmlName();
                     if (layoutXml != null && !layoutXml.trim().isEmpty()) {
@@ -824,10 +918,9 @@ public class ProjectStructureAide {
                         injectDefaultLayout(dataManager, xmlName);
                     }
 
-                    dataManager.k(); // Persist logic & view data
+                    dataManager.k();
                     return "Activity '" + newActivity.getJavaName() + "' (" + xmlName + ") created successfully.";
                 } catch (Exception e) {
-                    // Rollback on failure
                     Log.e(TAG, "createActivity failed, performing rollback", e);
                     if (fileManager.c != null) {
                         fileManager.c.remove(newActivity);
@@ -850,9 +943,9 @@ public class ProjectStructureAide {
         rootBean.type = ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
         rootBean.parent = "root";
         rootBean.index = 0;
-        rootBean.layout.width = -1; // MATCH_PARENT
-        rootBean.layout.height = -1; // MATCH_PARENT
-        rootBean.layout.orientation = 1; // VERTICAL
+        rootBean.layout.width = -1;
+        rootBean.layout.height = -1;
+        rootBean.layout.orientation = 1;
         views.add(rootBean);
         dataManager.c.put(xmlName, views);
     }

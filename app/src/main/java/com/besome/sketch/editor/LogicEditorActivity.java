@@ -27,6 +27,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.animation.DecelerateInterpolator;
 import sketchware.plus.utility.HapticManager;
 import android.view.inputmethod.EditorInfo;
@@ -283,22 +284,28 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
                     if (block != null) {
                         Rs subStack1RootBlock;
                         if (next2.subStack1 >= 0 && (subStack1RootBlock = blockIdsAndBlocks.get(next2.subStack1)) != null) {
-                            block.e(subStack1RootBlock);
+                            if (subStack1RootBlock != block && !isAncestor(block, subStack1RootBlock)) {
+                                block.e(subStack1RootBlock);
+                            }
                         }
                         Rs subStack2RootBlock;
                         if (next2.subStack2 >= 0 && (subStack2RootBlock = blockIdsAndBlocks.get(next2.subStack2)) != null) {
-                            block.f(subStack2RootBlock);
+                            if (subStack2RootBlock != block && !isAncestor(block, subStack2RootBlock)) {
+                                block.f(subStack2RootBlock);
+                            }
                         }
                         Rs nextBlock;
                         if (next2.nextBlock >= 0 && (nextBlock = blockIdsAndBlocks.get(next2.nextBlock)) != null) {
-                            block.b(nextBlock);
+                            if (nextBlock != block && !isAncestor(block, nextBlock)) {
+                                block.b(nextBlock);
+                            }
                         }
                         for (int i = 0; i < next2.parameters.size(); i++) {
                             String parameter = next2.parameters.get(i);
                             if (parameter != null && !parameter.isEmpty()) {
                                 if (parameter.charAt(0) == '@') {
                                     Rs parameterBlock = blockIdsAndBlocks.get(Integer.valueOf(parameter.substring(1)));
-                                    if (parameterBlock != null) {
+                                    if (parameterBlock != null && parameterBlock != block && !isAncestor(block, parameterBlock)) {
                                         block.a((Ts) block.V.get(i), parameterBlock);
                                     }
                                 } else {
@@ -314,6 +321,22 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
                 o.b();
             });
         }
+    }
+
+    private boolean isAncestor(View parent, View child) {
+        View current = child;
+        while (current != null) {
+            if (current == parent) {
+                return true;
+            }
+            ViewParent p = current.getParent();
+            if (p instanceof View) {
+                current = (View) p;
+            } else {
+                break;
+            }
+        }
+        return false;
     }
 
     private void redo() {

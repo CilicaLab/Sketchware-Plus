@@ -12,11 +12,20 @@ import sketchware.plus.R;
 public class ReturnMoreblockManager {
 
     public static String getLogicEditorTitle(String str) {
-        return str.replaceAll("\\[.*]", " (returns " + getMbTypeList(str) + ")");
+        if (str == null) return "";
+        int firstBracket = str.indexOf('[');
+        if (firstBracket >= 0) {
+            int matchingBracket = str.indexOf(']', firstBracket);
+            if (matchingBracket > firstBracket) {
+                String returnTypeTitle = getMbTypeList(str);
+                return str.substring(0, firstBracket) + " (returns " + returnTypeTitle + ")" + str.substring(matchingBracket + 1);
+            }
+        }
+        return str;
     }
 
     public static String getMbEnd(String str) {
-        if (str.equals(" ")) {
+        if (str == null || str.equals(" ")) {
             return ";";
         } else {
             return "";
@@ -24,70 +33,66 @@ public class ReturnMoreblockManager {
     }
 
     public static String getMbName(String str) {
-        String name = str;
-
-        if (str.contains("[") && str.contains("]")) {
-            name = str.replaceAll("\\[.*]", "");
+        if (str == null) return "";
+        int firstBracket = str.indexOf('[');
+        if (firstBracket >= 0) {
+            int matchingBracket = str.indexOf(']', firstBracket);
+            if (matchingBracket > firstBracket) {
+                return str.substring(0, firstBracket) + str.substring(matchingBracket + 1);
+            }
         }
-
-        return name;
+        return str;
     }
 
     public static String getMbType(String str) {
-        try {
-            if (!str.contains("]") || !str.contains("[")) return "void";
-
-            return str.substring(str.indexOf("[") + 1, str.lastIndexOf("]"));
-        } catch (Exception e) {
-            return "void";
+        if (str == null) return "void";
+        int firstBracket = str.indexOf('[');
+        if (firstBracket < 0) return "void";
+        int matchingBracket = str.indexOf(']', firstBracket);
+        if (matchingBracket > firstBracket) {
+            return str.substring(firstBracket + 1, matchingBracket);
         }
+        return "void";
     }
 
     public static String getMbTypeList(String str) {
-        try {
-            if (!str.contains("]") || !str.contains("["))
-                return "void";
-
-            String substring = str.substring(str.indexOf("[") + 1, str.lastIndexOf("]"));
-            if (substring.contains("|")) {
-                substring = substring.split("\\|")[1];
+        if (str == null) return "void";
+        String substring = getMbType(str);
+        if ("void".equals(substring)) return "void";
+        if (substring.contains("|")) {
+            String[] split = substring.split("\\|");
+            if (split.length >= 2) {
+                substring = split[1];
             }
-
-            return substring;
-        } catch (Exception e) {
-            return "void";
         }
+        return substring;
     }
 
     public static String getMbTypeCode(String str) {
-        try {
-            if (!str.contains("]") || !str.contains("[")) return "void";
+        if (str == null) return "void";
+        String substring = getMbType(str);
+        if ("void".equals(substring)) return "void";
+        if (substring.contains("|")) {
+            String[] split = substring.split("\\|");
 
-            String substring = str.substring(str.indexOf("[") + 1, str.lastIndexOf("]"));
-            if (substring.contains("|")) {
-                String[] split = substring.split("\\|");
+            if (substring.equals("a|Map")) {
+                substring = "HashMap<String, Object>";
 
-                if (substring.equals("a|Map")) {
-                    substring = "HashMap<String, Object>";
+            } else if (substring.equals("l|List String")) {
+                substring = "ArrayList<String>";
 
-                } else if (substring.equals("l|List String")) {
-                    substring = "ArrayList<String>";
+            } else if (substring.equals("l|List Map")) {
+                substring = "ArrayList<HashMap<String, Object>>";
 
-                } else if (substring.equals("l|List Map")) {
-                    substring = "ArrayList<HashMap<String, Object>>";
+            } else if (split.length == 2) {
+                substring = split[1];
 
-                } else if (split.length == 2) {
-                    substring = split[1];
-
-                } else if (split.length == 3) {
-                    substring = split[2];
-                }
+            } else if (split.length == 3) {
+                substring = split[2];
             }
-
-            return substring;
-        } catch (Exception e) {
-            return "void";
         }
+
+        return substring;
     }
 
     public static String getMbTypeFromChipGroup(ChipGroup chipGroup) {
@@ -113,10 +118,12 @@ public class ReturnMoreblockManager {
         return type;
     }
 
-
     public static void listMoreblocks(Iterator<Pair<String, String>> it, LogicEditorActivity logicEditorActivity) {
+        if (it == null || logicEditorActivity == null) return;
         while (it.hasNext()) {
-            String str = it.next().second;
+            Pair<String, String> item = it.next();
+            if (item == null || item.second == null) continue;
+            String str = item.second;
             String moreblockChar = getMoreblockChar(str);
 
             if (moreblockChar.contains("|")) {
@@ -129,6 +136,7 @@ public class ReturnMoreblockManager {
     }
 
     public static String getMoreblockChar(String str) {
+        if (str == null) return " ";
         String moreBlockChar;
         String mbType = getMbType(str);
 
@@ -159,7 +167,7 @@ public class ReturnMoreblockManager {
     public static String injectMbType(String str, String str2, String str3) {
         String str4 = str;
 
-        if (!str3.equals(" ")) {
+        if (str3 != null && !str3.equals(" ")) {
             if (str3.contains("|")) {
                 str4 = injectToMbName(str4, str2, str3);
 
@@ -179,34 +187,36 @@ public class ReturnMoreblockManager {
     }
 
     public static String injectToMbName(String str, String str2, String str3) {
-        String replaceFirst;
+        if (str == null) return "";
+        if (str2 == null || str2.isEmpty()) return str + "[" + str3 + "]";
 
         if (str.equals(str2)) {
-            replaceFirst = str + "[" + str3 + "]";
+            return str + "[" + str3 + "]";
         } else {
-            replaceFirst = str.replaceFirst(str2, str2 + "[" + str3 + "]");
+            return str.replaceFirst(str2, str2 + "[" + str3 + "]");
         }
-
-        return replaceFirst;
     }
 
     public static String getPreviewType(String str) {
-        if (str.contains("|")) return "a";
+        if (str != null && str.contains("|")) return "a";
 
         return str;
     }
 
     public static String getMbNameWithTypeFromSpec(String spec) {
-        if (spec.contains("[") && spec.contains("]")) {
-            return spec.substring(0, spec.lastIndexOf(']') + 1);
-        } else {
-            String name = spec;
-
-            if (spec.contains(" ")) {
-                name = name.substring(0, name.indexOf(' '));
+        if (spec == null) return "";
+        int firstBracket = spec.indexOf('[');
+        if (firstBracket >= 0) {
+            int matchingBracket = spec.indexOf(']', firstBracket);
+            if (matchingBracket > firstBracket) {
+                return spec.substring(0, matchingBracket + 1);
             }
-
-            return name;
         }
+        
+        String name = spec;
+        if (spec.contains(" ")) {
+            name = name.substring(0, name.indexOf(' '));
+        }
+        return name;
     }
 }

@@ -559,9 +559,11 @@ public class CodeSpecialist extends BaseSpecialist {
         log("[CodeSpecialist.applyLogicIrWithGuardrails] Proposed IR JSON Payload:\n" + formatJson(proposedIr));
         setStatus("Validating proposed logic...");
 
+        String scId = getScId();
+
         // Guardrail Step 1: Dry-run validation
         log("[CodeSpecialist.applyLogicIrWithGuardrails] Step 1: Performing dry-run validation...");
-        LogicIrBridge.ValidationResult validation = LogicIrBridge.validateIr(proposedIr);
+        LogicIrBridge.ValidationResult validation = LogicIrBridge.validateIr(proposedIr, scId, javaName);
         log("[CodeSpecialist.applyLogicIrWithGuardrails] Step 1 Validation Result -> isValid: " + validation.isValid +
                 ", blockCount: " + validation.blockCount + ", errorMessage: " + validation.errorMessage);
         log("[CodeSpecialist.applyLogicIrWithGuardrails] Step 1 Generated Java:\n" + validation.generatedJava);
@@ -575,7 +577,6 @@ public class CodeSpecialist extends BaseSpecialist {
         }
 
         // Guardrail Step 2: Generate Current vs Proposed Diff
-        String scId = getScId();
         log("[CodeSpecialist.applyLogicIrWithGuardrails] Step 2: Loading current IR from project to build diff...");
         JSONObject currentIr = LogicIrBridge.loadIrFromProject(scId, javaName, eventKey);
         String currentJava = LogicIrBridge.irToJava(currentIr);
