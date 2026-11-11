@@ -231,6 +231,82 @@ public class ProjectStructureAide {
     }
 
     /**
+     * Auto-generates a unique valid name (for variables, lists, functions, or activities)
+     * and checks against existing identifiers or activities to guarantee no collisions.
+     */
+    public static String generateUniqueName(String scId, String javaName, String basePrefix, boolean isActivity) {
+        if (basePrefix == null || basePrefix.trim().isEmpty()) {
+            basePrefix = "item";
+        }
+        basePrefix = basePrefix.trim();
+
+        if (isActivity) {
+            hC fileManager = jC.b(scId);
+            if (fileManager == null) return basePrefix;
+
+            Set<String> taken = new HashSet<>();
+            if (fileManager.c != null) {
+                for (ProjectFileBean pfb : fileManager.c) {
+                    if (pfb != null) {
+                        if (pfb.fileName != null) taken.add(pfb.fileName.toLowerCase());
+                        if (pfb.getActivityName() != null) taken.add(pfb.getActivityName().toLowerCase());
+                    }
+                }
+            }
+            if (fileManager.a != null) {
+                for (String fname : fileManager.a) {
+                    if (fname != null) {
+                        String clean = fname.endsWith(".java") ? fname.substring(0, fname.length() - 5) : fname;
+                        if (clean.endsWith(".xml")) clean = clean.substring(0, clean.length() - 4);
+                        taken.add(clean.toLowerCase());
+                    }
+                }
+            }
+
+            String candidate = basePrefix;
+            if (!taken.contains(candidate.toLowerCase())) {
+                return candidate;
+            }
+
+            int counter = 2;
+            while (true) {
+                candidate = basePrefix + counter;
+                if (!taken.contains(candidate.toLowerCase())) {
+                    return candidate;
+                }
+                counter++;
+            }
+        } else {
+            eC dataManager = jC.a(scId);
+            if (dataManager == null) return basePrefix;
+
+            hC fileManager = jC.b(scId);
+            ProjectFileBean targetPfb = fileManager != null ? fileManager.a(javaName) : null;
+            ArrayList<String> takenNames = dataManager.a(targetPfb);
+            Set<String> taken = new HashSet<>();
+            if (takenNames != null) {
+                for (String t : takenNames) {
+                    if (t != null) taken.add(t.toLowerCase());
+                }
+            }
+
+            String candidate = basePrefix;
+            if (!taken.contains(candidate.toLowerCase())) {
+                return candidate;
+            }
+
+            int counter = 2;
+            while (true) {
+                candidate = basePrefix + counter;
+                if (!taken.contains(candidate.toLowerCase())) {
+                    return candidate;
+                }
+                counter++;
+            }
+        }
+    }
+
+    /**
      * Reads and returns project structure details as a formatted string.
      */
     public static String getProjectStructureSummary(String scId, String rawJavaName) {
@@ -398,6 +474,9 @@ public class ProjectStructureAide {
                 if (item == null) continue;
 
                 String varName = item.optString("name", "").trim();
+                if (varName.isEmpty()) {
+                    varName = generateUniqueName(scId, javaName, "var", false);
+                }
                 String typeStr = item.optString("type", "").trim().toLowerCase();
 
                 int typeInt;
@@ -472,6 +551,9 @@ public class ProjectStructureAide {
                 if (item == null) continue;
 
                 String listName = item.optString("name", "").trim();
+                if (listName.isEmpty()) {
+                    listName = generateUniqueName(scId, javaName, "list", false);
+                }
                 String typeStr = item.optString("type", "").trim().toLowerCase();
 
                 int typeInt;
@@ -547,6 +629,9 @@ public class ProjectStructureAide {
         }
 
         String funcName = name != null ? name.trim() : "";
+        if (funcName.isEmpty()) {
+            funcName = generateUniqueName(scId, javaName, "myFunction", false);
+        }
         String err = validateName(context, scId, javaName, funcName);
         if (err != null) {
             try {
@@ -815,11 +900,10 @@ public class ProjectStructureAide {
     }
 
     public static String createActivity(Context context, String scId, String name, JSONObject options, int orientation, int keyboardSetting, String layoutXml) {
-        if (name == null || name.trim().isEmpty()) {
-            return "Error: Activity name cannot be empty.";
+        String canonName = name != null ? name.trim() : "";
+        if (canonName.isEmpty()) {
+            canonName = generateUniqueName(scId, null, "SubActivity", true);
         }
-
-        String canonName = name.trim();
         if (canonName.endsWith(".java")) {
             canonName = canonName.substring(0, canonName.length() - 5);
         } else if (canonName.endsWith(".xml")) {

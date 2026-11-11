@@ -136,6 +136,10 @@ public class ComponentSpecialist extends BaseSpecialist {
 
     public List<String> applyBatchAddComponent(int type, String baseId, int count, List<String> customParams) {
         log("[ComponentSpecialist.applyBatchAddComponent] ENTRY - type: " + type + ", baseId: " + baseId + ", count: " + count);
+        if (baseId == null || baseId.trim().isEmpty()) {
+            String typeName = ComponentBean.getComponentTypeName(type);
+            baseId = typeName != null && !typeName.isEmpty() ? typeName.toLowerCase().replaceAll("[^a-zA-Z0-9]", "") : "comp";
+        }
         List<String> addedIds = new ArrayList<>();
         if (!isValidComponentType(type)) {
             String errMsg = "Error: Component type ID " + type + " does not exist. Use list_components to check valid component types.";

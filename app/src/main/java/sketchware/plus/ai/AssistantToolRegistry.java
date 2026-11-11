@@ -107,9 +107,9 @@ public class AssistantToolRegistry {
         t.put(createTool("add_sketchware_component", "Add Sketchware component(s) to activity",
                 new ParameterBuilder()
                         .addProperty("type", "integer", "type ID from list_components")
-                        .addProperty("id", "string", "unique instance name or prefix (e.g. 'vibrator' or 'intent')")
+                        .addProperty("id", "string", "optional unique instance name or prefix (e.g. 'vibrator' or 'intent'). If omitted, a unique ID is auto-generated.")
                         .addProperty("count", "integer", "Optional number of components of this type to add at once (default 1). E.g. set to 10 or 500 for batch addition.")
-                        .setRequired("type", "id").build()));
+                        .setRequired("type").build()));
 
         t.put(createTool("list_components", "List built-in + custom components",
                 new ParameterBuilder().build()));
@@ -141,24 +141,24 @@ public class AssistantToolRegistry {
         t.put(createTool("add_variables", "Add variables to an activity.",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("items", "array", "Array of variable objects, e.g. [{\"name\": \"count\", \"type\": \"number\"}]")
+                        .addProperty("items", "array", "Array of variable objects, e.g. [{\"name\": \"count\", \"type\": \"number\"}]. The 'name' field is optional; if omitted or empty, a unique name is auto-generated.")
                         .setRequired("items").build()));
 
         t.put(createTool("add_lists", "Add list variables (ListInt, ListString, ListMap) to an activity.",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("items", "array", "Array of list objects, e.g. [{\"name\": \"userList\", \"type\": \"string\"}]")
+                        .addProperty("items", "array", "Array of list objects, e.g. [{\"name\": \"userList\", \"type\": \"string\"}]. The 'name' field is optional; if omitted or empty, a unique name is auto-generated.")
                         .setRequired("items").build()));
 
         t.put(createTool("add_more_block", "Create a custom function (More Block) in an activity.",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("name", "string", "function name, e.g. calculateTotal")
+                        .addProperty("name", "string", "optional function name, e.g. calculateTotal. If omitted or empty, a unique name is auto-generated.")
                         .addProperty("params", "array", "optional array of parameter objects or string names. Parameter objects have 'name' (string) and 'type' (enum: string, number, boolean, map, list string, list map, view). Default parameter type is string.")
                         .addPropertyEnum("returnType", "string", "optional return type", new String[]{"void", "string", "number", "boolean", "map", "list string", "list map", "view"})
                         .addProperty("body_java", "string", "optional Java implementation for function body")
                         .addProperty("allow_empty_on_body_error", "boolean", "optional flag (default false). If false, aborts function creation if body_java fails parsing. If true, creates an empty function definition if body_java fails.")
-                        .setRequired("name").build()));
+                        .build()));
 
         t.put(createTool("register_event", "Register an activity, view, or component event listener to obtain an eventKey.",
                 new ParameterBuilder()
@@ -170,12 +170,12 @@ public class AssistantToolRegistry {
 
         t.put(createTool("create_activity", "Create a new Activity in the project.",
                 new ParameterBuilder()
-                        .addProperty("name", "string", "activity name (without .java), e.g. DetailActivity")
+                        .addProperty("name", "string", "optional activity name (without .java), e.g. DetailActivity. If omitted or empty, a unique name is auto-generated.")
                         .addProperty("options", "object", "optional features: {\"toolbar\": true, \"fullscreen\": false, \"drawer\": false, \"fab\": false}")
                         .addProperty("orientation", "integer", "orientation: 0=portrait, 1=landscape, 2=both (default 0)")
                         .addProperty("keyboard", "integer", "keyboard setting: 0=unspecified, 1=visible, 2=hidden (default 0)")
                         .addProperty("layout_xml", "string", "optional initial layout XML content")
-                        .setRequired("name").build()));
+                        .build()));
 
         return t;
     }

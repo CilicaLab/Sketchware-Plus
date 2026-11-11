@@ -2044,6 +2044,17 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
         O = findViewById(R.id.right_drawer);
         findViewById(R.id.search_header).setOnClickListener(v -> paletteSelector.showSearchDialog());
         extraPaletteBlock = new ExtraPaletteBlock(this, isViewBindingEnabled);
+
+        View rootView = findViewById(R.id.layout);
+        if (rootView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            rootView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                int exclusionWidth = (int) (32 * getResources().getDisplayMetrics().density); // 32dp left & right edge exclusion
+                java.util.List<android.graphics.Rect> rects = new java.util.ArrayList<>();
+                rects.add(new android.graphics.Rect(0, 0, exclusionWidth, bottom - top));
+                rects.add(new android.graphics.Rect((right - left) - exclusionWidth, 0, right - left, bottom - top));
+                v.setSystemGestureExclusionRects(rects);
+            });
+        }
     }
 
     @Override

@@ -290,7 +290,8 @@ public class ToolOrchestrator {
                 "12. When finished, reply with a brief summary of changes and make no tool calls.\n" +
                 "13. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
                 "14. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
-                "15. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.";
+                "15. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.\n" +
+                "16. AUTO-NAMING RULE: When the user asks to create a variable, list, activity, function (More Block), or component without specifying a name, you do NOT need to ask for a name. You can omit the name/id argument or pass an empty string, and the system will automatically generate a unique, collision-free name for it.";
     }
 
     private String buildMetricsContext() {
