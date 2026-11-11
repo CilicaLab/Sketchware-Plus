@@ -82,20 +82,30 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
         refreshList();
     }
 
+    private ArrayList<HashMap<String, Object>> readJsonListMap(String path) {
+        if (FileUtil.isExistFile(path)) {
+            try {
+                ArrayList<HashMap<String, Object>> data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
+                if (data != null) {
+                    return data;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return new ArrayList<>();
+    }
+
     private void refreshList() {
         listMap.clear();
-        ArrayList<HashMap<String, Object>> data;
-        if (FileUtil.isExistFile(ATTRIBUTES_FILE_PATH)) {
-            data = getGson().fromJson(FileUtil.readFile(ATTRIBUTES_FILE_PATH), Helper.TYPE_MAP_LIST);
-            for (HashMap<String, Object> item : data) {
-                String str = (String) item.get("name");
-                if (str.equals(constant)) {
-                    listMap.add(item);
-                }
+        ArrayList<HashMap<String, Object>> data = readJsonListMap(ATTRIBUTES_FILE_PATH);
+        for (HashMap<String, Object> item : data) {
+            Object strObj = item.get("name");
+            if (strObj != null && strObj.toString().equals(constant)) {
+                listMap.add(item);
             }
-            binding.addAttrListview.setAdapter(new ListAdapter(listMap));
-            ((BaseAdapter) binding.addAttrListview.getAdapter()).notifyDataSetChanged();
         }
+        binding.addAttrListview.setAdapter(new ListAdapter(listMap));
+        ((BaseAdapter) binding.addAttrListview.getAdapter()).notifyDataSetChanged();
     }
 
     private void setToolbar() {
@@ -184,19 +194,14 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
     }
 
     private void applyChange() {
-        ArrayList<HashMap<String, Object>> data;
-        if (FileUtil.isExistFile(ATTRIBUTES_FILE_PATH)) {
-            data = getGson().fromJson(FileUtil.readFile(ATTRIBUTES_FILE_PATH), Helper.TYPE_MAP_LIST);
-            for (int i = data.size() - 1; i > -1; i--) {
-                String str = (String) data.get(i).get("name");
-                if (str.equals(constant)) {
-                    data.remove(i);
-                }
+        ArrayList<HashMap<String, Object>> data = readJsonListMap(ATTRIBUTES_FILE_PATH);
+        for (int i = data.size() - 1; i > -1; i--) {
+            Object strObj = data.get(i).get("name");
+            if (strObj != null && strObj.toString().equals(constant)) {
+                data.remove(i);
             }
-            data.addAll(listMap);
-        } else {
-            data = new ArrayList<>(listMap);
         }
+        data.addAll(listMap);
         FileUtil.writeFile(ATTRIBUTES_FILE_PATH, getGson().toJson(data));
         refreshList();
     }

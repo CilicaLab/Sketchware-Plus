@@ -73,15 +73,28 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
         refreshList();
     }
 
+    private ArrayList<HashMap<String, Object>> readJsonListMap(String path) {
+        if (FileUtil.isExistFile(path)) {
+            try {
+                ArrayList<HashMap<String, Object>> data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
+                if (data != null) {
+                    return data;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return new ArrayList<>();
+    }
+
     private void checkAttrs() {
         String path = FileUtil.getExternalStorageDir().concat("/.sketchware/data/").concat(sc_id).concat("/Injection/androidmanifest/attributes.json");
         if (FileUtil.isExistFile(path)) {
-            ArrayList<HashMap<String, Object>> data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
+            ArrayList<HashMap<String, Object>> data = readJsonListMap(path);
             for (int i = 0; i < data.size(); i++) {
-                String str = (String) data.get(i).get("name");
-                if (Objects.requireNonNull(str).equals("_application_attrs")) {
-                    String str2 = (String) data.get(i).get("value");
-                    if (Objects.requireNonNull(str2).contains("android:theme")) {
+                Object nameObj = data.get(i).get("name");
+                if (nameObj != null && nameObj.toString().equals("_application_attrs")) {
+                    Object valObj = data.get(i).get("value");
+                    if (valObj != null && valObj.toString().contains("android:theme")) {
                         return;
                     }
                 }
@@ -201,10 +214,7 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
 
     private void addNewActivity(String componentName) {
         String path = FileUtil.getExternalStorageDir().concat("/.sketchware/data/").concat(sc_id).concat("/Injection/androidmanifest/attributes.json");
-        ArrayList<HashMap<String, Object>> data = new ArrayList<>();
-        if (FileUtil.isExistFile(path)) {
-            data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
-        }
+        ArrayList<HashMap<String, Object>> data = readJsonListMap(path);
         {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
@@ -257,34 +267,34 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
         activitiesListMap.clear();
         String path = FileUtil.getExternalStorageDir().concat("/.sketchware/data/").concat(sc_id).concat("/Injection/androidmanifest/attributes.json");
         ArrayList<String> temp = new ArrayList<>();
-        ArrayList<HashMap<String, Object>> data;
-        if (FileUtil.isExistFile(path)) {
-            data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
-            for (int i = 0; i < data.size(); i++) {
-                if (!temp.contains(Objects.requireNonNull(data.get(i).get("name")).toString())) {
-                    if (!Objects.requireNonNull(data.get(i).get("name")).equals("_application_attrs") && !Objects.requireNonNull(data.get(i).get("name")).equals("_apply_for_all_activities") && !Objects.requireNonNull(data.get(i).get("name")).equals("_application_permissions")) {
-                        temp.add((String) data.get(i).get("name"));
+        ArrayList<HashMap<String, Object>> data = readJsonListMap(path);
+        for (int i = 0; i < data.size(); i++) {
+            Object nameObj = data.get(i).get("name");
+            if (nameObj != null) {
+                String nameStr = nameObj.toString();
+                if (!temp.contains(nameStr)) {
+                    if (!nameStr.equals("_application_attrs") && !nameStr.equals("_apply_for_all_activities") && !nameStr.equals("_application_permissions")) {
+                        temp.add(nameStr);
                     }
                 }
             }
-            for (int i = 0; i < temp.size(); i++) {
-                HashMap<String, Object> map = new HashMap<>();
-                map.put("act_name", temp.get(i));
-                activitiesListMap.add(map);
-            }
-            binding.activitiesListView.setAdapter(new ListAdapter(activitiesListMap));
-            ((BaseAdapter) binding.activitiesListView.getAdapter()).notifyDataSetChanged();
         }
+        for (int i = 0; i < temp.size(); i++) {
+            HashMap<String, Object> map = new HashMap<>();
+            map.put("act_name", temp.get(i));
+            activitiesListMap.add(map);
+        }
+        binding.activitiesListView.setAdapter(new ListAdapter(activitiesListMap));
+        ((BaseAdapter) binding.activitiesListView.getAdapter()).notifyDataSetChanged();
     }
 
     private void deleteActivity(int pos) {
         String activity_name = (String) activitiesListMap.get(pos).get("act_name");
         String path = FileUtil.getExternalStorageDir().concat("/.sketchware/data/").concat(sc_id).concat("/Injection/androidmanifest/attributes.json");
-        ArrayList<HashMap<String, Object>> data;
-        data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
+        ArrayList<HashMap<String, Object>> data = readJsonListMap(path);
         for (int i = data.size() - 1; i > -1; i--) {
-            String temp = (String) data.get(i).get("name");
-            if (Objects.requireNonNull(temp).equals(activity_name)) {
+            Object temp = data.get(i).get("name");
+            if (temp != null && temp.toString().equals(activity_name)) {
                 data.remove(i);
             }
         }
@@ -296,18 +306,15 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
 
     private void removeComponents(String str) {
         String path = FileUtil.getExternalStorageDir().concat("/.sketchware/data/").concat(sc_id).concat("/Injection/androidmanifest/activities_components.json");
-        ArrayList<HashMap<String, Object>> data;
-        if (FileUtil.isExistFile(path)) {
-            data = getGson().fromJson(FileUtil.readFile(path), Helper.TYPE_MAP_LIST);
-            for (int i = data.size() - 1; i > -1; i--) {
-                String name = (String) data.get(i).get("name");
-                if (Objects.requireNonNull(name).equals(str)) {
-                    data.remove(i);
-                    break;
-                }
+        ArrayList<HashMap<String, Object>> data = readJsonListMap(path);
+        for (int i = data.size() - 1; i > -1; i--) {
+            Object name = data.get(i).get("name");
+            if (name != null && name.toString().equals(str)) {
+                data.remove(i);
+                break;
             }
-            FileUtil.writeFile(path, getGson().toJson(data));
         }
+        FileUtil.writeFile(path, getGson().toJson(data));
     }
 
     private void setupCustomToolbar() {
