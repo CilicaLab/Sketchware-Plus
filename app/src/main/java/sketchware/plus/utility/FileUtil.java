@@ -201,6 +201,10 @@ public class FileUtil {
 
     public static void writeFile(String path, String str) {
         File finalFile = new File(path);
+        File parent = finalFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
         File tmpFile = new File(path + ".tmp");
 
         try (FileWriter fileWriter = new FileWriter(tmpFile, false)) {
@@ -227,8 +231,12 @@ public class FileUtil {
 
     public static void copyFile(String sourcePath, String destPath) {
         if (!isExistFile(sourcePath)) return;
-        File tmpFile = new File(destPath + ".tmp");
         File finalFile = new File(destPath);
+        File parent = finalFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+        File tmpFile = new File(destPath + ".tmp");
 
         try (FileInputStream fis = new FileInputStream(sourcePath);
              FileOutputStream fos = new FileOutputStream(tmpFile, false)) {

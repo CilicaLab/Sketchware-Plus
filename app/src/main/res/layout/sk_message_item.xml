@@ -7,7 +7,7 @@
     <!-- Assistant/System Bubble (Left) -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_assistant"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
         app:cardBackgroundColor="?attr/colorSurfaceVariant"
@@ -16,7 +16,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_default="wrap"
+        app:layout_constrainedWidth="true"
         app:layout_constraintWidth_percent="0.90">
 
         <LinearLayout

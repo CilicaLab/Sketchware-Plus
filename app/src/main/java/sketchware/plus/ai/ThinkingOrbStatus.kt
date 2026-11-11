@@ -10,10 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlin.math.*
 
 enum class OrbState {
@@ -46,15 +48,27 @@ fun ThinkingOrbStatus(
         label = "time"
     )
 
-    val shimmerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmer_alpha"
-    )
+    var startBounce by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(280)
+        startBounce = true
+    }
+
+    val bounceY = if (startBounce) {
+        val bounceTransition = rememberInfiniteTransition(label = "bounce_transition")
+        val value by bounceTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = -3f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(650, easing = LinearOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "bounce_y"
+        )
+        value
+    } else {
+        0f
+    }
 
     val effectiveDotColor = when (state) {
         OrbState.WORKING -> Color(0xFF2C9BA8)   // Electric Cyan
@@ -89,9 +103,12 @@ fun ThinkingOrbStatus(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = statusText,
-                color = effectiveDotColor.copy(alpha = shimmerAlpha),
+                color = effectiveDotColor,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.graphicsLayer {
+                    translationY = bounceY.dp.toPx()
+                }
             )
         }
     }
@@ -210,7 +227,7 @@ private fun DrawScope.drawBuildingOrb(time: Float, color: Color, center: Offset,
     val pulse = (sin(time * 2) + 1) / 2 // 0.0 to 1.0
     val currentRadius = radius * (0.6f + 0.4f * pulse)
     val grid = 4
-    
+
     for (i in 0 until grid) {
         for (j in 0 until grid) {
             val nx = (i.toFloat() / (grid - 1)) * 2f - 1f
@@ -256,7 +273,7 @@ private fun DrawScope.drawSuccessOrb(time: Float, color: Color, center: Offset, 
     val petals = 8
     val dotsPerPetal = 3
     val breathe = (sin(time) * 0.15f) + 0.85f
-    
+
     for (i in 0 until petals) {
         val baseAngle = i * 2 * PI / petals
         for (j in 1..dotsPerPetal) {
