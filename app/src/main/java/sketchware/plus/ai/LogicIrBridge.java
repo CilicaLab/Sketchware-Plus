@@ -793,8 +793,23 @@ public class LogicIrBridge {
         String javaName = ProjectStructureAide.findActivityJavaName(scId, rawJavaName, rawJavaName);
         if (javaName == null) return false;
 
+        String cleanTargetId = targetId != null ? targetId.trim() : eventName;
         String eventKey = (targetId != null && !targetId.isEmpty()) ? (targetId + "_" + eventName) : (eventName + "_" + eventName);
         eventKey = normalizeEventKey(eventKey);
+
+        int eventType = EventBean.EVENT_TYPE_ACTIVITY;
+        int targetType = 0;
+
+        if ("view".equalsIgnoreCase(targetKind)) {
+            eventType = EventBean.EVENT_TYPE_VIEW;
+            targetType = resolveViewTargetType(manager, scId, javaName, cleanTargetId);
+        } else if ("drawer_view".equalsIgnoreCase(targetKind)) {
+            eventType = EventBean.EVENT_TYPE_DRAWER_VIEW;
+            targetType = resolveDrawerViewTargetType(manager, scId, javaName, cleanTargetId);
+        } else if ("component".equalsIgnoreCase(targetKind)) {
+            eventType = EventBean.EVENT_TYPE_COMPONENT;
+            targetType = resolveComponentTargetType(manager, javaName, cleanTargetId);
+        }
 
         ArrayList<EventBean> events = manager.g(javaName);
         if (events == null) {
@@ -803,27 +818,103 @@ public class LogicIrBridge {
 
         for (EventBean eb : events) {
             if (eb != null && eventKey.equalsIgnoreCase(eb.targetId + "_" + eb.eventName)) {
+                // If existing event was stored with invalid targetType (-1 or <= 0), auto-heal it
+                if (eb.targetType <= 0 && eventType != EventBean.EVENT_TYPE_ACTIVITY) {
+                    eb.targetType = targetType;
+                    manager.k();
+                }
                 return true;
             }
         }
 
-        int targetType = EventBean.EVENT_TYPE_ACTIVITY;
-        if ("view".equalsIgnoreCase(targetKind)) {
-            targetType = EventBean.EVENT_TYPE_VIEW;
-        } else if ("component".equalsIgnoreCase(targetKind)) {
-            targetType = EventBean.EVENT_TYPE_COMPONENT;
+        EventBean newEb = new EventBean(eventType, targetType, cleanTargetId, eventName);
+        manager.a(javaName, newEb);
+        manager.k();
+        return true;
+    }
+
+    private static int resolveViewTargetType(eC manager, String scId, String javaName, String targetId) {
+        if ("_fab".equals(targetId) || "fab".equals(targetId)) {
+            return ViewBean.VIEW_TYPE_WIDGET_FAB;
         }
 
-        EventBean newEb = new EventBean(targetType, -1, targetId != null ? targetId : eventName, eventName);
-        manager.a(javaName, newEb);
-        return true;
+        String xmlName = ProjectStructureAide.getXmlNameForActivity(scId, javaName);
+        ArrayList<ViewBean> views = manager.d(xmlName);
+        if (views != null && targetId != null) {
+            for (ViewBean vb : views) {
+                if (vb != null && targetId.equals(vb.id)) {
+                    return vb.type;
+                }
+            }
+        }
+
+        // Check drawer views if present
+        hC fileManager = jC.b(scId);
+        ProjectFileBean pfb = fileManager != null ? fileManager.a(javaName) : null;
+        if (pfb != null && pfb.hasActivityOption(ProjectFileBean.OPTION_ACTIVITY_DRAWER)) {
+            ArrayList<ViewBean> drawerViews = manager.d(pfb.getDrawerXmlName());
+            if (drawerViews != null && targetId != null) {
+                for (ViewBean dvb : drawerViews) {
+                    if (dvb != null && targetId.equals(dvb.id)) {
+                        return dvb.type;
+                    }
+                }
+            }
+        }
+
+        // Safe fallback if view not found
+        return ViewBean.VIEW_TYPE_WIDGET_BUTTON;
+    }
+
+    private static int resolveDrawerViewTargetType(eC manager, String scId, String javaName, String targetId) {
+        hC fileManager = jC.b(scId);
+        ProjectFileBean pfb = fileManager != null ? fileManager.a(javaName) : null;
+        if (pfb != null) {
+            ArrayList<ViewBean> drawerViews = manager.d(pfb.getDrawerXmlName());
+            if (drawerViews != null && targetId != null) {
+                for (ViewBean dvb : drawerViews) {
+                    if (dvb != null && targetId.equals(dvb.id)) {
+                        return dvb.type;
+                    }
+                }
+            }
+        }
+        return ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
+    }
+
+    private static int resolveComponentTargetType(eC manager, String javaName, String targetId) {
+        ArrayList<ComponentBean> components = manager.e(javaName);
+        if (components != null && targetId != null) {
+            for (ComponentBean cb : components) {
+                if (cb != null && targetId.equals(cb.componentId)) {
+                    return cb.type;
+                }
+            }
+        }
+        return 1; // Default to Intent component
     }
 
     public static boolean ensureEventRegistered(eC manager, String rawJavaName, String eventKey) {
         if (manager == null || eventKey == null || eventKey.trim().isEmpty()) return false;
         if (eventKey.contains("_")) {
             String[] parts = eventKey.split("_", 2);
-            return ensureEventRegistered(manager, rawJavaName, "view", parts[0], parts[1]);
+            String targetId = parts[0];
+            String eventName = parts[1];
+            String scId = manager.a;
+            String javaName = ProjectStructureAide.findActivityJavaName(scId, rawJavaName, rawJavaName);
+            boolean isComponent = false;
+            if (javaName != null) {
+                ArrayList<ComponentBean> components = manager.e(javaName);
+                if (components != null) {
+                    for (ComponentBean cb : components) {
+                        if (cb != null && targetId.equals(cb.componentId)) {
+                            isComponent = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            return ensureEventRegistered(manager, rawJavaName, isComponent ? "component" : "view", targetId, eventName);
         } else {
             return ensureEventRegistered(manager, rawJavaName, "activity", eventKey, eventKey);
         }

@@ -190,18 +190,59 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
                 EventBean eventBean2 = new EventBean(EventBean.EVENT_TYPE_ACTIVITY, -1, "onCreate", "initializeLogic");
                 eventBean2.initValue();
                 tempActivityEvents.add(eventBean2);
+                boolean dataHealed = false;
                 for (EventBean eventBean : newEvents) {
                     eventBean.initValue();
                     int i = eventBean.eventType;
-                    if (i == EventBean.EVENT_TYPE_VIEW) {
-                        tempViewEvents.add(eventBean);
+                    if (i == EventBean.EVENT_TYPE_VIEW || i == EventBean.EVENT_TYPE_DRAWER_VIEW) {
+                        if (eventBean.targetType <= 0 && currentActivity != null) {
+                            String xmlName = (i == EventBean.EVENT_TYPE_DRAWER_VIEW && currentActivity.hasActivityOption(ProjectFileBean.OPTION_ACTIVITY_DRAWER))
+                                    ? currentActivity.getDrawerXmlName() : currentActivity.getXmlName();
+                            ArrayList<ViewBean> vList = jC.a(sc_id).d(xmlName);
+                            if (vList != null && eventBean.targetId != null) {
+                                for (ViewBean vb : vList) {
+                                    if (vb != null && eventBean.targetId.equals(vb.id)) {
+                                        eventBean.targetType = vb.type;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (eventBean.targetType <= 0 && "_fab".equals(eventBean.targetId)) {
+                                eventBean.targetType = ViewBean.VIEW_TYPE_WIDGET_FAB;
+                            }
+                            if (eventBean.targetType <= 0) {
+                                eventBean.targetType = ViewBean.VIEW_TYPE_WIDGET_BUTTON;
+                            }
+                            dataHealed = true;
+                        }
+                        if (i == EventBean.EVENT_TYPE_VIEW) {
+                            tempViewEvents.add(eventBean);
+                        } else {
+                            tempDrawerViewEvents.add(eventBean);
+                        }
                     } else if (i == EventBean.EVENT_TYPE_COMPONENT) {
+                        if (eventBean.targetType <= 0) {
+                            ArrayList<ComponentBean> cList = jC.a(sc_id).e(javaName);
+                            if (cList != null && eventBean.targetId != null) {
+                                for (ComponentBean cb : cList) {
+                                    if (cb != null && eventBean.targetId.equals(cb.componentId)) {
+                                        eventBean.targetType = cb.type;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (eventBean.targetType <= 0) {
+                                eventBean.targetType = 1;
+                            }
+                            dataHealed = true;
+                        }
                         tempComponentEvents.add(eventBean);
                     } else if (i == EventBean.EVENT_TYPE_ACTIVITY) {
                         tempActivityEvents.add(eventBean);
-                    } else if (i == EventBean.EVENT_TYPE_DRAWER_VIEW) {
-                        tempDrawerViewEvents.add(eventBean);
                     }
+                }
+                if (dataHealed) {
+                    jC.a(sc_id).k();
                 }
 
                 if (getActivity() != null) {
@@ -433,7 +474,8 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
             holder.targetType.setVisibility(View.VISIBLE);
             holder.previewContainer.setVisibility(View.VISIBLE);
             holder.preview.setVisibility(View.VISIBLE);
-            holder.preview.setImageResource(oq.getEventIconResource(eventBean.eventName));
+            int previewRes = oq.getEventIconResource(eventBean.eventName);
+            holder.preview.setImageResource(previewRes > 0 ? previewRes : R.drawable.ic_mtrl_touch);
             holder.optionsLayout.showDelete();
             if (eventBean.eventType == EventBean.EVENT_TYPE_ETC) {
                 holder.optionsLayout.showAddToCollection();
@@ -445,14 +487,16 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
                     holder.optionsLayout.hideDelete();
                 }
                 holder.targetId.setText(eventBean.targetId);
-                holder.type.setBackgroundResource(oq.getEventIconResource(eventBean.eventName));
+                int actBg = oq.getEventIconResource(eventBean.eventName);
+                holder.type.setBackgroundResource(actBg > 0 ? actBg : R.drawable.bg_event_type_activity);
                 holder.name.setText(eventBean.eventName);
                 holder.description.setText(oq.getEventName(eventBean.eventName));
                 holder.icon.setImageResource(R.drawable.ic_mtrl_code);
                 holder.preview.setVisibility(View.GONE);
                 holder.targetType.setVisibility(View.GONE);
             } else {
-                holder.icon.setImageResource(EventBean.getEventIconResource(eventBean.eventType, eventBean.targetType));
+                int iconRes = EventBean.getEventIconResource(eventBean.eventType, eventBean.targetType);
+                holder.icon.setImageResource(iconRes > 0 ? iconRes : R.drawable.ic_mtrl_touch);
                 if (eventBean.eventType == EventBean.EVENT_TYPE_VIEW) {
                     holder.targetType.setText(ViewBean.getViewTypeName(eventBean.targetType));
                 } else if (eventBean.eventType == EventBean.EVENT_TYPE_DRAWER_VIEW) {
@@ -470,7 +514,8 @@ public class rs extends qA implements View.OnClickListener, MoreblockImporterDia
                     holder.targetId.setText(ReturnMoreblockManager.getMbName(eventBean.targetId));
                 }
                 holder.type.setText(EventBean.getEventTypeName(eventBean.eventType));
-                holder.type.setBackgroundResource(EventBean.getEventTypeBgRes(eventBean.eventType));
+                int eventTypeBg = EventBean.getEventTypeBgRes(eventBean.eventType);
+                holder.type.setBackgroundResource(eventTypeBg > 0 ? eventTypeBg : R.drawable.bg_event_type_activity);
                 holder.name.setText(eventBean.eventName);
                 holder.description.setText(oq.getEventName(eventBean.eventName));
                 if (eventBean.eventType == EventBean.EVENT_TYPE_ETC) {

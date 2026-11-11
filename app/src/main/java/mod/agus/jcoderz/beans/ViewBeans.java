@@ -116,7 +116,7 @@ public class ViewBeans {
             case VIEW_TYPE_WIDGET_YOUTUBEPLAYERVIEW -> R.drawable.ic_mtrl_youtube;
             case VIEW_TYPE_WIDGET_OTPVIEW -> R.drawable.ic_mtrl_password;
             case VIEW_TYPE_WIDGET_CODEVIEW -> R.drawable.ic_mtrl_terminal;
-            default -> id;
+            default -> id > 0 ? id : R.drawable.ic_mtrl_view_horizontal;
         };
     }
 }
