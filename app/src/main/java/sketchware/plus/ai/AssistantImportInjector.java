@@ -192,18 +192,19 @@ public class AssistantImportInjector {
     }
 
     /**
-     * Injects an 'Add source directly' block with custom code into the onCreate (initializeLogic) event of the specified project screen data.
+     * Injects an 'Add source directly' block with custom code into the specified event or More Block (e.g. onCreate_initializeLogic or <moreBlock>_moreBlock).
      *
      * @param scId Project ID (sc_id). If null, attempts to resolve from hostActivity.
      * @param javaName Target activity Java name (e.g. "main" or "MainActivity.java"). If null, attempts to resolve from hostActivity.
+     * @param eventKey Target event or More Block key (e.g. "onCreate_initializeLogic", or "<funcName>_moreBlock"). Defaults to "onCreate_initializeLogic".
      * @param code The Java code snippet to add via 'Add source directly'.
      * @param hostActivity Optional host activity for showing UI feedback toast and refreshing designer.
      * @return true if successfully added; false on failure.
      */
-    public static boolean injectOnCreateSource(String scId, String javaName, String code, Activity hostActivity) {
-        log(scId, "injectOnCreateSource ENTRY - scId: " + scId + ", javaName: " + javaName + ", code length: " + (code != null ? code.length() : 0));
+    public static boolean injectSourceDirectly(String scId, String javaName, String eventKey, String code, Activity hostActivity) {
+        log(scId, "injectSourceDirectly ENTRY - scId: " + scId + ", javaName: " + javaName + ", eventKey: " + eventKey + ", code length: " + (code != null ? code.length() : 0));
         if (code == null || code.trim().isEmpty()) {
-            log(scId, "injectOnCreateSource ABORTED - empty or null code");
+            log(scId, "injectSourceDirectly ABORTED - empty or null code");
             return false;
         }
 
@@ -238,8 +239,9 @@ public class AssistantImportInjector {
         }
 
         synchronized (screenConfigHandler) {
-            String eventKey = "onCreate_initializeLogic";
-            ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, eventKey);
+            String targetEventKey = (eventKey != null && !eventKey.trim().isEmpty())
+                    ? eventKey.trim() : "onCreate_initializeLogic";
+            ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, targetEventKey);
             if (blocks == null) {
                 blocks = new ArrayList<>();
             }
@@ -258,13 +260,13 @@ public class AssistantImportInjector {
             String opCode = "addSourceDirectly";
             ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
             BlocksHandler.builtInBlocks(blockList);
-            String type = " ", typeName = "", spec = "";
+            String type = " ", typeName = "", spec = "add source directly %s.inputOnly";
             int blockColor = Color.parseColor("#5cb722");
             for (HashMap<String, Object> bDef : blockList) {
                 if (opCode.equals(bDef.get("name"))) {
                     type = (String) bDef.getOrDefault("type", " ");
                     typeName = (String) bDef.getOrDefault("typeName", "");
-                    spec = (String) bDef.getOrDefault("spec", "");
+                    spec = (String) bDef.getOrDefault("spec", spec);
                     String colorStr = (String) bDef.get("color");
                     if (colorStr != null) {
                         try {
@@ -289,18 +291,31 @@ public class AssistantImportInjector {
             }
 
             blocks.add(block);
-            screenConfigHandler.a(javaName, eventKey, blocks);
+            screenConfigHandler.a(javaName, targetEventKey, blocks);
             screenConfigHandler.k();
 
             if (hostActivity != null) {
                 hostActivity.runOnUiThread(() -> {
                     try {
-                        //SketchwareUtil.toast("Assistant successfully added code to onCreate!");
+                        //SketchwareUtil.toast("Assistant successfully added code!");
                     } catch (Exception ignored) {}
                 });
             }
             return true;
         }
+    }
+
+    /**
+     * Injects an 'Add source directly' block with custom code into the onCreate (initializeLogic) event of the specified project screen data.
+     *
+     * @param scId Project ID (sc_id). If null, attempts to resolve from hostActivity.
+     * @param javaName Target activity Java name (e.g. "main" or "MainActivity.java"). If null, attempts to resolve from hostActivity.
+     * @param code The Java code snippet to add via 'Add source directly'.
+     * @param hostActivity Optional host activity for showing UI feedback toast and refreshing designer.
+     * @return true if successfully added; false on failure.
+     */
+    public static boolean injectOnCreateSource(String scId, String javaName, String code, Activity hostActivity) {
+        return injectSourceDirectly(scId, javaName, "onCreate_initializeLogic", code, hostActivity);
     }
 
     public static boolean injectOnCreateSource(String scId, String javaName, String code) {

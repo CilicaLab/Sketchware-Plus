@@ -47,10 +47,12 @@ public class AssistantToolRegistry {
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
-        t.put(createTool("add_source_code", "PREFERRED tool to add Java code to activity onCreate / initializeLogic via 'Add source directly' block. ALWAYS use this instead of java patches when adding code to onCreate.",
+        t.put(createTool("add_source_code", "PREFERRED tool to add manual Java code to activity onCreate / initializeLogic or custom More Block via 'Add source directly' block. Use this whenever adding manual code to an activity or More Block.",
                 new ParameterBuilder()
-                        .addProperty("code", "string", "Java code snippet to add")
+                        .addProperty("code", "string", "Java code snippet to add via 'Add source directly' block")
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
+                        .addProperty("moreBlockName", "string", "optional More Block name (e.g. 'calculateTotal') to add manual code into that More Block")
+                        .addProperty("eventKey", "string", "optional event key (e.g. 'onCreate_initializeLogic' or '<funcName>_moreBlock')")
                         .setRequired("code").build()));
 
         t.put(createTool("read_method", "Read a method's source",
@@ -150,14 +152,14 @@ public class AssistantToolRegistry {
                         .addProperty("items", "array", "Array of list objects, e.g. [{\"name\": \"userList\", \"type\": \"string\"}]. The 'name' field is optional; if omitted or empty, a unique name is auto-generated.")
                         .setRequired("items").build()));
 
-        t.put(createTool("add_more_block", "Create a custom function (More Block) in an activity.",
+        t.put(createTool("add_more_block", "Create a custom function (More Block) in an activity. If 'body_java' is provided, it is added as manual code inside an 'Add source directly' block.",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
                         .addProperty("name", "string", "optional function name, e.g. calculateTotal. If omitted or empty, a unique name is auto-generated.")
                         .addProperty("params", "array", "optional array of parameter objects or string names. Parameter objects have 'name' (string) and 'type' (enum: string, number, boolean, map, list string, list map, view). Default parameter type is string.")
                         .addPropertyEnum("returnType", "string", "optional return type", new String[]{"void", "string", "number", "boolean", "map", "list string", "list map", "view"})
-                        .addProperty("body_java", "string", "optional Java implementation for function body")
-                        .addProperty("allow_empty_on_body_error", "boolean", "optional flag (default false). If false, aborts function creation if body_java fails parsing. If true, creates an empty function definition if body_java fails.")
+                        .addProperty("body_java", "string", "optional Java implementation for function body. Added via 'Add source directly' block.")
+                        .addProperty("allow_empty_on_body_error", "boolean", "optional flag (default false).")
                         .build()));
 
         t.put(createTool("register_event", "Register an activity, view, or component event listener to obtain an eventKey.",

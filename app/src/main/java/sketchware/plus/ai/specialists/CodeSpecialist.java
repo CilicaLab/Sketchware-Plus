@@ -172,7 +172,7 @@ public class CodeSpecialist extends BaseSpecialist {
                             "   - REGISTER_EVENT: {\"type\": \"REGISTER_EVENT\", \"javaName\": \"MainActivity.java\", \"targetKind\": \"view|component|activity\", \"targetId\": \"button1\", \"eventName\": \"onClick\"}\n" +
                             "   - ADD_VARIABLES: {\"type\": \"ADD_VARIABLES\", \"javaName\": \"MainActivity.java\", \"items\": [{\"name\": \"count\", \"type\": \"number\"}, {\"name\": \"name\", \"type\": \"string\"}]}\n" +
                             "   - ADD_LISTS: {\"type\": \"ADD_LISTS\", \"javaName\": \"MainActivity.java\", \"items\": [{\"name\": \"userList\", \"type\": \"string\"}]}\n" +
-                            "   - ADD_MORE_BLOCK: {\"type\": \"ADD_MORE_BLOCK\", \"javaName\": \"MainActivity.java\", \"name\": \"greetUser\", \"params\": [{\"name\": \"username\", \"type\": \"string\"}], \"returnType\": \"void\", \"body_java\": \"...\"}\n" +
+                            "   - ADD_MORE_BLOCK: {\"type\": \"ADD_MORE_BLOCK\", \"javaName\": \"MainActivity.java\", \"name\": \"greetUser\", \"params\": [{\"name\": \"username\", \"type\": \"string\"}], \"returnType\": \"void\", \"body_java\": \"...\"} (Manual code in 'body_java' is placed inside an 'Add source directly' block. You can also use ADD_BLOCK with opCode 'addSourceDirectly'.)\n" +
                             "   - CREATE_ACTIVITY: {\"type\": \"CREATE_ACTIVITY\", \"name\": \"DetailActivity\", \"options\": {\"toolbar\": true, \"fullscreen\": false}, \"orientation\": 0, \"keyboard\": 0, \"layout_xml\": \"...\"}\n" +
                             "   - GET_PROJECT_STRUCTURE: {\"type\": \"GET_PROJECT_STRUCTURE\", \"javaName\": \"MainActivity.java\"}\n" +
                             "   - GET_LOGIC_IR: {\"type\": \"GET_LOGIC_IR\", \"javaName\": \"MainActivity.java\", \"eventKey\": \"onCreate_initializeLogic\"}\n" +
@@ -880,32 +880,66 @@ public class CodeSpecialist extends BaseSpecialist {
                 ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
                 BlocksHandler.builtInBlocks(blockList);
                 String type = " ", typeName = "", spec = "";
+                boolean foundInBuiltIn = false;
                 for (HashMap<String, Object> bDef : blockList) {
                     if (opCode.equals(bDef.get("name"))) {
                         type = (String) bDef.getOrDefault("type", " ");
                         typeName = (String) bDef.getOrDefault("typeName", "");
                         spec = (String) bDef.getOrDefault("spec", "");
+                        foundInBuiltIn = true;
                         break;
                     }
                 }
 
-                log("[CodeSpecialist.applyAddBlock] Matched Built-in Block Definition -> opCode: " + opCode + ", type: '" + type + "', typeName: '" + typeName + "', spec: '" + spec + "'");
-
-                BlockBean block = new BlockBean(newBlockId, spec, type, typeName, opCode);
-                if (jParams != null) {
-                    for (int i = 0; i < jParams.length(); i++) {
-                        try {
-                            String paramVal = jParams.getString(i);
-                            block.parameters.add(paramVal);
-                            log("  - Parameter [" + i + "]: " + paramVal);
-                        } catch (Exception e) {
-                            log("  - Parameter [" + i + "] ERROR parsing: " + e.getMessage());
+                // If opCode not found in built-in blocks, fall back to addSourceDirectly
+                // so that the AI's manual code is always safely placed inside a valid block.
+                if (!foundInBuiltIn) {
+                    log("[CodeSpecialist.applyAddBlock] opCode '" + opCode + "' not found in built-in blocks. Falling back to addSourceDirectly with opCode as code parameter.");
+                    // Look up addSourceDirectly definition
+                    for (HashMap<String, Object> bDef : blockList) {
+                        if ("addSourceDirectly".equals(bDef.get("name"))) {
+                            type = (String) bDef.getOrDefault("type", "e");
+                            typeName = (String) bDef.getOrDefault("typeName", "");
+                            spec = (String) bDef.getOrDefault("spec", "");
+                            break;
                         }
                     }
+                    // Build raw code from opCode + params so the intent is preserved
+                    StringBuilder rawCode = new StringBuilder(opCode);
+                    if (jParams != null && jParams.length() > 0) {
+                        rawCode.append("(");
+                        for (int i = 0; i < jParams.length(); i++) {
+                            try {
+                                if (i > 0) rawCode.append(", ");
+                                rawCode.append(jParams.getString(i));
+                            } catch (Exception ignored) {}
+                        }
+                        rawCode.append(")");
+                    }
+                    BlockBean block = new BlockBean(newBlockId, spec, type, typeName, "addSourceDirectly");
+                    block.parameters.add(rawCode.toString());
+                    blocks.add(block);
+                    dataManager.k();
+                    log("[CodeSpecialist.applyAddBlock] Fallback addSourceDirectly block added with code: " + rawCode);
+                } else {
+                    log("[CodeSpecialist.applyAddBlock] Matched Built-in Block Definition -> opCode: " + opCode + ", type: '" + type + "', typeName: '" + typeName + "', spec: '" + spec + "'");
+
+                    BlockBean block = new BlockBean(newBlockId, spec, type, typeName, opCode);
+                    if (jParams != null) {
+                        for (int i = 0; i < jParams.length(); i++) {
+                            try {
+                                String paramVal = jParams.getString(i);
+                                block.parameters.add(paramVal);
+                                log("  - Parameter [" + i + "]: " + paramVal);
+                            } catch (Exception e) {
+                                log("  - Parameter [" + i + "] ERROR parsing: " + e.getMessage());
+                            }
+                        }
+                    }
+                    blocks.add(block);
+                    dataManager.k();
+                    log("[CodeSpecialist.applyAddBlock] BlockBean [id=" + newBlockId + ", opCode=" + opCode + "] added and dataManager saved successfully!");
                 }
-                blocks.add(block);
-                dataManager.k();
-                log("[CodeSpecialist.applyAddBlock] BlockBean [id=" + newBlockId + ", opCode=" + opCode + "] added and dataManager saved successfully!");
             }
         };
 

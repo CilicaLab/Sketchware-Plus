@@ -291,7 +291,8 @@ public class ToolOrchestrator {
                 "13. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
                 "14. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
                 "15. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.\n" +
-                "16. AUTO-NAMING RULE: When the user asks to create a variable, list, activity, function (More Block), or component without specifying a name, you do NOT need to ask for a name. You can omit the name/id argument or pass an empty string, and the system will automatically generate a unique, collision-free name for it.";
+                "16. AUTO-NAMING RULE: When the user asks to create a variable, list, activity, function (More Block), or component without specifying a name, you do NOT need to ask for a name. You can omit the name/id argument or pass an empty string, and the system will automatically generate a unique, collision-free name for it.\n" +
+                "17. MORE BLOCKS & MANUAL CODE: When creating a More Block that requires manual Java code, supply the manual code in the 'body_java' parameter of 'add_more_block', which automatically inserts an 'Add source directly' block inside the More Block. To add manual Java code to an existing More Block or event, use 'add_source_code' specifying 'moreBlockName' or 'eventKey'.";
     }
 
     private String buildMetricsContext() {
@@ -692,9 +693,14 @@ public class ToolOrchestrator {
                 fragment.setUndoVisible(true);
                 String codeToAdd = args.getString("code");
                 String targetJava = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
-                boolean added = AssistantImportInjector.injectOnCreateSource(fragment.scId, targetJava, codeToAdd, fragment.getActivity());
+                String mbName = args.optString("moreBlockName", args.optString("moreBlock", ""));
+                String evKey = args.optString("eventKey", "");
+                if (!mbName.isEmpty()) {
+                    evKey = mbName.endsWith("_moreBlock") ? mbName : (mbName + "_moreBlock");
+                }
+                boolean added = AssistantImportInjector.injectSourceDirectly(fragment.scId, targetJava, evKey, codeToAdd, fragment.getActivity());
                 if (added) runOnMainSync(() -> fragment.refreshDesigner());
-                return added ? "Code successfully added to onCreate via 'Add source directly'." : "Failed to add code to onCreate.";
+                return added ? "Code successfully added via 'Add source directly' block." : "Failed to add code via 'Add source directly'.";
 
             case "list_methods":
             case "get_full_code":

@@ -1,6 +1,7 @@
 package sketchware.plus.ai;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.util.Log;
 import android.util.Pair;
 
@@ -16,6 +17,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +27,7 @@ import a.a.a.hC;
 import a.a.a.jC;
 import a.a.a.uq;
 import mod.hey.studios.moreblock.ReturnMoreblockManager;
+import mod.hilal.saif.blocks.BlocksHandler;
 
 /**
  * Static helper utilities for SK Assistant project structure operations.
@@ -642,32 +645,23 @@ public class ProjectStructureAide {
         }
 
         String rTypeLower = returnType != null ? returnType.trim().toLowerCase() : "void";
-        String typeChar;
         String returnTypeEncoded;
 
         if (rTypeLower.isEmpty() || "void".equals(rTypeLower) || " ".equals(rTypeLower)) {
-            typeChar = " ";
             returnTypeEncoded = "";
         } else if ("string".equals(rTypeLower) || "str".equals(rTypeLower) || "s".equals(rTypeLower)) {
-            typeChar = "s";
             returnTypeEncoded = "[String]";
         } else if ("number".equals(rTypeLower) || "double".equals(rTypeLower) || "int".equals(rTypeLower) || "integer".equals(rTypeLower) || "d".equals(rTypeLower)) {
-            typeChar = "d";
             returnTypeEncoded = "[double]";
         } else if ("boolean".equals(rTypeLower) || "bool".equals(rTypeLower) || "b".equals(rTypeLower)) {
-            typeChar = "b";
             returnTypeEncoded = "[boolean]";
         } else if ("map".equals(rTypeLower) || "a|map".equals(rTypeLower)) {
-            typeChar = "a|Map";
             returnTypeEncoded = "[a|Map]";
         } else if ("list string".equals(rTypeLower) || "liststring".equals(rTypeLower) || "l|list string".equals(rTypeLower)) {
-            typeChar = "l|List String";
             returnTypeEncoded = "[l|List String]";
         } else if ("list map".equals(rTypeLower) || "listmap".equals(rTypeLower) || "l|list map".equals(rTypeLower)) {
-            typeChar = "l|List Map";
             returnTypeEncoded = "[l|List Map]";
         } else if ("view".equals(rTypeLower) || "v|view".equals(rTypeLower)) {
-            typeChar = "v|View";
             returnTypeEncoded = "[v|View]";
         } else {
             try {
@@ -677,7 +671,6 @@ public class ProjectStructureAide {
             return resJson.toString();
         }
 
-        List<String> paramNames = new ArrayList<>();
         StringBuilder specBuilder = new StringBuilder(funcName).append(returnTypeEncoded);
         Set<String> seenParams = new HashSet<>();
 
@@ -763,7 +756,6 @@ public class ProjectStructureAide {
                 }
 
                 specBuilder.append(" ").append(pToken);
-                paramNames.add(pName);
             }
         }
 
@@ -790,37 +782,41 @@ public class ProjectStructureAide {
             String blockKey = bodyKeyBase + "_moreBlock";
             ArrayList<BlockBean> initialBlocks = new ArrayList<>();
 
-            BlockBean root = new BlockBean("0", spec, typeChar, "definedFunc", "definedFunc");
-            root.color = -11751600;
-            root.parameters = new ArrayList<>(paramNames);
-            root.nextBlock = -1;
-            initialBlocks.add(root);
-
             String bodyError = null;
             int convertedCount = 0;
 
             if (bodyJava != null && !bodyJava.trim().isEmpty()) {
                 try {
-                    JSONObject ir = LogicIrBridge.javaToIr(bodyJava);
-                    if (ir != null && ir.has("body")) {
-                        LogicIrBridge.ValidationResult vResult = LogicIrBridge.validateIr(ir, scId, javaName);
-                        if (vResult.isValid) {
-                            ArrayList<BlockBean> convertedBlocks = LogicIrBridge.irToBlocks(ir);
-                            if (convertedBlocks != null && !convertedBlocks.isEmpty()) {
+                    // Manual code in More Block uses the 'Add source directly' block
+                    String opCode = "addSourceDirectly";
+                    ArrayList<HashMap<String, Object>> blockList = new ArrayList<>();
+                    BlocksHandler.builtInBlocks(blockList);
+                    String type = " ", typeName = "", specDef = "add source directly %s.inputOnly";
+                    int blockColor = Color.parseColor("#5cb722");
+                    for (HashMap<String, Object> bDef : blockList) {
+                        if (opCode.equals(bDef.get("name"))) {
+                            type = (String) bDef.getOrDefault("type", " ");
+                            typeName = (String) bDef.getOrDefault("typeName", "");
+                            specDef = (String) bDef.getOrDefault("spec", specDef);
+                            String colorStr = (String) bDef.get("color");
+                            if (colorStr != null) {
                                 try {
-                                    root.nextBlock = Integer.parseInt(convertedBlocks.get(0).id);
-                                } catch (Exception ignored) {
-                                    root.nextBlock = 1;
-                                }
-                                initialBlocks.addAll(convertedBlocks);
-                                convertedCount = convertedBlocks.size();
+                                    blockColor = Color.parseColor(colorStr);
+                                } catch (Exception ignored) {}
                             }
-                        } else {
-                            bodyError = vResult.errorMessage;
+                            break;
                         }
-                    } else {
-                        bodyError = "Could not parse bodyJava into valid IR structure.";
                     }
+
+                    BlockBean rawBlock = new BlockBean("1", specDef, type, typeName, opCode);
+                    rawBlock.color = blockColor;
+                    rawBlock.nextBlock = -1;
+                    rawBlock.subStack1 = -1;
+                    rawBlock.subStack2 = -1;
+                    rawBlock.parameters = new ArrayList<>();
+                    rawBlock.parameters.add(bodyJava.trim());
+                    initialBlocks.add(rawBlock);
+                    convertedCount = 1;
                 } catch (Exception e) {
                     bodyError = e.getMessage();
                 }
@@ -830,7 +826,7 @@ public class ProjectStructureAide {
                     if (!allowEmptyOnBodyError) {
                         try {
                             resJson.put("ok", false);
-                            resJson.put("error", "Failed to parse/validate bodyJava: " + bodyError);
+                            resJson.put("error", "Failed to add bodyJava into 'Add source directly' block: " + bodyError);
                         } catch (Exception ignored) {}
                         return resJson.toString();
                     } else {

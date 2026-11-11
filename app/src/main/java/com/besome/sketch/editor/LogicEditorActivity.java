@@ -29,6 +29,8 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.animation.DecelerateInterpolator;
+import java.util.HashSet;
+import java.util.Set;
 import sketchware.plus.utility.HapticManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.CheckBox;
@@ -250,6 +252,10 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
             eventBlocks = jC.a(scId).a(M.getJavaName(), id + "_" + eventName);
         }
         if (eventBlocks != null) {
+            if (eventName.equals("moreBlock")) {
+                eventBlocks.removeIf(next -> "0".equals(next.id) || "definedFunc".equals(next.opCode));
+            }
+
             if (eventBlocks.isEmpty()) {
                 runOnUiThread(() -> e(X));
                 return;
@@ -325,8 +331,12 @@ public class LogicEditorActivity extends BaseAppCompatActivity implements View.O
 
     private boolean isAncestor(View parent, View child) {
         View current = child;
+        Set<View> visited = new HashSet<>();
         while (current != null) {
             if (current == parent) {
+                return true;
+            }
+            if (!visited.add(current)) {
                 return true;
             }
             ViewParent p = current.getParent();
