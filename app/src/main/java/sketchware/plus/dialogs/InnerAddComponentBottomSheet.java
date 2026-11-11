@@ -1,5 +1,6 @@
 package sketchware.plus.dialogs;
 
+import android.content.Context;
 import android.content.Intent;
 import android.hardware.Sensor;
 import android.net.Uri;
@@ -7,6 +8,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -118,6 +121,23 @@ public class InnerAddComponentBottomSheet extends BottomSheetDialogFragment {
 
         binding.tiInputFilePicker.setEndIconOnClickListener(v -> showFilePickerMimeTypeSelectionDialog());
 
+        binding.edInput.setOnClickListener(this::showKeyboard);
+        binding.edInput.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) showKeyboard(v);
+        });
+        binding.edInputFilename.setOnClickListener(this::showKeyboard);
+        binding.edInputFilename.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) showKeyboard(v);
+        });
+        binding.edInputFirebasePath.setOnClickListener(this::showKeyboard);
+        binding.edInputFirebasePath.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) showKeyboard(v);
+        });
+        binding.edInputFilePicker.setOnClickListener(this::showKeyboard);
+        binding.edInputFilePicker.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) showKeyboard(v);
+        });
+
         componentNameValidator = new ZB(getContext(), binding.tiInput, uq.b, uq.a(), jC.a(scId).a(projectFileBean));
         componentFileNameValidator = new SB(getContext(), binding.tiInputFilename, 1, 20);
         componentFirebasePathValidator = new SB(getContext(), binding.tiInputFirebasePath, 0, 100);
@@ -152,6 +172,27 @@ public class InnerAddComponentBottomSheet extends BottomSheetDialogFragment {
                     bB.a(requireContext(), Helper.getResString(R.string.component_message_component_block_added), bB.TOAST_WARNING).show();
                     mB.a(requireContext(), binding.edInput);
                     onSaveClickListener.onSaveClick(InnerAddComponentBottomSheet.this);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
+    }
+
+    private void showKeyboard(View view) {
+        if (view == null) return;
+        view.requestFocus();
+        view.post(() -> {
+            if (getContext() != null) {
+                InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
                 }
             }
         });

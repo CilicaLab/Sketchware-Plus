@@ -1,11 +1,14 @@
 package com.besome.sketch.editor.component;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -111,6 +114,9 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
     @Override
     public void onStart() {
         super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
         View view = getView();
         if (view != null && view.getParent() instanceof View parent) {
             BottomSheetBehavior<?> behavior = BottomSheetBehavior.from(parent);
@@ -133,6 +139,13 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
         binding.componentList.setHasFixedSize(true);
         binding.componentList.setLayoutManager(flexboxLayoutManager);
         binding.componentList.setAdapter(new ComponentsAdapter());
+
+        binding.searchEditText.setOnClickListener(this::showKeyboard);
+        binding.searchEditText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                showKeyboard(v);
+            }
+        });
 
         binding.searchEditText.addTextChangedListener(new TextWatcher() {
             @Override
@@ -161,6 +174,19 @@ public class AddComponentBottomSheet extends BottomSheetDialogFragment {
                     binding.dividerTop.setVisibility(first > 0 ? View.VISIBLE : View.GONE);
                     binding.dividerBottom.setVisibility(last < total - 1 ? View.VISIBLE : View.GONE);
                 });
+            }
+        });
+    }
+
+    private void showKeyboard(View view) {
+        if (view == null) return;
+        view.requestFocus();
+        view.post(() -> {
+            if (getContext() != null) {
+                InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+                }
             }
         });
     }
