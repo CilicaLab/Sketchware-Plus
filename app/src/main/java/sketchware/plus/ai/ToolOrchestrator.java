@@ -524,8 +524,16 @@ public class ToolOrchestrator {
                     @Override
                     public void onToolStart(String toolName) {
                         mainHandler.post(() -> {
+                            fragment.onToolExecutionStarted(toolName);
                             fragment.setStatus("Executing: " + toolName + "...");
                             HapticManager.vibrateToolCall();
+                        });
+                    }
+
+                    @Override
+                    public void onToolFinish(String toolName, boolean success) {
+                        mainHandler.post(() -> {
+                            fragment.onToolExecutionFinished(toolName, success);
                         });
                     }
 

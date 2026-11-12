@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingVertical="7dp"
+        android:paddingHorizontal="14dp">
+
+        <ImageView
+            android:id="@+id/iv_step_icon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_mtrl_terminal"
+            app:tint="?attr/colorOnSurfaceVariant" />
+
+        <TextView
+            android:id="@+id/tv_step_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="8dp"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurface"
+            android:ellipsize="end"
+            android:singleLine="true" />
+
+        <!-- Mutual exclusive indicators (reset during onBindViewHolder) -->
+        <ProgressBar
+            android:id="@+id/pb_step_spinner"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:indeterminate="true"
+            android:indeterminateTint="?attr/colorSecondary"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/iv_step_check"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_check"
+            app:tint="#4CAF50"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/iv_step_failed"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_mtrl_close"
+            app:tint="?attr/colorError"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/step_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="14dp"
+        android:background="?attr/colorOutlineVariant" />
+</LinearLayout>

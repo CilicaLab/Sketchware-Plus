@@ -94,7 +94,15 @@ public class ToolExecutor {
             futures.add(parallelExecutor.submit(new Callable<ToolResult>() {
                 @Override
                 public ToolResult call() throws Exception {
-                    return executeToolInternal(info);
+                    try {
+                        ToolResult res = executeToolInternal(info);
+                        boolean success = res != null && !res.isError && (res.content == null || !res.content.startsWith("Error"));
+                        callback.onToolFinish(info.toolName, success);
+                        return res;
+                    } catch (Exception e) {
+                        callback.onToolFinish(info.toolName, false);
+                        throw e;
+                    }
                 }
             }));
         }
@@ -171,9 +179,11 @@ public class ToolExecutor {
                 // Check if result indicates an error response
                 if (result.content != null && (result.content.startsWith("Error:") || result.content.startsWith("Error"))) {
                     Log.w("SketchwarePlusAI", "Tool '" + info.toolName + "' returned an error response: " + result.content);
+                    callback.onToolFinish(info.toolName, false);
                     throw new RuntimeException(result.content);
                 }
                 
+                callback.onToolFinish(info.toolName, true);
                 results.add(result);
                 
                 // Adaptive delay between write operations
@@ -188,6 +198,7 @@ public class ToolExecutor {
                     }
                 }
             } catch (Exception e) {
+                callback.onToolFinish(toolCalls.get(i).toolName, false);
                 Log.e("SketchwarePlusAI", "Tool execution error in '" + toolCalls.get(i).toolName + "': " + e.getMessage(), e);
                 // AUTOMATIC ROLLBACK on write tool failure / exception to prevent bricking workspace
                 if (snapshot != null) {
@@ -476,6 +487,7 @@ public class ToolExecutor {
      */
     public interface Callback {
         default void onToolStart(String toolName) {}
+        default void onToolFinish(String toolName, boolean success) {}
         void onComplete(List<ToolResult> results);
     }
 }

@@ -43,6 +43,7 @@ import com.google.android.material.color.MaterialColors;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SimpleItemAnimator;
 import io.noties.markwon.AbstractMarkwonPlugin;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.core.CorePlugin;
@@ -123,6 +124,8 @@ import sketchware.plus.utility.AttributeConstants;
 import sketchware.plus.utility.AssistantPatternManager;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.GsonUtils;
+import android.transition.TransitionManager;
+import android.widget.LinearLayout;
 import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
 import sketchware.plus.lib.iconcreator.PatternBackgroundView;
 import sketchware.plus.managers.inject.InjectRootLayoutManager;
@@ -166,6 +169,40 @@ public class SkAssistantFragment extends Fragment {
     private volatile boolean isRequestCanceled = false;
     private volatile boolean isAiRunning = false;
     private boolean isSendButtonThinking = false;
+
+    public long aiRunStartTime = 0;
+    private final Handler elapsedTimerHandler = new Handler(Looper.getMainLooper());
+    private Runnable elapsedTimerRunnable;
+
+    private void startElapsedTimer() {
+        stopElapsedTimer();
+        elapsedTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isAiRunning || getActivity() == null) return;
+                for (int i = messages.size() - 1; i >= 0; i--) {
+                    Message msg = messages.get(i);
+                    if ("status".equals(msg.role) && !msg.isLogFinished && msg.steps != null && !msg.steps.isEmpty()) {
+                        long elapsed = System.currentTimeMillis() - aiRunStartTime;
+                        msg.elapsedSeconds = (int) Math.max(1, (elapsed + 500) / 1000);
+                        if (adapter != null) {
+                            adapter.notifyItemChanged(i, "payload_timer");
+                        }
+                        break;
+                    }
+                }
+                elapsedTimerHandler.postDelayed(this, 1000);
+            }
+        };
+        elapsedTimerHandler.postDelayed(elapsedTimerRunnable, 1000);
+    }
+
+    private void stopElapsedTimer() {
+        if (elapsedTimerRunnable != null) {
+            elapsedTimerHandler.removeCallbacks(elapsedTimerRunnable);
+            elapsedTimerRunnable = null;
+        }
+    }
 
     public LayoutSpecialist layoutSpecialist;
     public ComponentSpecialist componentSpecialist;
@@ -291,6 +328,10 @@ public class SkAssistantFragment extends Fragment {
 
         recyclerView = view.findViewById(R.id.chat_recycler);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        RecyclerView.ItemAnimator animator = recyclerView.getItemAnimator();
+        if (animator instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
+        }
         adapter = new MessageAdapter(messages, this);
         recyclerView.setAdapter(adapter);
 
@@ -511,6 +552,9 @@ public class SkAssistantFragment extends Fragment {
         scrollToBottom(true);
         saveHistory();
 
+        aiRunStartTime = System.currentTimeMillis();
+        startElapsedTimer();
+
         setStatus(model +" is reasoning...");
         jC.projectOperationsExecutor.execute(() -> {
             try { Thread.sleep(600); } catch (Exception ignored) {}
@@ -539,7 +583,8 @@ public class SkAssistantFragment extends Fragment {
 
                 int existingStatusIndex = -1;
                 for (int i = messages.size() - 1; i >= 0; i--) {
-                    if ("status".equals(messages.get(i).role)) {
+                    Message m = messages.get(i);
+                    if ("status".equals(m.role) && !m.isLogFinished) {
                         existingStatusIndex = i;
                         break;
                     }
@@ -558,8 +603,25 @@ public class SkAssistantFragment extends Fragment {
                     scrollToBottom(false);
                 } else {
                     if (existingStatusIndex != -1) {
-                        messages.remove(existingStatusIndex);
-                        adapter.notifyItemRemoved(existingStatusIndex);
+                        Message statusMsg = messages.get(existingStatusIndex);
+                        // Rule: The activity log replaces the status row ONLY when steps exist,
+                        // otherwise fall back to current orb-only status auto-dismiss behavior.
+                        if (statusMsg.steps != null && !statusMsg.steps.isEmpty()) {
+                            statusMsg.isLogFinished = true;
+                            if (statusMsg.elapsedSeconds == 0 && aiRunStartTime > 0) {
+                                statusMsg.elapsedSeconds = (int) Math.max(1, (System.currentTimeMillis() - aiRunStartTime + 500) / 1000);
+                            }
+                            statusMsg.isExpanded = false;
+                            for (ActivityStep s : statusMsg.steps) {
+                                if (s.status == ActivityStep.Status.RUNNING) {
+                                    s.status = ActivityStep.Status.DONE;
+                                }
+                            }
+                            adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
+                        } else {
+                            messages.remove(existingStatusIndex);
+                            adapter.notifyItemRemoved(existingStatusIndex);
+                        }
                     }
                 }
                 
@@ -577,7 +639,11 @@ public class SkAssistantFragment extends Fragment {
 
     public void finishAiRun() {
         isAiRunning = false;
+        stopElapsedTimer();
         setStatus(null);
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> updateSendButtonState(false));
+        }
     }
 
     private void updateSendButtonState(boolean isThinking) {
@@ -621,7 +687,7 @@ public class SkAssistantFragment extends Fragment {
 
     private boolean isReasoningActive() {
         for (Message msg : messages) {
-            if ("status".equals(msg.role)) return true;
+            if ("status".equals(msg.role) && !msg.isLogFinished) return true;
         }
         return false;
     }
@@ -629,6 +695,7 @@ public class SkAssistantFragment extends Fragment {
     public void cancelCurrentRequest() {
         isRequestCanceled = true;
         isAiRunning = false;
+        stopElapsedTimer();
         if (toolOrchestrator != null) {
             toolOrchestrator.cancel();
         }
@@ -669,6 +736,7 @@ public class SkAssistantFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        stopElapsedTimer();
         saveHistory();
         cancelCurrentRequest();
     }
@@ -1725,6 +1793,10 @@ public class SkAssistantFragment extends Fragment {
         List<Action> actions;
         JSONObject jsonData;
         boolean wasApplied;
+        List<ActivityStep> steps;
+        boolean isLogFinished;
+        int elapsedSeconds;
+        boolean isExpanded = true;
 
         static class Action {
             String type;
@@ -1820,6 +1892,7 @@ public class SkAssistantFragment extends Fragment {
     public static class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private static final int VIEW_TYPE_MESSAGE = 0;
         private static final int VIEW_TYPE_STATUS = 1;
+        private static final int VIEW_TYPE_ACTIVITY_LOG = 2;
         
         private final List<Message> messages;
         private final SkAssistantFragment fragment;
@@ -1847,7 +1920,11 @@ public class SkAssistantFragment extends Fragment {
 
         @Override
         public int getItemViewType(int position) {
-            if ("status".equals(messages.get(position).role)) {
+            Message msg = messages.get(position);
+            if ("status".equals(msg.role)) {
+                if (msg.steps != null && !msg.steps.isEmpty()) {
+                    return VIEW_TYPE_ACTIVITY_LOG;
+                }
                 return VIEW_TYPE_STATUS;
             }
             return VIEW_TYPE_MESSAGE;
@@ -1856,6 +1933,10 @@ public class SkAssistantFragment extends Fragment {
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == VIEW_TYPE_ACTIVITY_LOG) {
+                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_activity_log_card, parent, false);
+                return new ActivityLogViewHolder(v);
+            }
             if (viewType == VIEW_TYPE_STATUS) {
                 View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.sk_assistant_status_item, parent, false);
                 return new StatusViewHolder(v);
@@ -1864,32 +1945,107 @@ public class SkAssistantFragment extends Fragment {
             return new ViewHolder(v);
         }
 
+        private OrbState getOrbStateForMessage(Message msg) {
+            if (msg.isLogFinished) {
+                boolean hasFailed = false;
+                if (msg.steps != null) {
+                    for (ActivityStep s : msg.steps) {
+                        if (s.status == ActivityStep.Status.FAILED) {
+                            hasFailed = true;
+                            break;
+                        }
+                    }
+                }
+                return hasFailed ? OrbState.ERROR : OrbState.SUCCESS;
+            } else {
+                String currentLabel = msg.content;
+                if (msg.steps != null) {
+                    for (int i = msg.steps.size() - 1; i >= 0; i--) {
+                        if (msg.steps.get(i).status == ActivityStep.Status.RUNNING) {
+                            currentLabel = msg.steps.get(i).label;
+                            break;
+                        }
+                    }
+                }
+                return resolveOrbState(currentLabel);
+            }
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position, @NonNull List<Object> payloads) {
+            if (!payloads.isEmpty() && holder instanceof ActivityLogViewHolder) {
+                ActivityLogViewHolder logHolder = (ActivityLogViewHolder) holder;
+                Message msg = messages.get(position);
+
+                int elapsed = msg.elapsedSeconds;
+                if (elapsed <= 0 && fragment.aiRunStartTime > 0) {
+                    elapsed = (int) Math.max(1, (System.currentTimeMillis() - fragment.aiRunStartTime) / 1000);
+                }
+                logHolder.tvElapsed.setText("Worked for " + elapsed + "s");
+
+                if (payloads.contains("payload_steps")) {
+                    logHolder.tvTitle.setText(msg.isLogFinished ? "Processing complete" : "Working...");
+                    OrbState state = getOrbStateForMessage(msg);
+                    if (logHolder.currentOrbState != state) {
+                        logHolder.currentOrbState = state;
+                        ThinkingOrbHelper.setStatusContent(logHolder.composeOrb, state, null);
+                    }
+                    if (logHolder.rvSteps.getAdapter() instanceof ActivityLogAdapter) {
+                        ((ActivityLogAdapter) logHolder.rvSteps.getAdapter()).notifyDataSetChanged();
+                    } else if (msg.steps != null) {
+                        logHolder.rvSteps.setAdapter(new ActivityLogAdapter(msg.steps));
+                    }
+                }
+                return;
+            }
+            super.onBindViewHolder(holder, position, payloads);
+        }
+
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            if (holder instanceof ActivityLogViewHolder) {
+                ActivityLogViewHolder logHolder = (ActivityLogViewHolder) holder;
+                Message msg = messages.get(position);
+
+                logHolder.tvTitle.setText(msg.isLogFinished ? "Processing complete" : "Working...");
+
+                int elapsed = msg.elapsedSeconds;
+                if (elapsed <= 0 && fragment.aiRunStartTime > 0) {
+                    elapsed = (int) Math.max(1, (System.currentTimeMillis() - fragment.aiRunStartTime) / 1000);
+                }
+                logHolder.tvElapsed.setText("Worked for " + elapsed + "s");
+
+                OrbState state = getOrbStateForMessage(msg);
+                if (logHolder.currentOrbState != state) {
+                    logHolder.currentOrbState = state;
+                    ThinkingOrbHelper.setStatusContent(logHolder.composeOrb, state, null);
+                }
+
+                logHolder.ivChevron.setRotation(msg.isExpanded ? 90f : 0f);
+                logHolder.layoutBody.setVisibility(msg.isExpanded ? View.VISIBLE : View.GONE);
+
+                logHolder.layoutHeader.setOnClickListener(v -> {
+                    msg.isExpanded = !msg.isExpanded;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                        TransitionManager.beginDelayedTransition((ViewGroup) logHolder.itemView);
+                    }
+                    logHolder.layoutBody.setVisibility(msg.isExpanded ? View.VISIBLE : View.GONE);
+                    logHolder.ivChevron.animate().rotation(msg.isExpanded ? 90f : 0f).setDuration(200).start();
+                });
+
+                if (logHolder.rvSteps.getAdapter() instanceof ActivityLogAdapter) {
+                    ((ActivityLogAdapter) logHolder.rvSteps.getAdapter()).notifyDataSetChanged();
+                } else if (msg.steps != null) {
+                    logHolder.rvSteps.setAdapter(new ActivityLogAdapter(msg.steps));
+                }
+                return;
+            }
+
             if (holder instanceof StatusViewHolder) {
                 StatusViewHolder statusHolder = (StatusViewHolder) holder;
                 String status = messages.get(position).content;
-                
-                OrbState state = OrbState.WORKING;
-                if (status != null) {
-                    String lower = status.toLowerCase(java.util.Locale.US);
-                    if (lower.contains("error") || lower.contains("fail") || lower.contains("retry") || lower.contains("rate limit")) {
-                        state = OrbState.ERROR;
-                    } else if (lower.contains("searching") || lower.contains("fetching") || lower.contains("browsing") || lower.contains("web")) {
-                        state = OrbState.SEARCHING;
-                    } else if (lower.contains("mapping") || lower.contains("weaving")) {
-                        state = OrbState.WEAVING;
-                    } else if (lower.contains("thinking") || lower.contains("reasoning") || lower.contains("analyzing") || lower.contains("grasping")) {
-                        state = OrbState.THINKING;
-                    } else if (lower.contains("building") || lower.contains("applying") || lower.contains("patching") || lower.contains("injecting") || lower.contains("adding")) {
-                        state = OrbState.BUILDING;
-                    } else if (lower.contains("complete") || lower.contains("success") || lower.contains("done") || lower.contains("finished")) {
-                        state = OrbState.SUCCESS;
-                    }
-                }
-
-                OrbState finalState = state;
-                ThinkingOrbHelper.setStatusContent(statusHolder.composeView, finalState, status);
+                OrbState state = resolveOrbState(status);
+                ThinkingOrbHelper.setStatusContent(statusHolder.composeView, state, status);
                 return;
             }
 
@@ -2140,5 +2296,217 @@ public class SkAssistantFragment extends Fragment {
                 composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
             }
         }
+
+        static class ActivityLogViewHolder extends RecyclerView.ViewHolder {
+            ComposeView composeOrb;
+            TextView tvTitle;
+            TextView tvElapsed;
+            ImageView ivChevron;
+            LinearLayout layoutHeader;
+            LinearLayout layoutBody;
+            RecyclerView rvSteps;
+            OrbState currentOrbState;
+
+            ActivityLogViewHolder(View itemView) {
+                super(itemView);
+                composeOrb = itemView.findViewById(R.id.compose_header_orb);
+                tvTitle = itemView.findViewById(R.id.tv_header_title);
+                tvElapsed = itemView.findViewById(R.id.tv_header_elapsed);
+                ivChevron = itemView.findViewById(R.id.iv_chevron);
+                layoutHeader = itemView.findViewById(R.id.layout_header);
+                layoutBody = itemView.findViewById(R.id.layout_body);
+                rvSteps = itemView.findViewById(R.id.rv_steps);
+                composeOrb.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+                rvSteps.setLayoutManager(new LinearLayoutManager(itemView.getContext()));
+                RecyclerView.ItemAnimator childAnimator = rvSteps.getItemAnimator();
+                if (childAnimator instanceof SimpleItemAnimator) {
+                    ((SimpleItemAnimator) childAnimator).setSupportsChangeAnimations(false);
+                }
+            }
+        }
+    }
+
+    public static OrbState resolveOrbState(String text) {
+        OrbState state = OrbState.WORKING;
+        if (text != null) {
+            String lower = text.toLowerCase(java.util.Locale.US);
+            if (lower.contains("error") || lower.contains("fail") || lower.contains("retry") || lower.contains("rate limit")) {
+                state = OrbState.ERROR;
+            } else if (lower.contains("searching") || lower.contains("fetching") || lower.contains("browsing") || lower.contains("web")) {
+                state = OrbState.SEARCHING;
+            } else if (lower.contains("mapping") || lower.contains("weaving")) {
+                state = OrbState.WEAVING;
+            } else if (lower.contains("thinking") || lower.contains("reasoning") || lower.contains("analyzing") || lower.contains("grasping")) {
+                state = OrbState.THINKING;
+            } else if (lower.contains("building") || lower.contains("applying") || lower.contains("patching") || lower.contains("injecting") || lower.contains("adding")) {
+                state = OrbState.BUILDING;
+            } else if (lower.contains("complete") || lower.contains("success") || lower.contains("done") || lower.contains("finished")) {
+                state = OrbState.SUCCESS;
+            }
+        }
+        return state;
+    }
+
+    public static int getToolIconRes(String toolName) {
+        if (toolName == null) return R.drawable.ic_mtrl_terminal;
+        String lower = toolName.toLowerCase(java.util.Locale.US);
+        if (lower.contains("search") || lower.contains("find") || lower.contains("grep")) {
+            return R.drawable.ic_mtrl_search;
+        } else if (lower.contains("web") || lower.contains("url")) {
+            return R.drawable.ic_mtrl_web;
+        } else if (lower.contains("layout") || lower.contains("view")) {
+            return R.drawable.ic_mtrl_design;
+        } else if (lower.contains("java") || lower.contains("code") || lower.contains("method") || lower.contains("outline")) {
+            return R.drawable.ic_mtrl_code;
+        } else if (lower.contains("manifest") || lower.contains("permission")) {
+            return R.drawable.ic_mtrl_shield_lock;
+        } else if (lower.contains("component") || lower.contains("variable") || lower.contains("list") || lower.contains("block")) {
+            return R.drawable.ic_mtrl_component;
+        } else if (lower.contains("device")) {
+            return R.drawable.ic_mtrl_devices;
+        } else if (lower.contains("history")) {
+            return R.drawable.ic_mtrl_history;
+        }
+        return R.drawable.ic_mtrl_terminal;
+    }
+
+    public static String getFriendlyToolLabel(String toolName) {
+        if (toolName == null || toolName.trim().isEmpty()) return "Executing operation";
+        switch (toolName) {
+            case "read_file":
+                return "Reading code-editing behavior";
+            case "search_web":
+            case "web_search":
+                return "Searching the web";
+            case "read_url":
+                return "Reading webpage content";
+            case "list_files":
+                return "Listing project files";
+            case "find_files":
+                return "Finding files in project";
+            case "get_layout_xml":
+                return "Inspecting layout XML";
+            case "update_layout_xml":
+                return "Updating layout UI";
+            case "apply_layout_xml":
+                return "Applying layout changes";
+            case "find_manifest_entries":
+                return "Searching AndroidManifest";
+            case "add_java_imports":
+                return "Adding Java imports";
+            case "add_source_code":
+                return "Adding Java source code";
+            case "read_method":
+                return "Reading Java method";
+            case "list_methods":
+                return "Listing methods in file";
+            case "view_file_outline":
+                return "Inspecting file outline";
+            case "grep_code":
+                return "Searching codebase";
+            case "modify_java_file":
+            case "patch_java_file":
+                return "Patching Java file";
+            case "modify_manifest_xml":
+            case "patch_manifest_xml":
+                return "Modifying AndroidManifest";
+            case "toggle_local_library":
+                return "Configuring local library";
+            case "add_manifest_permission":
+                return "Adding Android permission";
+            case "add_sketchware_component":
+                return "Adding Sketchware component";
+            case "list_components":
+                return "Listing components";
+            case "apply_custom_view":
+                return "Applying custom view";
+            case "get_device_info":
+                return "Querying device metadata";
+            case "search_chat_history":
+                return "Searching chat history";
+            case "get_project_structure":
+                return "Inspecting project structure";
+            case "add_variables":
+                return "Adding project variables";
+            case "add_lists":
+                return "Adding project lists";
+            case "add_more_block":
+                return "Creating More Block function";
+            case "register_event":
+                return "Registering event listener";
+            case "create_activity":
+                return "Creating new activity";
+            default:
+                return "Running " + toolName;
+        }
+    }
+
+    public void onToolExecutionStarted(String toolName) {
+        if (getActivity() == null) return;
+        getActivity().runOnUiThread(() -> {
+            int existingStatusIndex = -1;
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message m = messages.get(i);
+                if ("status".equals(m.role) && !m.isLogFinished) {
+                    existingStatusIndex = i;
+                    break;
+                }
+            }
+
+            Message statusMsg;
+            if (existingStatusIndex != -1) {
+                statusMsg = messages.get(existingStatusIndex);
+            } else {
+                statusMsg = new Message("status", "Working...");
+                messages.add(statusMsg);
+                existingStatusIndex = messages.size() - 1;
+                adapter.notifyItemInserted(existingStatusIndex);
+            }
+
+            if (statusMsg.steps == null) {
+                statusMsg.steps = new ArrayList<>();
+            }
+
+            String label = getFriendlyToolLabel(toolName);
+            statusMsg.content = label;
+            ActivityStep step = new ActivityStep(toolName, label, ActivityStep.Status.RUNNING, System.currentTimeMillis());
+            statusMsg.steps.add(step);
+            statusMsg.isExpanded = true;
+
+            if (statusMsg.steps.size() == 1) {
+                adapter.notifyItemChanged(existingStatusIndex);
+            } else {
+                adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
+            }
+            scrollToBottom(false);
+        });
+    }
+
+    public void onToolExecutionFinished(String toolName, boolean success) {
+        if (getActivity() == null) return;
+        getActivity().runOnUiThread(() -> {
+            int existingStatusIndex = -1;
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message m = messages.get(i);
+                if ("status".equals(m.role) && !m.isLogFinished) {
+                    existingStatusIndex = i;
+                    break;
+                }
+            }
+
+            if (existingStatusIndex == -1) return;
+            Message statusMsg = messages.get(existingStatusIndex);
+            if (statusMsg.steps == null || statusMsg.steps.isEmpty()) return;
+
+            for (int i = statusMsg.steps.size() - 1; i >= 0; i--) {
+                ActivityStep s = statusMsg.steps.get(i);
+                if (s.status == ActivityStep.Status.RUNNING && (toolName == null || toolName.equals(s.toolName))) {
+                    s.status = success ? ActivityStep.Status.DONE : ActivityStep.Status.FAILED;
+                    break;
+                }
+            }
+
+            adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
+        });
     }
 }
