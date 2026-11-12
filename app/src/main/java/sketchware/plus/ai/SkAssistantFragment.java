@@ -164,6 +164,7 @@ public class SkAssistantFragment extends Fragment {
     private int retryCount = 0;
     private static final int MAX_RETRIES = 2;
     private volatile boolean isRequestCanceled = false;
+    private volatile boolean isAiRunning = false;
     private boolean isSendButtonThinking = false;
 
     public LayoutSpecialist layoutSpecialist;
@@ -362,7 +363,7 @@ public class SkAssistantFragment extends Fragment {
 
         btnSend.setOnClickListener(v -> {
             HapticManager.vibrateRun(v);
-            if (isSendButtonThinking || isReasoningActive()) {
+            if (isAiRunning || isSendButtonThinking || isReasoningActive()) {
                 cancelCurrentRequest();
             } else {
                 String prompt = etInput.getText().toString().trim();
@@ -497,6 +498,7 @@ public class SkAssistantFragment extends Fragment {
         log("User Prompt: " + prompt);
         this.lastUserPrompt = prompt;
         isRequestCanceled = false;
+        isAiRunning = true;
         Context context = getContext();
         if (context == null) return;
         
@@ -514,6 +516,8 @@ public class SkAssistantFragment extends Fragment {
             try { Thread.sleep(600); } catch (Exception ignored) {}
             if (getActivity() != null && !isRequestCanceled) {
                 getActivity().runOnUiThread(() -> routeRequest(prompt));
+            } else {
+                finishAiRun();
             }
         });
     }
@@ -527,7 +531,8 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void setStatus(String status) {
-        final boolean isThinking = status != null && !status.isEmpty();
+        final boolean isStatusPresent = status != null && !status.isEmpty();
+        final boolean isThinking = (isAiRunning || isStatusPresent) && !isRequestCanceled;
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 updateSendButtonState(isThinking);
@@ -568,6 +573,11 @@ public class SkAssistantFragment extends Fragment {
                 }
             });
         }
+    }
+
+    public void finishAiRun() {
+        isAiRunning = false;
+        setStatus(null);
     }
 
     private void updateSendButtonState(boolean isThinking) {
@@ -618,17 +628,27 @@ public class SkAssistantFragment extends Fragment {
 
     public void cancelCurrentRequest() {
         isRequestCanceled = true;
+        isAiRunning = false;
         if (toolOrchestrator != null) {
             toolOrchestrator.cancel();
         }
         AiClient.cancelCurrentRequest();
-        updateSendButtonState(false);
         setStatus(null);
+        updateSendButtonState(false);
 
-        messages.add(new Message("system", "AI response has been stopped."));
-        if (adapter != null) {
-            adapter.notifyItemInserted(messages.size() - 1);
-            scrollToBottom();
+        boolean alreadyAdded = false;
+        if (!messages.isEmpty()) {
+            Message last = messages.get(messages.size() - 1);
+            if ("system".equals(last.role) && "AI response has been stopped.".equals(last.content)) {
+                alreadyAdded = true;
+            }
+        }
+        if (!alreadyAdded) {
+            messages.add(new Message("system", "AI response has been stopped."));
+            if (adapter != null) {
+                adapter.notifyItemInserted(messages.size() - 1);
+                scrollToBottom();
+            }
         }
     }
 
@@ -898,7 +918,7 @@ public class SkAssistantFragment extends Fragment {
             public void onSuccess(String response) {
                 if (isRequestCanceled) return;
                 log("AI Response (" + category + "): " + response);
-                setStatus(null);
+                finishAiRun();
                 handleAiResponse(response, category);
             }
 
@@ -906,7 +926,7 @@ public class SkAssistantFragment extends Fragment {
             public void onSuccess(String response, int promptTokens, int completionTokens, int totalTokens) {
                 if (isRequestCanceled) return;
                 log("AI Response (" + category + "): " + response);
-                setStatus(null);
+                finishAiRun();
                 updateTokenUsage(promptTokens, completionTokens, totalTokens);
                 handleAiResponse(response, category);
             }
@@ -914,16 +934,16 @@ public class SkAssistantFragment extends Fragment {
             @Override
             public void onError(String error) {
                 log("AI Error (" + category + "): " + error);
-                setStatus(null);
-                restoreFailedPromptToEditText(error);
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        if (!"Canceled".equals(error)) {
+                finishAiRun();
+                if (!isRequestCanceled && !"Canceled".equals(error)) {
+                    restoreFailedPromptToEditText(error);
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
                             messages.add(new Message("system", "Error: " + error));
                             adapter.notifyItemInserted(messages.size() - 1);
                             scrollToBottom();
-                        }
-                    });
+                        });
+                    }
                 }
             }
 

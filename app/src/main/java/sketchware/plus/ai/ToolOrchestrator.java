@@ -103,6 +103,7 @@ public class ToolOrchestrator {
     public void cancel() {
         if (fragment != null) {
             fragment.log("ToolOrchestrator.cancel called");
+            fragment.setStatus(null);
         }
         isCanceled = true;
         AiClient.cancelCurrentRequest();
@@ -188,21 +189,25 @@ public class ToolOrchestrator {
         AiClient.askAi(context, finalSystemPrompt, chatHistory, AiClient.AiTemperatureType.ASSISTANT_MODE, tools, new AiClient.AiCallback() {
             @Override
             public void onSuccess(String response, int promptTokens, int completionTokens, int totalTokens) {
+                if (isCanceled) return;
                 lastAssistantMessage = response;
                 executionMetrics.recordApiCall(promptTokens, completionTokens, totalTokens);
                 
                 mainHandler.post(() -> {
+                    if (isCanceled) return;
                     fragment.updateTokenUsage(promptTokens, completionTokens, totalTokens);
                     fragment.addAssistantMessage(response);
-                    fragment.setStatus(null);
+                    fragment.finishAiRun();
                 });
             }
 
             @Override
             public void onToolCall(JSONArray toolCalls, String thought, int promptTokens, int completionTokens, int totalTokens) {
+                if (isCanceled) return;
                 executionMetrics.recordApiCall(promptTokens, completionTokens, totalTokens);
                 
                 mainHandler.post(() -> {
+                    if (isCanceled) return;
                     fragment.updateTokenUsage(promptTokens, completionTokens, totalTokens);
                     if (thought != null && !thought.trim().isEmpty()) {
                         fragment.setStatus(thought.trim());
@@ -214,15 +219,18 @@ public class ToolOrchestrator {
             @Override
             public void onError(String error) {
                 mainHandler.post(() -> {
-                    fragment.setStatus(null);
-                    fragment.restoreFailedPromptToEditText(error);
-                    fragment.addSystemMessage("Error: " + error);
+                    fragment.finishAiRun();
+                    if (!isCanceled && !"Canceled".equals(error)) {
+                        fragment.restoreFailedPromptToEditText(error);
+                        fragment.addSystemMessage("Error: " + error);
+                    }
                 });
             }
 
             @Override
             public void onRetry(int retryCount, long delayMillis) {
                 mainHandler.post(() -> {
+                    if (isCanceled) return;
                     SharedPreferences aiPref = fragment.getContext() != null ? fragment.getContext().getSharedPreferences("P12", Context.MODE_PRIVATE) : null;
                     String model = aiPref != null ? aiPref.getString("P12I5", "AI") : "AI";
                     if (model == null || model.isEmpty()) model = "AI";
@@ -233,7 +241,9 @@ public class ToolOrchestrator {
                     for (int sec = 1; sec <= totalSeconds; sec++) {
                         final int currentSec = sec;
                         mainHandler.postDelayed(() -> {
-                            fragment.setStatus(finalModel + " is generating... " + currentSec + "s");
+                            if (!isCanceled) {
+                                fragment.setStatus(finalModel + " is generating... " + currentSec + "s");
+                            }
                         }, currentSec * 1000L);
                     }
                 });
@@ -571,7 +581,10 @@ public class ToolOrchestrator {
                                 });
                             }
 
-                            mainHandler.postDelayed(() -> executeLoop(chatHistory), 800);
+                            mainHandler.postDelayed(() -> {
+                                if (isCanceled) return;
+                                executeLoop(chatHistory);
+                            }, 800);
 
                         } catch (Exception e) {
                             mainHandler.post(() -> {

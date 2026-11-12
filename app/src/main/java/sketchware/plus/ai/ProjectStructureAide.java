@@ -878,7 +878,21 @@ public class ProjectStructureAide {
 
         String target = targetId != null ? targetId.trim() : "";
         String evName = eventName.trim();
-        String kind = targetKind != null ? targetKind.trim().toLowerCase() : "view";
+        String kind = targetKind != null ? targetKind.trim().toLowerCase() : "";
+
+        if (kind.isEmpty()) {
+            boolean isComp = false;
+            ArrayList<ComponentBean> comps = dataManager.e(javaName);
+            if (comps != null) {
+                for (ComponentBean cb : comps) {
+                    if (cb != null && target.equalsIgnoreCase(cb.componentId)) {
+                        isComp = true;
+                        break;
+                    }
+                }
+            }
+            kind = isComp ? "component" : "view";
+        }
 
         synchronized (dataManager) {
             boolean registered = LogicIrBridge.ensureEventRegistered(dataManager, javaName, kind, target, evName);

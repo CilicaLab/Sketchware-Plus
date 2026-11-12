@@ -47,12 +47,12 @@ public class AssistantToolRegistry {
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
-        t.put(createTool("add_source_code", "PREFERRED tool to add manual Java code to activity onCreate / initializeLogic or custom More Block via 'Add source directly' block. Use this whenever adding manual code to an activity or More Block.",
+        t.put(createTool("add_source_code", "PREFERRED tool to add manual Java code to activity onCreate / initializeLogic, view events (e.g. button1_onClick), component events (e.g. timer1_onTimer), or custom More Block via 'Add source directly' block. Use this whenever adding manual code.",
                 new ParameterBuilder()
                         .addProperty("code", "string", "Java code snippet to add via 'Add source directly' block")
                         .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
                         .addProperty("moreBlockName", "string", "optional More Block name (e.g. 'calculateTotal') to add manual code into that More Block")
-                        .addProperty("eventKey", "string", "optional event key (e.g. 'onCreate_initializeLogic' or '<funcName>_moreBlock')")
+                        .addProperty("eventKey", "string", "optional event key (e.g. 'onCreate_initializeLogic', 'button1_onClick', 'timer1_onTimer', or '<funcName>_moreBlock')")
                         .setRequired("code").build()));
 
         t.put(createTool("read_method", "Read a method's source",
@@ -165,7 +165,7 @@ public class AssistantToolRegistry {
         t.put(createTool("register_event", "Register an activity, view, or component event listener to obtain an eventKey.",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("targetKind", "string", "activity|view|component (default 'view')")
+                        .addProperty("targetKind", "string", "activity|view|component (default auto-detects from targetId)")
                         .addProperty("targetId", "string", "target ID, e.g. button1, timer1, onCreate")
                         .addProperty("eventName", "string", "event name, e.g. onClick, onTimer, initializeLogic")
                         .setRequired("targetId", "eventName").build()));

@@ -241,6 +241,9 @@ public class AssistantImportInjector {
         synchronized (screenConfigHandler) {
             String targetEventKey = (eventKey != null && !eventKey.trim().isEmpty())
                     ? eventKey.trim() : "onCreate_initializeLogic";
+
+            LogicIrBridge.ensureEventRegistered(screenConfigHandler, javaName, targetEventKey);
+
             ArrayList<BlockBean> blocks = screenConfigHandler.a(javaName, targetEventKey);
             if (blocks == null) {
                 blocks = new ArrayList<>();

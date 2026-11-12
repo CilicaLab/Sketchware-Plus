@@ -797,18 +797,36 @@ public class LogicIrBridge {
         String eventKey = (targetId != null && !targetId.isEmpty()) ? (targetId + "_" + eventName) : (eventName + "_" + eventName);
         eventKey = normalizeEventKey(eventKey);
 
+        boolean isComponentTarget = false;
+        ArrayList<ComponentBean> components = manager.e(javaName);
+        if (components != null && cleanTargetId != null) {
+            for (ComponentBean cb : components) {
+                if (cb != null && cleanTargetId.equalsIgnoreCase(cb.componentId)) {
+                    isComponentTarget = true;
+                    break;
+                }
+            }
+        }
+
         int eventType = EventBean.EVENT_TYPE_ACTIVITY;
         int targetType = 0;
 
-        if ("view".equalsIgnoreCase(targetKind)) {
+        if (isComponentTarget || "component".equalsIgnoreCase(targetKind)) {
+            eventType = EventBean.EVENT_TYPE_COMPONENT;
+            targetType = resolveComponentTargetType(manager, javaName, cleanTargetId, eventName);
+        } else if ("view".equalsIgnoreCase(targetKind)) {
             eventType = EventBean.EVENT_TYPE_VIEW;
             targetType = resolveViewTargetType(manager, scId, javaName, cleanTargetId);
         } else if ("drawer_view".equalsIgnoreCase(targetKind)) {
             eventType = EventBean.EVENT_TYPE_DRAWER_VIEW;
             targetType = resolveDrawerViewTargetType(manager, scId, javaName, cleanTargetId);
-        } else if ("component".equalsIgnoreCase(targetKind)) {
-            eventType = EventBean.EVENT_TYPE_COMPONENT;
-            targetType = resolveComponentTargetType(manager, javaName, cleanTargetId);
+        } else if ("activity".equalsIgnoreCase(targetKind)) {
+            eventType = EventBean.EVENT_TYPE_ACTIVITY;
+            targetType = 0;
+        } else {
+            eventType = isComponentTarget ? EventBean.EVENT_TYPE_COMPONENT : EventBean.EVENT_TYPE_VIEW;
+            targetType = isComponentTarget ? resolveComponentTargetType(manager, javaName, cleanTargetId, eventName)
+                    : resolveViewTargetType(manager, scId, javaName, cleanTargetId);
         }
 
         ArrayList<EventBean> events = manager.g(javaName);
@@ -818,9 +836,16 @@ public class LogicIrBridge {
 
         for (EventBean eb : events) {
             if (eb != null && eventKey.equalsIgnoreCase(eb.targetId + "_" + eb.eventName)) {
-                // If existing event was stored with invalid targetType (-1 or <= 0), auto-heal it
-                if (eb.targetType <= 0 && eventType != EventBean.EVENT_TYPE_ACTIVITY) {
+                boolean needSave = false;
+                if (isComponentTarget && eb.eventType != EventBean.EVENT_TYPE_COMPONENT) {
+                    eb.eventType = EventBean.EVENT_TYPE_COMPONENT;
                     eb.targetType = targetType;
+                    needSave = true;
+                } else if (eb.targetType <= 0 && eventType != EventBean.EVENT_TYPE_ACTIVITY) {
+                    eb.targetType = targetType;
+                    needSave = true;
+                }
+                if (needSave) {
                     manager.k();
                 }
                 return true;
@@ -842,7 +867,7 @@ public class LogicIrBridge {
         ArrayList<ViewBean> views = manager.d(xmlName);
         if (views != null && targetId != null) {
             for (ViewBean vb : views) {
-                if (vb != null && targetId.equals(vb.id)) {
+                if (vb != null && targetId.equalsIgnoreCase(vb.id)) {
                     return vb.type;
                 }
             }
@@ -855,7 +880,7 @@ public class LogicIrBridge {
             ArrayList<ViewBean> drawerViews = manager.d(pfb.getDrawerXmlName());
             if (drawerViews != null && targetId != null) {
                 for (ViewBean dvb : drawerViews) {
-                    if (dvb != null && targetId.equals(dvb.id)) {
+                    if (dvb != null && targetId.equalsIgnoreCase(dvb.id)) {
                         return dvb.type;
                     }
                 }
@@ -873,7 +898,7 @@ public class LogicIrBridge {
             ArrayList<ViewBean> drawerViews = manager.d(pfb.getDrawerXmlName());
             if (drawerViews != null && targetId != null) {
                 for (ViewBean dvb : drawerViews) {
-                    if (dvb != null && targetId.equals(dvb.id)) {
+                    if (dvb != null && targetId.equalsIgnoreCase(dvb.id)) {
                         return dvb.type;
                     }
                 }
@@ -882,16 +907,36 @@ public class LogicIrBridge {
         return ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
     }
 
-    private static int resolveComponentTargetType(eC manager, String javaName, String targetId) {
+    private static int resolveComponentTargetType(eC manager, String javaName, String targetId, String eventName) {
         ArrayList<ComponentBean> components = manager.e(javaName);
         if (components != null && targetId != null) {
             for (ComponentBean cb : components) {
-                if (cb != null && targetId.equals(cb.componentId)) {
+                if (cb != null && targetId.equalsIgnoreCase(cb.componentId)) {
                     return cb.type;
                 }
             }
         }
+        if (eventName != null) {
+            String evLower = eventName.toLowerCase();
+            if (evLower.contains("timer")) return ComponentBean.COMPONENT_TYPE_TIMERTASK;
+            if (evLower.contains("response") || evLower.contains("network")) return ComponentBean.COMPONENT_TYPE_REQUEST_NETWORK;
+            if (evLower.contains("picture")) return ComponentBean.COMPONENT_TYPE_CAMERA;
+            if (evLower.contains("filespicked")) return ComponentBean.COMPONENT_TYPE_FILE_PICKER;
+            if (evLower.contains("speech")) return ComponentBean.COMPONENT_TYPE_SPEECH_TO_TEXT;
+            if (evLower.contains("sensor")) return ComponentBean.COMPONENT_TYPE_GYROSCOPE;
+            if (evLower.contains("interstitial")) return ComponentBean.COMPONENT_TYPE_INTERSTITIAL_AD;
+            if (evLower.contains("reward")) return ComponentBean.COMPONENT_TYPE_REWARDED_VIDEO_AD;
+            if (evLower.contains("child") || evLower.contains("cancelled")) return ComponentBean.COMPONENT_TYPE_FIREBASE;
+            if (evLower.contains("usercomplete") || evLower.contains("signin") || evLower.contains("auth")) return ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH;
+            if (evLower.contains("progress") || evLower.contains("download") || evLower.contains("upload")) return ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE;
+            if (evLower.contains("singletap")) return ComponentBean.COMPONENT_TYPE_INTENT;
+            if (evLower.contains("animation")) return ComponentBean.COMPONENT_TYPE_OBJECTANIMATOR;
+        }
         return 1; // Default to Intent component
+    }
+
+    private static int resolveComponentTargetType(eC manager, String javaName, String targetId) {
+        return resolveComponentTargetType(manager, javaName, targetId, null);
     }
 
     public static boolean ensureEventRegistered(eC manager, String rawJavaName, String eventKey) {
@@ -907,7 +952,7 @@ public class LogicIrBridge {
                 ArrayList<ComponentBean> components = manager.e(javaName);
                 if (components != null) {
                     for (ComponentBean cb : components) {
-                        if (cb != null && targetId.equals(cb.componentId)) {
+                        if (cb != null && targetId.equalsIgnoreCase(cb.componentId)) {
                             isComponent = true;
                             break;
                         }
