@@ -169,7 +169,7 @@ public class ToolOrchestrator {
         }
 
         iterationCount++;
-        fragment.setStatus("Thinking...");
+        fragment.setStatus("Picturing...");
 
         // Build base system prompt once and cache it
         if (baseSystemPrompt == null) {
@@ -237,7 +237,7 @@ public class ToolOrchestrator {
 
                     final String finalModel = model;
                     final long totalSeconds = Math.max(1L, delayMillis / 1000L);
-                    fragment.setStatus(finalModel + " is generating... 1s");
+                    fragment.setStatus(finalModel + " is truncating... 1s");
                     for (int sec = 1; sec <= totalSeconds; sec++) {
                         final int currentSec = sec;
                         mainHandler.postDelayed(() -> {
@@ -267,42 +267,31 @@ public class ToolOrchestrator {
 
     private String buildBaseSystemPrompt() {
         if (fragment.getActivity() instanceof SkAssistantDialog.CodeEditorProvider) {
-            SkAssistantDialog.CodeEditorProvider provider = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
-            return "You are SK Assistant editing " + provider.getFileName() + " in SrcCodeEditor for Sketchware Plus.\n" +
-                    "CURRENT FILE CONTENT:\n" + provider.getCodeText() + "\n\n" +
-                    "RULES:\n" +
-                    "1. Analyze the current file content above.\n" +
-                    "2. NORMAL CONVERSATION: If the user is engaging in normal conversation, asking a question, or chatting (without requesting code/XML edits), respond naturally, helpfully, and conversationally without forcing tool calls.\n" +
-                    "3. RECALLING PAST CONTEXT: If the user references past conversation history and you need context, you may call 'search_chat_history'. If you already understand what the user is referring to, reply directly without calling any tools.\n" +
-                    "4. When updating or patching code/XML, use update_layout_xml, modify_java_file, or modify_manifest_xml, supplying the complete updated code or patch in 'xml' or 'inputCode'.\n" +
-                    "5. Call only tools from the provided list. Never invent tools.\n" +
-                    "6. When an action or code edit is requested, execute the tool promptly.\n" +
-                    "7. When finished, reply with a brief summary of changes and make no tool calls.\n" +
-                    "8. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. Execute ONCE and immediately reply to the user.\n" +
-                    "9. CRITICAL PACKAGE RULE: Always preserve and include the 'package <package_name>;' statement at line 1 of Java/Kotlin source files.";
+            SkAssistantDialog.CodeEditorProvider p = (SkAssistantDialog.CodeEditorProvider) fragment.getActivity();
+            return "You're SK Assistant, helping edit " + p.getFileName() + " in Sketchware Plus's code editor.\n" +
+                    "Current file:\n" + p.getCodeText() + "\n\n" +
+                    "If the user is just chatting or asking something, answer normally. " +
+                    "If they want a change, use update_layout_xml, modify_java_file or modify_manifest_xml with the full updated code in 'xml' or 'inputCode'. " +
+                    "Use search_chat_history only if you need earlier context. " +
+                    "Only use tools you were given, never repeat a tool call that already worked, and finish with a short summary.\n" +
+                    "Always keep the 'package <name>;' line at the top of Java/Kotlin files.";
         }
-        return "You are SK Assistant for Sketchware Plus.\n" +
-                "Project: " + fragment.scId + " (" + fragment.projectFile.getJavaName() + ")\n\n" +
-                "RULES:\n" +
-                "1. NORMAL CONVERSATION & CHAT: If the user is just talking naturally, asking a question, asking for advice, or chatting (without requesting project edits or code inspection), reply directly, naturally, and conversationally. You do NOT need to call any tools for normal conversation.\n" +
-                "2. RECALLING PAST CHAT: If the user asks about something previously discussed and you need context, you may use 'search_chat_history'. If you already understand what the user is referring to, reply directly without calling any tools.\n" +
-                "3. Inspect before acting when project tasks are requested. Use get_layout_xml, view_file_outline, list_methods, find_manifest_entries, " +
-                "list_files, find_files, grep_code, search_chat_history, list_components.\n" +
-                "4. Call only tools from the provided list. Never invent tools.\n" +
-                "5. Never web search component IDs. Use list_components.\n" +
-                "6. When a project modification or inspection is requested, execute the required tool promptly.\n" +
-                "7. Modifying layouts and UI views: ALWAYS use update_layout_xml to modify, add, or update Activity layout views. NEVER use modify_manifest_xml for layout/view XML files like main.xml or Activity layouts.\n" +
-                "8. Manifest inspection & patching: Use find_manifest_entries when checking permissions, activities, or manifest tags. Use modify_manifest_xml EXCLUSIVELY for AndroidManifest.xml (NEVER use modify_manifest_xml for layout/view XML).\n" +
-                "9. toggle_local_library: LOCAL libs only, use the EXACT folder name (with version) from " +
-                "AVAILABLE LOCAL LIBRARIES. Built-in libs (AppCompat, Firebase, AdMob, Google Maps) are read-only.\n" +
-                "10. No redundant tool calls. Reuse info already retrieved.\n" +
-                "11. Tool arguments MUST be valid, strict JSON matching the tool schema. Never output raw XML tags (such as <tool_call> or <function=...>) for tool calls.\n" +
-                "12. When finished, reply with a brief summary of changes and make no tool calls.\n" +
-                "13. CRITICAL ANTI-LOOP RULE: NEVER repeat a tool call or action that has already successfully completed in history. If asked to do something again, execute it ONCE and immediately stop, replying with a final summary.\n" +
-                "14. EXCESSIVE SEARCH/READ PREVENTION: Do not call search or read tools (like search_chat_history, grep_code, etc.) more than 3 times consecutively. Synthesize your findings and reply to the user.\n" +
-                "15. SAFETY & SCOPE REFUSAL RULE: If the user requests anything outside Sketchware Plus mobile app development parameters, Java/XML coding, or requests destructive, harmful, or out-of-scope actions that could damage or corrupt the project (such as deleting system files, modifying unrelated data, or impossible tasks), you MUST refuse the request and explain why clearly to the user. Never execute destructive or out-of-scope operations.\n" +
-                "16. AUTO-NAMING RULE: When the user asks to create a variable, list, activity, function (More Block), or component without specifying a name, you do NOT need to ask for a name. You can omit the name/id argument or pass an empty string, and the system will automatically generate a unique, collision-free name for it.\n" +
-                "17. MORE BLOCKS & MANUAL CODE: When creating a More Block that requires manual Java code, supply the manual code in the 'body_java' parameter of 'add_more_block', which automatically inserts an 'Add source directly' block inside the More Block. To add manual Java code to an existing More Block or event, use 'add_source_code' specifying 'moreBlockName' or 'eventKey'.";
+        return "You're SK Assistant, helping with the Sketchware Plus project " + fragment.scId +
+                " (" + fragment.projectFile.getJavaName() + ").\n\n" +
+                "If the user is just chatting or asking for advice, answer normally. " +
+                "For project work, look before you change things (get_layout_xml, view_file_outline, list_methods, find_manifest_entries, list_files, find_files, grep_code, list_components) " +
+                "and reuse what you already found instead of re-fetching. Don't loop on searches, stop after about 6 and answer. " +
+                "Use search_chat_history only if you need earlier context. Only use tools you were given, and use list_components for component IDs instead of web searching.\n\n" +
+                "Important stuff:\n" +
+                "- Layout/view XML goes through update_layout_xml only. AndroidManifest.xml goes through modify_manifest_xml only.\n" +
+                "- toggle_local_library works on local libs only, using the exact folder name (with version) from AVAILABLE LOCAL LIBRARIES. Built-in libs are read-only.\n" +
+                "- Tool args must be strict valid JSON, never raw XML tool tags.\n" +
+                "- Never repeat a tool call that already succeeded. Do it once, then reply.\n" +
+                "- Refuse anything destructive, out of scope, or likely to corrupt the project, and say why.\n\n" +
+                "Good to know: if the user doesn't name a new variable/list/activity/More Block/component, leave the name empty and it gets auto-generated. " +
+                "For a More Block with manual Java, put the code in 'body_java' of add_more_block. " +
+                "For an existing More Block or event, use add_source_code with 'moreBlockName' or 'eventKey'.\n\n" +
+                "When done, give a short summary and stop calling tools.";
     }
 
     private String buildMetricsContext() {
@@ -510,7 +499,7 @@ public class ToolOrchestrator {
 
                 if (allReadOrSearch) {
                     consecutiveReadSearchCount += toolCalls.length();
-                    if (consecutiveReadSearchCount >= 3) {
+                    if (consecutiveReadSearchCount >= 10) {
                         try {
                             JSONObject toolResultMsg = new JSONObject();
                             toolResultMsg.put("role", "tool");

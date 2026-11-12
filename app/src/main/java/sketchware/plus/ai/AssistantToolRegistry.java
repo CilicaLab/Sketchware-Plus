@@ -20,97 +20,97 @@ public class AssistantToolRegistry {
         t.put(createTool("web_search", "Search web (DuckDuckGo)",
                 new ParameterBuilder().addProperty("query", "string", "query").setRequired("query").build()));
 
-        t.put(createTool("read_url", "Fetch content of a URL",
+        t.put(createTool("read_url", "Fetch URL content",
                 new ParameterBuilder().addProperty("url", "string", "full URL").setRequired("url").build()));
 
-        t.put(createTool("list_files", "List Java/Kotlin/XML files in project",
+        t.put(createTool("list_files", "List project Java/Kotlin/XML files",
                 new ParameterBuilder().build()));
 
         t.put(createTool("find_files", "Find files by name",
-                new ParameterBuilder().addProperty("query", "string", "file name or part").setRequired("query").build()));
+                new ParameterBuilder().addProperty("query", "string", "name or part").setRequired("query").build()));
 
-        t.put(createTool("get_layout_xml", "Get current activity XML + view hierarchy",
+        t.put(createTool("get_layout_xml", "Get activity XML + view hierarchy",
                 new ParameterBuilder().build()));
 
-        t.put(createTool("update_layout_xml", "REQUIRED tool to create, modify, or update Activity UI layout views. ALWAYS use update_layout_xml for any view or layout edits (NEVER use modify_manifest_xml for layouts).",
+        t.put(createTool("update_layout_xml", "Create/modify activity layout views (never manifest)",
                 new ParameterBuilder()
-                        .addProperty("xml", "string", "full valid layout XML")
+                        .addProperty("xml", "string", "full layout XML")
                         .addProperty("summary", "string", "what changed")
                         .setRequired("xml", "summary").build()));
 
-        t.put(createTool("find_manifest_entries", "PREFERRED tool to search/inspect AndroidManifest.xml for permissions, activities, services, tags, or keywords. ALWAYS use find_manifest_entries instead of get_manifest_xml whenever looking for specific entries in the manifest.",
-                new ParameterBuilder().addProperty("query", "string", "keyword, tag, or permission to search (e.g. 'permission', 'activity', 'INTERNET', 'service', 'all')").setRequired("query").build()));
+        t.put(createTool("find_manifest_entries", "Search AndroidManifest.xml for permissions, activities, services, tags",
+                new ParameterBuilder().addProperty("query", "string", "keyword/tag/permission, or 'all'").setRequired("query").build()));
 
-        t.put(createTool("add_java_imports", "Add Java imports to current activity",
+        t.put(createTool("add_java_imports", "Add imports to activity",
                 new ParameterBuilder()
                         .addProperty("packages", "array", "e.g. [\"java.util.List\"]", "string")
-                        .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
+                        .addProperty("javaName", "string", "optional file, e.g. MainActivity.java")
                         .setRequired("packages").build()));
 
-        t.put(createTool("add_source_code", "PREFERRED tool to add manual Java code to activity onCreate / initializeLogic, view events (e.g. button1_onClick), component events (e.g. timer1_onTimer), or custom More Block via 'Add source directly' block. Use this whenever adding manual code.",
+        t.put(createTool("add_source_code", "Add manual Java via 'Add source directly' block in onCreate/initializeLogic, a view/component event, or a More Block",
                 new ParameterBuilder()
-                        .addProperty("code", "string", "Java code snippet to add via 'Add source directly' block")
-                        .addProperty("javaName", "string", "optional target java file name, e.g. MainActivity.java")
-                        .addProperty("moreBlockName", "string", "optional More Block name (e.g. 'calculateTotal') to add manual code into that More Block")
-                        .addProperty("eventKey", "string", "optional event key (e.g. 'onCreate_initializeLogic', 'button1_onClick', 'timer1_onTimer', or '<funcName>_moreBlock')")
+                        .addProperty("code", "string", "Java snippet")
+                        .addProperty("javaName", "string", "optional file, e.g. MainActivity.java")
+                        .addProperty("moreBlockName", "string", "optional More Block name")
+                        .addProperty("eventKey", "string", "optional event key, e.g. onCreate_initializeLogic, button1_onClick, <funcName>_moreBlock")
                         .setRequired("code").build()));
 
-        t.put(createTool("read_method", "Read a method's source",
+        t.put(createTool("read_method", "Read method source",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "file, e.g. MainActivity.java")
-                        .addProperty("methodName", "string", "method name")
+                        .addProperty("javaName", "string", "file")
+                        .addProperty("methodName", "string", "method")
                         .setRequired("javaName", "methodName").build()));
 
-        t.put(createTool("list_methods", "List method names in a file",
-                new ParameterBuilder().addProperty("javaName", "string", "file name").setRequired("javaName").build()));
+        t.put(createTool("list_methods", "List method names in file",
+                new ParameterBuilder().addProperty("javaName", "string", "file").setRequired("javaName").build()));
 
-        t.put(createTool("view_file_outline", "Get class structure outline (package, fields, method signatures with line numbers) without dumping full source",
-                new ParameterBuilder().addProperty("javaName", "string", "file name, e.g. MainActivity.java").setRequired("javaName").build()));
+        t.put(createTool("view_file_outline", "Class outline (package, fields, method signatures + line numbers)",
+                new ParameterBuilder().addProperty("javaName", "string", "file").setRequired("javaName").build()));
 
-        t.put(createTool("grep_code", "Search keyword in a file, returns lines w/ context",
+        t.put(createTool("grep_code", "Search keyword in file, returns lines with context",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "file name")
+                        .addProperty("javaName", "string", "file")
                         .addProperty("query", "string", "keyword/snippet")
                         .addProperty("contextLines", "integer", "default 2")
                         .setRequired("javaName", "query").build()));
 
-        t.put(createTool("modify_java_file", "Modify/patch generated source code",
+        t.put(createTool("modify_java_file", "Patch generated source",
                 new ParameterBuilder()
                         .addProperty("javaName", "string", "target file")
                         .addProperty("reference", "string", "EXACT anchor line")
                         .addProperty("command", "string", "insert|add|replace|find-replace")
                         .addProperty("inputCode", "string", "new code")
-                        .addProperty("distance", "integer", "line offset from anchor, default 0")
+                        .addProperty("distance", "integer", "offset from anchor, default 0")
                         .addProperty("front", "integer", "lines to delete before anchor")
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("javaName", "reference", "command", "inputCode").build()));
 
-        t.put(createTool("modify_manifest_xml", "Modify/patch AndroidManifest.xml via XML Command Manager. EXCLUSIVELY for AndroidManifest.xml! NEVER use modify_manifest_xml for layout/view XML files like main.xml or Activity layouts (use update_layout_xml for layout/view changes).",
+        t.put(createTool("modify_manifest_xml", "Patch AndroidManifest.xml only (never layouts)",
                 new ParameterBuilder()
-                        .addProperty("xmlName", "string", "MUST BE 'AndroidManifest.xml'. Do NOT use for layout/view XML files.")
-                        .addProperty("reference", "string", "EXACT anchor line in XML")
+                        .addProperty("xmlName", "string", "must be 'AndroidManifest.xml'")
+                        .addProperty("reference", "string", "EXACT anchor line")
                         .addProperty("command", "string", "insert|add|replace|find-replace|find-replace-first|find-replace-all")
-                        .addProperty("inputCode", "string", "new XML code")
-                        .addProperty("distance", "integer", "line offset from anchor, default 0")
+                        .addProperty("inputCode", "string", "new XML")
+                        .addProperty("distance", "integer", "offset from anchor, default 0")
                         .addProperty("front", "integer", "lines to delete before anchor")
                         .addProperty("back", "integer", "lines to delete after anchor")
                         .setRequired("xmlName", "reference", "command", "inputCode").build()));
 
-        t.put(createTool("toggle_local_library", "Enable/disable (toggle) local library",
+        t.put(createTool("toggle_local_library", "Enable/disable local library",
                 new ParameterBuilder()
-                        .addProperty("libraryName", "string", "library folder name")
+                        .addProperty("libraryName", "string", "folder name")
                         .addProperty("enabled", "boolean", "true=enable")
                         .setRequired("libraryName", "enabled").build()));
 
-        t.put(createTool("add_manifest_permission", "Add permission to AndroidManifest.xml",
+        t.put(createTool("add_manifest_permission", "Add manifest permission",
                 new ParameterBuilder().addProperty("permission", "string", "e.g. android.permission.CAMERA")
                         .setRequired("permission").build()));
 
-        t.put(createTool("add_sketchware_component", "Add Sketchware component(s) to activity",
+        t.put(createTool("add_sketchware_component", "Add component(s) to activity",
                 new ParameterBuilder()
                         .addProperty("type", "integer", "type ID from list_components")
-                        .addProperty("id", "string", "optional unique instance name or prefix (e.g. 'vibrator' or 'intent'). If omitted, a unique ID is auto-generated.")
-                        .addProperty("count", "integer", "Optional number of components of this type to add at once (default 1). E.g. set to 10 or 500 for batch addition.")
+                        .addProperty("id", "string", "optional name/prefix, auto-generated if empty")
+                        .addProperty("count", "integer", "optional batch count, default 1")
                         .setRequired("type").build()));
 
         t.put(createTool("list_components", "List built-in + custom components",
@@ -119,64 +119,64 @@ public class AssistantToolRegistry {
         t.put(createTool("apply_custom_view", "Create/update custom view XML",
                 new ParameterBuilder()
                         .addProperty("name", "string", "view name")
-                        .addProperty("xml", "string", "XML content")
+                        .addProperty("xml", "string", "XML")
                         .setRequired("name", "xml").build()));
 
-        t.put(createTool("get_device_info", "Get real-time device metadata (date, time, timezone, device model, Android OS, display metrics, battery, memory, storage)",
+        t.put(createTool("get_device_info", "Device metadata (time, hardware, display, battery, memory, storage)",
                 new ParameterBuilder()
-                        .addProperty("category", "string", "optional category filter: all|time|hardware|display|battery|memory")
+                        .addProperty("category", "string", "optional: all|time|hardware|display|battery|memory")
                         .build()));
 
-        t.put(createTool("search_chat_history", "Search through past messages and full conversation chat history by keyword, role, or range. Use this to recall prior user instructions, context, code snippets, or previous actions.",
+        t.put(createTool("search_chat_history", "Search past messages to recall earlier instructions/context/code",
                 new ParameterBuilder()
-                        .addProperty("query", "string", "Optional keyword or phrase to search for in message content")
-                        .addProperty("role", "string", "Optional role filter: user|assistant|system|all (default 'all')")
-                        .addProperty("limit", "integer", "Optional maximum number of messages to return (default 15, max 50)")
-                        .addProperty("startIndex", "integer", "Optional 0-based index to start search from, or negative for counting from recent history (e.g. -15)")
+                        .addProperty("query", "string", "optional keyword")
+                        .addProperty("role", "string", "optional: user|assistant|system|all (default all)")
+                        .addProperty("limit", "integer", "optional, default 15, max 50")
+                        .addProperty("startIndex", "integer", "optional start index, negative = from recent (e.g. -15)")
                         .build()));
 
-        t.put(createTool("get_project_structure", "Inspect project activities, custom views, variables, lists, more blocks, components, view IDs, and events.",
+        t.put(createTool("get_project_structure", "Inspect activities, custom views, variables, lists, More Blocks, components, view IDs, events",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "optional activity file name, e.g. MainActivity.java or main")
+                        .addProperty("javaName", "string", "optional activity, e.g. MainActivity.java")
                         .build()));
 
-        t.put(createTool("add_variables", "Add variables to an activity.",
+        t.put(createTool("add_variables", "Add variables to activity",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("items", "array", "Array of variable objects, e.g. [{\"name\": \"count\", \"type\": \"number\"}]. The 'name' field is optional; if omitted or empty, a unique name is auto-generated.")
+                        .addProperty("javaName", "string", "optional activity")
+                        .addProperty("items", "array", "e.g. [{\"name\":\"count\",\"type\":\"number\"}]; name optional, auto-generated")
                         .setRequired("items").build()));
 
-        t.put(createTool("add_lists", "Add list variables (ListInt, ListString, ListMap) to an activity.",
+        t.put(createTool("add_lists", "Add lists (ListInt, ListString, ListMap) to activity",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("items", "array", "Array of list objects, e.g. [{\"name\": \"userList\", \"type\": \"string\"}]. The 'name' field is optional; if omitted or empty, a unique name is auto-generated.")
+                        .addProperty("javaName", "string", "optional activity")
+                        .addProperty("items", "array", "e.g. [{\"name\":\"userList\",\"type\":\"string\"}]; name optional, auto-generated")
                         .setRequired("items").build()));
 
-        t.put(createTool("add_more_block", "Create a custom function (More Block) in an activity. If 'body_java' is provided, it is added as manual code inside an 'Add source directly' block.",
+        t.put(createTool("add_more_block", "Create More Block (custom function). 'body_java' is added via 'Add source directly' block",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("name", "string", "optional function name, e.g. calculateTotal. If omitted or empty, a unique name is auto-generated.")
-                        .addProperty("params", "array", "optional array of parameter objects or string names. Parameter objects have 'name' (string) and 'type' (enum: string, number, boolean, map, list string, list map, view). Default parameter type is string.")
-                        .addPropertyEnum("returnType", "string", "optional return type", new String[]{"void", "string", "number", "boolean", "map", "list string", "list map", "view"})
-                        .addProperty("body_java", "string", "optional Java implementation for function body. Added via 'Add source directly' block.")
-                        .addProperty("allow_empty_on_body_error", "boolean", "optional flag (default false).")
+                        .addProperty("javaName", "string", "optional activity")
+                        .addProperty("name", "string", "optional, auto-generated if empty")
+                        .addProperty("params", "array", "optional; strings or {name, type} (string|number|boolean|map|list string|list map|view), default string")
+                        .addPropertyEnum("returnType", "string", "optional", new String[]{"void", "string", "number", "boolean", "map", "list string", "list map", "view"})
+                        .addProperty("body_java", "string", "optional Java body")
+                        .addProperty("allow_empty_on_body_error", "boolean", "optional, default false")
                         .build()));
 
-        t.put(createTool("register_event", "Register an activity, view, or component event listener to obtain an eventKey.",
+        t.put(createTool("register_event", "Register activity/view/component event listener, returns eventKey",
                 new ParameterBuilder()
-                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
-                        .addProperty("targetKind", "string", "activity|view|component (default auto-detects from targetId)")
-                        .addProperty("targetId", "string", "target ID, e.g. button1, timer1, onCreate")
-                        .addProperty("eventName", "string", "event name, e.g. onClick, onTimer, initializeLogic")
+                        .addProperty("javaName", "string", "optional activity")
+                        .addProperty("targetKind", "string", "activity|view|component (auto-detected if omitted)")
+                        .addProperty("targetId", "string", "e.g. button1, timer1, onCreate")
+                        .addProperty("eventName", "string", "e.g. onClick, onTimer, initializeLogic")
                         .setRequired("targetId", "eventName").build()));
 
-        t.put(createTool("create_activity", "Create a new Activity in the project.",
+        t.put(createTool("create_activity", "Create new Activity",
                 new ParameterBuilder()
-                        .addProperty("name", "string", "optional activity name (without .java), e.g. DetailActivity. If omitted or empty, a unique name is auto-generated.")
-                        .addProperty("options", "object", "optional features: {\"toolbar\": true, \"fullscreen\": false, \"drawer\": false, \"fab\": false}")
-                        .addProperty("orientation", "integer", "orientation: 0=portrait, 1=landscape, 2=both (default 0)")
-                        .addProperty("keyboard", "integer", "keyboard setting: 0=unspecified, 1=visible, 2=hidden (default 0)")
-                        .addProperty("layout_xml", "string", "optional initial layout XML content")
+                        .addProperty("name", "string", "optional, no .java, auto-generated if empty")
+                        .addProperty("options", "object", "optional: {toolbar, fullscreen, drawer, fab} booleans")
+                        .addProperty("orientation", "integer", "0=portrait, 1=landscape, 2=both (default 0)")
+                        .addProperty("keyboard", "integer", "0=unspecified, 1=visible, 2=hidden (default 0)")
+                        .addProperty("layout_xml", "string", "optional initial layout XML")
                         .build()));
 
         return t;
