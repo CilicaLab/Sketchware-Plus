@@ -81,6 +81,11 @@ public class AssistantImportInjector {
             return false;
         }
 
+        String resolvedJava = ProjectStructureAide.findActivityJavaName(scId, javaName, javaName);
+        if (resolvedJava != null && !resolvedJava.trim().isEmpty()) {
+            javaName = resolvedJava;
+        }
+
         eC screenConfigHandler = jC.a(scId);
         if (screenConfigHandler == null) {
             return false;
@@ -231,6 +236,11 @@ public class AssistantImportInjector {
 
         if (scId == null || scId.isEmpty() || javaName == null || javaName.isEmpty()) {
             return false;
+        }
+
+        String resolvedJava = ProjectStructureAide.findActivityJavaName(scId, javaName, javaName);
+        if (resolvedJava != null && !resolvedJava.trim().isEmpty()) {
+            javaName = resolvedJava;
         }
 
         eC screenConfigHandler = jC.a(scId);

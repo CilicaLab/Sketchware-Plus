@@ -290,7 +290,7 @@ public class ToolOrchestrator {
                 "- Refuse anything destructive, out of scope, or likely to corrupt the project, and say why.\n\n" +
                 "Good to know: if the user doesn't name a new variable/list/activity/More Block/component, leave the name empty and it gets auto-generated. " +
                 "For a More Block with manual Java, put the code in 'body_java' of add_more_block. " +
-                "For an existing More Block or event, use add_source_code with 'moreBlockName' or 'eventKey'.\n\n" +
+                "To add manual Java to any event (view, component, or activity) or More Block, use add_source_code. For view/component events, specify 'eventKey' (e.g. button1_onClick, net_onResponse, auth_onSignInUserComplete) or 'targetId' + 'eventName'. For More Blocks use 'moreBlockName'. For onCreate use 'onCreate_initializeLogic' or leave eventKey empty.\n\n" +
                 "When done, give a short summary and stop calling tools.";
     }
 
@@ -696,7 +696,16 @@ public class ToolOrchestrator {
                 String codeToAdd = args.getString("code");
                 String targetJava = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "main");
                 String mbName = args.optString("moreBlockName", args.optString("moreBlock", ""));
-                String evKey = args.optString("eventKey", "");
+                String evKey = args.optString("eventKey", args.optString("event", ""));
+                if (evKey.isEmpty()) {
+                    String targetId = args.optString("targetId", args.optString("componentId", args.optString("component", args.optString("viewId", ""))));
+                    String eventName = args.optString("eventName", "");
+                    if (!targetId.isEmpty() && !eventName.isEmpty()) {
+                        evKey = targetId + "_" + eventName;
+                    } else if (!eventName.isEmpty()) {
+                        evKey = eventName;
+                    }
+                }
                 if (!mbName.isEmpty()) {
                     evKey = mbName.endsWith("_moreBlock") ? mbName : (mbName + "_moreBlock");
                 }
@@ -964,8 +973,8 @@ public class ToolOrchestrator {
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
                 String javaName = args.optString("javaName", fragment.projectFile != null ? fragment.projectFile.getJavaName() : "MainActivity.java");
-                String targetKind = args.optString("targetKind", "view");
-                String targetId = args.getString("targetId");
+                String targetKind = args.optString("targetKind", "");
+                String targetId = args.optString("targetId", args.optString("componentId", ""));
                 String eventName = args.getString("eventName");
                 final String[] res = new String[1];
                 runOnMainSync(() -> {

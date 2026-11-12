@@ -891,6 +891,9 @@ public class ProjectStructureAide {
                     }
                 }
             }
+            if (!isComp && LogicIrBridge.isKnownComponentEvent(evName)) {
+                isComp = true;
+            }
             kind = isComp ? "component" : "view";
         }
 

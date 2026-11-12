@@ -784,6 +784,93 @@ public class LogicIrBridge {
         return trimmed;
     }
 
+    public static boolean isKnownComponentEvent(String eventName) {
+        if (eventName == null || eventName.trim().isEmpty()) return false;
+        return getComponentTypeForEvent(eventName) != 0;
+    }
+
+    public static int getComponentTypeForEvent(String eventName) {
+        if (eventName == null || eventName.trim().isEmpty()) return 0;
+        String ev = eventName.trim();
+        String evLower = ev.toLowerCase();
+
+        // 1. RequestNetwork (17)
+        if (evLower.contains("response") || evLower.contains("network")) return ComponentBean.COMPONENT_TYPE_REQUEST_NETWORK;
+
+        // 2. FilePicker (16)
+        if (evLower.contains("filespicked")) return ComponentBean.COMPONENT_TYPE_FILE_PICKER;
+
+        // 3. Camera (15)
+        if (evLower.contains("picturetaken")) return ComponentBean.COMPONENT_TYPE_CAMERA;
+
+        // 4. FirebaseDB (6)
+        if (evLower.contains("childadded") || evLower.contains("childchanged") ||
+                evLower.contains("childremoved") || evLower.contains("childmoved") ||
+                evLower.equals("oncancelled")) return ComponentBean.COMPONENT_TYPE_FIREBASE;
+
+        // 5. FirebaseAuth (12)
+        if (evLower.contains("usercomplete") || evLower.contains("signinuser") ||
+                evLower.contains("createuser") || evLower.contains("resetpassword") ||
+                evLower.contains("updateemail") || evLower.contains("updatepassword") ||
+                evLower.contains("emailverification") || evLower.contains("deleteuser") ||
+                evLower.contains("updateprofile") || evLower.contains("googlesignin")) {
+            return ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH;
+        }
+
+        // 6. Gyroscope (11)
+        if (evLower.contains("sensorchanged")) return ComponentBean.COMPONENT_TYPE_GYROSCOPE;
+
+        // 7. InterstitialAd (13)
+        if (evLower.contains("interstitial")) return ComponentBean.COMPONENT_TYPE_INTERSTITIAL_AD;
+
+        // 8. RewardedVideoAd (22)
+        if (evLower.contains("rewardad") || evLower.contains("userearnedreward")) return ComponentBean.COMPONENT_TYPE_REWARDED_VIDEO_AD;
+
+        // 9. FirebaseStorage (14)
+        if (evLower.contains("uploadprogress") || evLower.contains("downloadprogress") ||
+                evLower.contains("uploadsuccess") || evLower.contains("downloadsuccess") ||
+                evLower.contains("deletesuccess")) return ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE;
+
+        // 10. SpeechToText (19)
+        if (evLower.contains("speechresult") || evLower.contains("speecherror")) return ComponentBean.COMPONENT_TYPE_SPEECH_TO_TEXT;
+
+        // 11. BluetoothConnect (20)
+        if (evLower.contains("connected") || evLower.contains("datareceived") ||
+                evLower.contains("datasent") || evLower.contains("connectionerror") ||
+                evLower.contains("connectionstopped")) return ComponentBean.COMPONENT_TYPE_BLUETOOTH_CONNECT;
+
+        // 12. LocationManager (21)
+        if (evLower.contains("locationchanged")) return ComponentBean.COMPONENT_TYPE_LOCATION_MANAGER;
+
+        // 13. ObjectAnimator (10)
+        if (evLower.contains("animationstart") || evLower.contains("animationend") ||
+                evLower.contains("animationcancel")) return ComponentBean.COMPONENT_TYPE_OBJECTANIMATOR;
+
+        // 14. FragmentAdapter (27)
+        if (evLower.contains("tabadded") || evLower.contains("fragmentadded")) return ComponentBean.COMPONENT_TYPE_FRAGMENT_ADAPTER;
+
+        // 15. TimePickerDialog (25)
+        if (evLower.contains("timeset")) return ComponentBean.COMPONENT_TYPE_TIME_PICKER_DIALOG;
+
+        // 16. DatePickerDialog (24)
+        if (evLower.contains("dateset") || evLower.contains("datechanged")) return ComponentBean.COMPONENT_TYPE_DATE_PICKER_DIALOG;
+
+        // 17. FirebasePhoneAuth (28)
+        if (evLower.contains("verificationcompleted") || evLower.contains("verificationfailed") ||
+                evLower.contains("codesent")) return ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_PHONE;
+
+        // 18. FirebaseCloudMessage (29)
+        if (evLower.contains("completeregister")) return ComponentBean.COMPONENT_TYPE_FIREBASE_CLOUD_MESSAGE;
+
+        // 19. FirebaseGoogleLogin (30)
+        if (evLower.contains("accountpicker")) return ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_GOOGLE_LOGIN;
+
+        // 20. Timer (5)
+        if (evLower.contains("timer") || evLower.contains("tick")) return ComponentBean.COMPONENT_TYPE_TIMERTASK;
+
+        return 0;
+    }
+
     public static boolean ensureEventRegistered(eC manager, String rawJavaName, String targetKind, String targetId, String eventName) {
         if (manager == null || rawJavaName == null || rawJavaName.trim().isEmpty() || eventName == null || eventName.trim().isEmpty()) {
             return false;
@@ -798,14 +885,24 @@ public class LogicIrBridge {
         eventKey = normalizeEventKey(eventKey);
 
         boolean isComponentTarget = false;
+        ComponentBean matchedComponent = null;
         ArrayList<ComponentBean> components = manager.e(javaName);
         if (components != null && cleanTargetId != null) {
             for (ComponentBean cb : components) {
                 if (cb != null && cleanTargetId.equalsIgnoreCase(cb.componentId)) {
                     isComponentTarget = true;
+                    matchedComponent = cb;
+                    cleanTargetId = cb.componentId; // Preserve exact casing
                     break;
                 }
             }
+        }
+
+        if (!isComponentTarget && ("component".equalsIgnoreCase(targetKind) || isKnownComponentEvent(eventName))) {
+            isComponentTarget = true;
+            int inferredType = resolveComponentTargetType(manager, javaName, cleanTargetId, eventName);
+            manager.a(javaName, inferredType, cleanTargetId);
+            manager.k();
         }
 
         int eventType = EventBean.EVENT_TYPE_ACTIVITY;
@@ -813,7 +910,7 @@ public class LogicIrBridge {
 
         if (isComponentTarget || "component".equalsIgnoreCase(targetKind)) {
             eventType = EventBean.EVENT_TYPE_COMPONENT;
-            targetType = resolveComponentTargetType(manager, javaName, cleanTargetId, eventName);
+            targetType = matchedComponent != null ? matchedComponent.type : resolveComponentTargetType(manager, javaName, cleanTargetId, eventName);
         } else if ("view".equalsIgnoreCase(targetKind)) {
             eventType = EventBean.EVENT_TYPE_VIEW;
             targetType = resolveViewTargetType(manager, scId, javaName, cleanTargetId);
@@ -835,7 +932,8 @@ public class LogicIrBridge {
         }
 
         for (EventBean eb : events) {
-            if (eb != null && eventKey.equalsIgnoreCase(eb.targetId + "_" + eb.eventName)) {
+            if (eb != null && (eventKey.equalsIgnoreCase(eb.targetId + "_" + eb.eventName)
+                    || (cleanTargetId.equalsIgnoreCase(eb.targetId) && eventName.equalsIgnoreCase(eb.eventName)))) {
                 boolean needSave = false;
                 if (isComponentTarget && eb.eventType != EventBean.EVENT_TYPE_COMPONENT) {
                     eb.eventType = EventBean.EVENT_TYPE_COMPONENT;
@@ -916,23 +1014,28 @@ public class LogicIrBridge {
                 }
             }
         }
-        if (eventName != null) {
-            String evLower = eventName.toLowerCase();
-            if (evLower.contains("timer")) return ComponentBean.COMPONENT_TYPE_TIMERTASK;
-            if (evLower.contains("response") || evLower.contains("network")) return ComponentBean.COMPONENT_TYPE_REQUEST_NETWORK;
-            if (evLower.contains("picture")) return ComponentBean.COMPONENT_TYPE_CAMERA;
-            if (evLower.contains("filespicked")) return ComponentBean.COMPONENT_TYPE_FILE_PICKER;
-            if (evLower.contains("speech")) return ComponentBean.COMPONENT_TYPE_SPEECH_TO_TEXT;
-            if (evLower.contains("sensor")) return ComponentBean.COMPONENT_TYPE_GYROSCOPE;
-            if (evLower.contains("interstitial")) return ComponentBean.COMPONENT_TYPE_INTERSTITIAL_AD;
-            if (evLower.contains("reward")) return ComponentBean.COMPONENT_TYPE_REWARDED_VIDEO_AD;
-            if (evLower.contains("child") || evLower.contains("cancelled")) return ComponentBean.COMPONENT_TYPE_FIREBASE;
-            if (evLower.contains("usercomplete") || evLower.contains("signin") || evLower.contains("auth")) return ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH;
-            if (evLower.contains("progress") || evLower.contains("download") || evLower.contains("upload")) return ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE;
-            if (evLower.contains("singletap")) return ComponentBean.COMPONENT_TYPE_INTENT;
-            if (evLower.contains("animation")) return ComponentBean.COMPONENT_TYPE_OBJECTANIMATOR;
+        int byEvent = getComponentTypeForEvent(eventName);
+        if (byEvent != 0) return byEvent;
+
+        if (targetId != null) {
+            String tLower = targetId.toLowerCase();
+            if (tLower.contains("net") || tLower.contains("req")) return ComponentBean.COMPONENT_TYPE_REQUEST_NETWORK;
+            if (tLower.contains("timer") || tLower.contains("time")) return ComponentBean.COMPONENT_TYPE_TIMERTASK;
+            if (tLower.contains("auth")) return ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH;
+            if (tLower.contains("fdb") || tLower.contains("firebase")) return ComponentBean.COMPONENT_TYPE_FIREBASE;
+            if (tLower.contains("storage")) return ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE;
+            if (tLower.contains("cam")) return ComponentBean.COMPONENT_TYPE_CAMERA;
+            if (tLower.contains("picker") || tLower.contains("file")) return ComponentBean.COMPONENT_TYPE_FILE_PICKER;
+            if (tLower.contains("anim")) return ComponentBean.COMPONENT_TYPE_OBJECTANIMATOR;
+            if (tLower.contains("ad") || tLower.contains("interstitial")) return ComponentBean.COMPONENT_TYPE_INTERSTITIAL_AD;
+            if (tLower.contains("reward")) return ComponentBean.COMPONENT_TYPE_REWARDED_VIDEO_AD;
+            if (tLower.contains("speech")) return ComponentBean.COMPONENT_TYPE_SPEECH_TO_TEXT;
+            if (tLower.contains("blue") || tLower.contains("bt")) return ComponentBean.COMPONENT_TYPE_BLUETOOTH_CONNECT;
+            if (tLower.contains("loc")) return ComponentBean.COMPONENT_TYPE_LOCATION_MANAGER;
+            if (tLower.contains("dialog")) return ComponentBean.COMPONENT_TYPE_DIALOG;
         }
-        return 1; // Default to Intent component
+
+        return ComponentBean.COMPONENT_TYPE_REQUEST_NETWORK;
     }
 
     private static int resolveComponentTargetType(eC manager, String javaName, String targetId) {
@@ -941,26 +1044,69 @@ public class LogicIrBridge {
 
     public static boolean ensureEventRegistered(eC manager, String rawJavaName, String eventKey) {
         if (manager == null || eventKey == null || eventKey.trim().isEmpty()) return false;
+        eventKey = normalizeEventKey(eventKey);
         if (eventKey.contains("_")) {
-            String[] parts = eventKey.split("_", 2);
-            String targetId = parts[0];
-            String eventName = parts[1];
             String scId = manager.a;
             String javaName = ProjectStructureAide.findActivityJavaName(scId, rawJavaName, rawJavaName);
             boolean isComponent = false;
+            String targetId = null;
+            String eventName = null;
+
             if (javaName != null) {
                 ArrayList<ComponentBean> components = manager.e(javaName);
                 if (components != null) {
                     for (ComponentBean cb : components) {
-                        if (cb != null && targetId.equalsIgnoreCase(cb.componentId)) {
-                            isComponent = true;
-                            break;
+                        if (cb != null && cb.componentId != null) {
+                            String prefix = cb.componentId.toLowerCase() + "_";
+                            if (eventKey.toLowerCase().startsWith(prefix)) {
+                                targetId = cb.componentId;
+                                eventName = eventKey.substring(cb.componentId.length() + 1);
+                                isComponent = true;
+                                break;
+                            }
                         }
                     }
                 }
             }
+
+            if (targetId == null) {
+                int lastUnderscore = eventKey.lastIndexOf('_');
+                if (lastUnderscore > 0) {
+                    String candidateEvent = eventKey.substring(lastUnderscore + 1);
+                    if (isKnownComponentEvent(candidateEvent)) {
+                        targetId = eventKey.substring(0, lastUnderscore);
+                        eventName = candidateEvent;
+                        isComponent = true;
+                    }
+                }
+            }
+
+            if (targetId == null) {
+                String[] parts = eventKey.split("_", 2);
+                targetId = parts[0];
+                eventName = parts[1];
+                if (isKnownComponentEvent(eventName)) {
+                    isComponent = true;
+                }
+            }
+
             return ensureEventRegistered(manager, rawJavaName, isComponent ? "component" : "view", targetId, eventName);
         } else {
+            if (isKnownComponentEvent(eventKey)) {
+                String scId = manager.a;
+                String javaName = ProjectStructureAide.findActivityJavaName(scId, rawJavaName, rawJavaName);
+                if (javaName != null) {
+                    int compType = getComponentTypeForEvent(eventKey);
+                    ArrayList<ComponentBean> components = manager.e(javaName);
+                    if (components != null) {
+                        for (ComponentBean cb : components) {
+                            if (cb != null && cb.type == compType) {
+                                return ensureEventRegistered(manager, rawJavaName, "component", cb.componentId, eventKey);
+                            }
+                        }
+                    }
+                }
+            }
             return ensureEventRegistered(manager, rawJavaName, "activity", eventKey, eventKey);
         }
     }

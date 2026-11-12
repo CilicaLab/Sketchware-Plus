@@ -331,6 +331,24 @@ public class ProjectSnapshot {
         } else {
             sb.append("none");
         }
+        sb.append("\nRegistered Events: ");
+        if (eventsMap != null && !eventsMap.isEmpty()) {
+            java.util.List<String> evInfo = new java.util.ArrayList<>();
+            for (Map.Entry<String, ArrayList<EventBean>> entry : eventsMap.entrySet()) {
+                if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                    java.util.List<String> evs = new java.util.ArrayList<>();
+                    for (EventBean eb : entry.getValue()) {
+                        if (eb != null) {
+                            evs.add(eb.getEventKey() + " [" + EventBean.getEventTypeName(eb.eventType) + "]");
+                        }
+                    }
+                    evInfo.add(entry.getKey() + " -> {" + String.join(", ", evs) + "}");
+                }
+            }
+            sb.append(String.join("; ", evInfo));
+        } else {
+            sb.append("none");
+        }
         return sb.toString();
     }
 }

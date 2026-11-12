@@ -52,7 +52,10 @@ public class AssistantToolRegistry {
                         .addProperty("code", "string", "Java snippet")
                         .addProperty("javaName", "string", "optional file, e.g. MainActivity.java")
                         .addProperty("moreBlockName", "string", "optional More Block name")
-                        .addProperty("eventKey", "string", "optional event key, e.g. onCreate_initializeLogic, button1_onClick, <funcName>_moreBlock")
+                        .addProperty("eventKey", "string", "optional event key, e.g. onCreate_initializeLogic, button1_onClick, net_onResponse, auth_onSignInUserComplete, <funcName>_moreBlock")
+                        .addProperty("targetId", "string", "optional view or component ID, e.g. button1, net, fauth")
+                        .addProperty("eventName", "string", "optional event name, e.g. onClick, onResponse, onChildAdded")
+                        .addProperty("targetKind", "string", "optional activity|view|component")
                         .setRequired("code").build()));
 
         t.put(createTool("read_method", "Read method source",
