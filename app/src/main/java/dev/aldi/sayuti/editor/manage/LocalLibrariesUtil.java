@@ -21,6 +21,21 @@ import mod.hey.studios.util.Helper;
 public class LocalLibrariesUtil {
     private static final String localLibsPath = getExternalStorageDir().concat("/.sketchware/libs/local_libs/");
 
+    public static List<String> getAllLocalLibraryNames() {
+        File dir = new File(localLibsPath);
+        File[] files = dir.listFiles();
+        List<String> names = new ArrayList<>();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    names.add(file.getName());
+                }
+            }
+            names.sort(String.CASE_INSENSITIVE_ORDER);
+        }
+        return names;
+    }
+
     public static List<LocalLibrary> getAllLocalLibraries() {
         ArrayList<File> localLibraryFiles = new ArrayList<>();
         listDirAsFile(localLibsPath, localLibraryFiles);

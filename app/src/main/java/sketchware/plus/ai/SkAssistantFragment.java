@@ -969,6 +969,13 @@ public class SkAssistantFragment extends Fragment {
     }
 
     public void addSystemMessage(String content) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            Activity activity = getActivity();
+            if (activity != null) {
+                activity.runOnUiThread(() -> addSystemMessage(content));
+            }
+            return;
+        }
         messages.add(new Message("system", content));
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
@@ -1201,8 +1208,33 @@ public class SkAssistantFragment extends Fragment {
         });
     }
 
+    private String buildLibraryContext() {
+        List<String> available = LocalLibrariesUtil.getAllLocalLibraryNames();
+        List<String> enabled = new ArrayList<>();
+        for (HashMap<String, Object> lib : LocalLibrariesUtil.getLocalLibraries(scId)) {
+            Object n = lib.get("name");
+            if (n instanceof String) enabled.add((String) n);
+        }
+
+        StringBuilder sb = new StringBuilder("ENABLED LOCAL LIBRARIES (can be disabled):\n");
+        if (enabled.isEmpty()) sb.append("none\n");
+        for (String n : enabled) sb.append("- ").append(n).append("\n");
+
+        sb.append("\nAVAILABLE TO ENABLE:\n");
+        boolean any = false;
+        for (String n : available) {
+            if (!enabled.contains(n)) {
+                sb.append("- ").append(n).append("\n");
+                any = true;
+            }
+        }
+        if (!any) sb.append("none\n");
+        return sb.toString();
+    }
+
     public String gatherScopedContext(Context context, String category, String prompt) {
         try {
+            if ("LIBRARY_MANAGER".equals(category)) return buildLibraryContext();
             eC dataManager = jC.a(scId);
             hC fileManager = jC.b(scId);
             iC libraryManager = jC.c(scId);
@@ -1256,25 +1288,25 @@ public class SkAssistantFragment extends Fragment {
                                     }
                                 }
                             }
-                        } else if ("LIBRARY_MANAGER".equals(category)) {
-                            List<LocalLibrary> available = LocalLibrariesUtil.getAllLocalLibraries();
+                        } /*else if ("LIBRARY_MANAGER".equals(category)) {
+                            List<String> available = LocalLibrariesUtil.getAllLocalLibraryNames();
                             if (available.isEmpty()) {
                                 sb.append("No local libraries found in /.sketchware/libs/local_libs/.\n");
                             } else {
                                 ArrayList<HashMap<String, Object>> enabled = LocalLibrariesUtil.getLocalLibraries(scId);
                                 sb.append("AVAILABLE LOCAL LIBRARIES:\n");
-                                for (LocalLibrary ll : available) {
+                                for (String libName : available) {
                                     boolean isEnabled = false;
                                     for (HashMap<String, Object> lib : enabled) {
-                                        if (ll.getName().equals(lib.get("name"))) {
+                                        if (libName.equals(lib.get("name"))) {
                                             isEnabled = true;
                                             break;
                                         }
                                     }
-                                    sb.append("- ").append(ll.getName()).append(isEnabled ? " [ENABLED]" : " [AVAILABLE]").append("\n");
+                                    sb.append("- ").append(libName).append(isEnabled ? " [ENABLED]" : " [AVAILABLE]").append("\n");
                                 }
                             }
-                        } else if ("SYSTEM_MANIFEST".equals(category)) {
+                        }*/ else if ("SYSTEM_MANIFEST".equals(category)) {
                             sb.append("Manifest Overview: Full manifest XML is omitted from context to save tokens.\n");
                             sb.append("Use the SEARCH_MANIFEST action (with query: \"permission\", \"activity\", \"service\", \"receiver\", or a specific keyword) to inspect sections of AndroidManifest.xml.\n");
                         } else if ("CUSTOM_DESIGN".equals(category) || "COMPONENT_ARCHITECT".equals(category)) {
@@ -1327,6 +1359,7 @@ public class SkAssistantFragment extends Fragment {
             return "Error gathering context: " + e.getMessage();
         }
     }
+
 
     private String gatherContext(Context context, String userPrompt) {
         LogicEditorActivity logicActivity = null;
@@ -1384,22 +1417,22 @@ public class SkAssistantFragment extends Fragment {
                         }
 
                         // Local Libraries
-                        List<LocalLibrary> available = LocalLibrariesUtil.getAllLocalLibraries();
+                        List<String> available = LocalLibrariesUtil.getAllLocalLibraryNames();
                         if (!available.isEmpty()) {
                             ArrayList<HashMap<String, Object>> enabled = LocalLibrariesUtil.getLocalLibraries(scId);
                             sb.append("\nLocal Libraries:\n");
-                            for (LocalLibrary ll : available) {
+                            for (String libName : available) {
                                 boolean isEnabled = false;
                                 for (HashMap<String, Object> lib : enabled) {
-                                    if (ll.getName().equals(lib.get("name"))) {
+                                    if (libName.equals(lib.get("name"))) {
                                         isEnabled = true;
                                         break;
                                     }
                                 }
                                 if (isEnabled) {
-                                    sb.append("- ").append(ll.getName()).append(" [ENABLED]\n");
+                                    sb.append("- ").append(libName).append(" [ENABLED]\n");
                                 } else if (userPrompt.toLowerCase().contains("library") || userPrompt.toLowerCase().contains("enable")) {
-                                    sb.append("- ").append(ll.getName()).append(" [AVAILABLE]\n");
+                                    sb.append("- ").append(libName).append(" [AVAILABLE]\n");
                                 }
                             }
                         }

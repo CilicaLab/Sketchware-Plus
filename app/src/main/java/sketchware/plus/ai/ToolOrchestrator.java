@@ -824,11 +824,9 @@ public class ToolOrchestrator {
                 fragment.setUndoVisible(true);
                 String libName = args.getString("libraryName");
                 boolean libEnabled = args.getBoolean("enabled");
-                runOnMainSync(() -> {
-                    if (libEnabled) fragment.librarySpecialist.applyLocalLibrary(libName);
-                    else fragment.librarySpecialist.disableLocalLibrary(libName);
-                    fragment.refreshDesigner();
-                });
+                if (libEnabled) fragment.librarySpecialist.applyLocalLibrary(libName);
+                else fragment.librarySpecialist.disableLocalLibrary(libName);
+                fragment.refreshDesigner();
                 return "Request to " + (libEnabled ? "enable" : "disable") + " local library '" + libName + "' completed.";
 
             case "add_manifest_permission":
