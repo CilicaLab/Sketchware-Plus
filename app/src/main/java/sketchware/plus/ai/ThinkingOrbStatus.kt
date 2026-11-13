@@ -1,5 +1,6 @@
 package sketchware.plus.ai
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,19 @@ object ThinkingOrbHelper {
     fun setStatusContent(view: ComposeView, state: OrbState, statusText: String?) {
         view.setContent {
             ThinkingOrbStatus(state = state, statusText = statusText)
+        }
+    }
+
+    @JvmStatic
+    fun getOrbColor(state: OrbState): Int {
+        return when (state) {
+            OrbState.WORKING -> 0xFF2C9BA8.toInt()
+            OrbState.SEARCHING -> 0xFFFFB300.toInt()
+            OrbState.WEAVING -> 0xFF7C4DFF.toInt()
+            OrbState.THINKING -> 0xFFAB47BC.toInt()
+            OrbState.BUILDING -> 0xFF2196F3.toInt()
+            OrbState.ERROR -> 0xFFFF5252.toInt()
+            OrbState.SUCCESS -> 0xFF4CAF50.toInt()
         }
     }
 }
@@ -70,7 +84,7 @@ fun ThinkingOrbStatus(
         0f
     }
 
-    val effectiveDotColor = when (state) {
+    val targetColor = when (state) {
         OrbState.WORKING -> Color(0xFF2C9BA8)   // Electric Cyan
         OrbState.SEARCHING -> Color(0xFFFFB300) // Golden Amber
         OrbState.WEAVING -> Color(0xFF7C4DFF)   // Deep Indigo/Violet
@@ -79,6 +93,12 @@ fun ThinkingOrbStatus(
         OrbState.ERROR -> Color(0xFFFF5252)     // Alert Coral Red
         OrbState.SUCCESS -> Color(0xFF4CAF50)   // Emerald Green
     }
+
+    val effectiveDotColor by animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = tween(400),
+        label = "orb_color"
+    )
 
     Row(
         modifier = modifier.padding(vertical = 4.dp),

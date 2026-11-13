@@ -36,9 +36,13 @@
 
             <TextView
                 android:id="@+id/tv_header_title"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:layout_marginStart="10dp"
+                android:layout_marginEnd="8dp"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:text="Working..."
                 android:textColor="?attr/colorViolet"
                 android:textSize="13sp"
@@ -46,10 +50,10 @@
 
             <TextView
                 android:id="@+id/tv_header_elapsed"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:singleLine="true"
                 android:text="Worked for 0s"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="11sp" />

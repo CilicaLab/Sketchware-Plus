@@ -509,7 +509,7 @@ public class ToolOrchestrator {
                             chatHistory.put(toolResultMsg);
 
                             mainHandler.post(() -> {
-                                fragment.setStatus(null);
+                                fragment.setStatus("Thinking...");
                                 executeLoop(chatHistory);
                             });
                             return;
@@ -525,7 +525,6 @@ public class ToolOrchestrator {
                     public void onToolStart(String toolName) {
                         mainHandler.post(() -> {
                             fragment.onToolExecutionStarted(toolName);
-                            fragment.setStatus("Executing: " + toolName + "...");
                             HapticManager.vibrateToolCall();
                         });
                     }
@@ -563,12 +562,6 @@ public class ToolOrchestrator {
                                 if (!result.toolName.matches("(list_.*|get_.*|read_.*|search_.*|web_.*)")) {
                                     hasWriteTools = true;
                                 }
-
-                                // Update UI with per-tool timing
-                                mainHandler.post(() -> {
-                                    String statusMsg = "Completed: " + result.toolName;
-                                    fragment.setStatus(statusMsg);
-                                });
                             }
 
                             // Refresh designer ONCE per batch if write tools were executed
@@ -577,6 +570,10 @@ public class ToolOrchestrator {
                                     fragment.refreshDesigner();
                                 });
                             }
+
+                            mainHandler.post(() -> {
+                                fragment.setStatus("Thinking...");
+                            });
 
                             mainHandler.postDelayed(() -> {
                                 if (isCanceled) return;

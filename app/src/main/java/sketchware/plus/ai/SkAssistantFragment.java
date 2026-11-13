@@ -173,6 +173,11 @@ public class SkAssistantFragment extends Fragment {
     public long aiRunStartTime = 0;
     private final Handler elapsedTimerHandler = new Handler(Looper.getMainLooper());
     private Runnable elapsedTimerRunnable;
+    private static final String[] VERBS = {
+            "Simmered", "Cooked", "Grinded", "Locked in", "Vibed", "Yapped",
+            "Hustled", "Worked", "Brewed", "Cranked", "Slayed", "Baked", "Ate", "Mogged"
+    };
+    private static final java.util.Random RNG = new java.util.Random();
 
     private void startElapsedTimer() {
         stopElapsedTimer();
@@ -607,20 +612,27 @@ public class SkAssistantFragment extends Fragment {
                         // Rule: The activity log replaces the status row ONLY when steps exist,
                         // otherwise fall back to current orb-only status auto-dismiss behavior.
                         if (statusMsg.steps != null && !statusMsg.steps.isEmpty()) {
-                            statusMsg.isLogFinished = true;
-                            if (statusMsg.elapsedSeconds == 0 && aiRunStartTime > 0) {
-                                statusMsg.elapsedSeconds = (int) Math.max(1, (System.currentTimeMillis() - aiRunStartTime + 500) / 1000);
-                            }
-                            statusMsg.isExpanded = false;
-                            for (ActivityStep s : statusMsg.steps) {
-                                if (s.status == ActivityStep.Status.RUNNING) {
-                                    s.status = ActivityStep.Status.DONE;
+                            if (!isAiRunning) {
+                                statusMsg.isLogFinished = true;
+                                if (statusMsg.elapsedSeconds == 0 && aiRunStartTime > 0) {
+                                    statusMsg.elapsedSeconds = (int) Math.max(1, (System.currentTimeMillis() - aiRunStartTime + 500) / 1000);
                                 }
+                                statusMsg.isExpanded = false;
+                                for (ActivityStep s : statusMsg.steps) {
+                                    if (s.status == ActivityStep.Status.RUNNING) {
+                                        s.status = isRequestCanceled ? ActivityStep.Status.FAILED : ActivityStep.Status.DONE;
+                                    }
+                                }
+                                adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
+                            } else {
+                                statusMsg.content = "Thinking...";
+                                adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
                             }
-                            adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
                         } else {
-                            messages.remove(existingStatusIndex);
-                            adapter.notifyItemRemoved(existingStatusIndex);
+                            if (!isAiRunning) {
+                                messages.remove(existingStatusIndex);
+                                adapter.notifyItemRemoved(existingStatusIndex);
+                            }
                         }
                     }
                 }
@@ -1027,11 +1039,11 @@ public class SkAssistantFragment extends Fragment {
                     final int currentSec = sec;
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         if (getActivity() != null) {
-                            setStatus(finalModel + " is generating... " + currentSec + "s");
+                            setStatus(finalModel + " is pondering... " + currentSec + "s");
                         }
                     }, currentSec * 1000L);
                 }
-                setStatus(finalModel + " is generating... 1s");
+                setStatus(finalModel + " is dreaming... 1s");
             }
         });
     }
@@ -1267,7 +1279,7 @@ public class SkAssistantFragment extends Fragment {
                     final int currentSec = sec;
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         if (getActivity() != null) {
-                            setStatus(finalModel + " is generating... " + currentSec + "s");
+                            setStatus(finalModel + " is wondering... " + currentSec + "s");
                         }
                     }, currentSec * 1000L);
                 }
@@ -1957,18 +1969,62 @@ public class SkAssistantFragment extends Fragment {
                     }
                 }
                 return hasFailed ? OrbState.ERROR : OrbState.SUCCESS;
-            } else {
-                String currentLabel = msg.content;
+            }
+
+            if (msg.steps != null) {
+                for (int i = msg.steps.size() - 1; i >= 0; i--) {
+                    ActivityStep step = msg.steps.get(i);
+                    if (step.status == ActivityStep.Status.RUNNING) {
+                        return resolveOrbStateForToolOrText(step.toolName, step.label);
+                    }
+                }
+            }
+
+            if (msg.content != null && !msg.content.isEmpty()) {
+                String c = msg.content.trim();
+                if (!c.startsWith("Completed:")) {
+                    OrbState state = resolveOrbState(c);
+                    if (state != OrbState.WORKING) {
+                        return state;
+                    }
+                }
+            }
+            return OrbState.THINKING;
+        }
+
+        private String getHeaderTitleForMessage(Message msg) {
+            if (msg.isLogFinished) {
+                boolean hasFailed = false;
                 if (msg.steps != null) {
-                    for (int i = msg.steps.size() - 1; i >= 0; i--) {
-                        if (msg.steps.get(i).status == ActivityStep.Status.RUNNING) {
-                            currentLabel = msg.steps.get(i).label;
+                    for (ActivityStep s : msg.steps) {
+                        if (s.status == ActivityStep.Status.FAILED) {
+                            hasFailed = true;
                             break;
                         }
                     }
                 }
-                return resolveOrbState(currentLabel);
+                return hasFailed ? "Processing failed" : "Processing complete";
             }
+
+            if (msg.steps != null) {
+                for (int i = msg.steps.size() - 1; i >= 0; i--) {
+                    ActivityStep step = msg.steps.get(i);
+                    if (step.status == ActivityStep.Status.RUNNING) {
+                        if (step.label != null && !step.label.isEmpty()) {
+                            return step.label.endsWith("...") ? step.label : (step.label + "...");
+                        }
+                        return "Executing " + step.toolName + "...";
+                    }
+                }
+            }
+
+            if (msg.content != null && !msg.content.isEmpty()) {
+                String c = msg.content.trim();
+                if (!c.startsWith("Completed:")) {
+                    return c.endsWith("...") ? c : (c + "...");
+                }
+            }
+            return "Thinking...";
         }
 
         @Override
@@ -1981,12 +2037,13 @@ public class SkAssistantFragment extends Fragment {
                 if (elapsed <= 0 && fragment.aiRunStartTime > 0) {
                     elapsed = (int) Math.max(1, (System.currentTimeMillis() - fragment.aiRunStartTime) / 1000);
                 }
-                logHolder.tvElapsed.setText("Worked for " + elapsed + "s");
+                String verb = VERBS[RNG.nextInt(VERBS.length)];
+                logHolder.tvElapsed.setText(verb + " for " + elapsed + "s");
 
                 if (payloads.contains("payload_steps")) {
-                    logHolder.tvTitle.setText(msg.isLogFinished ? "Processing complete" : "Working...");
+                    logHolder.tvTitle.setText(getHeaderTitleForMessage(msg));
                     OrbState state = getOrbStateForMessage(msg);
-                    if (logHolder.currentOrbState != state) {
+                    if (logHolder.currentOrbState != state || logHolder.composeOrb.getChildCount() == 0) {
                         logHolder.currentOrbState = state;
                         ThinkingOrbHelper.setStatusContent(logHolder.composeOrb, state, null);
                     }
@@ -2007,16 +2064,17 @@ public class SkAssistantFragment extends Fragment {
                 ActivityLogViewHolder logHolder = (ActivityLogViewHolder) holder;
                 Message msg = messages.get(position);
 
-                logHolder.tvTitle.setText(msg.isLogFinished ? "Processing complete" : "Working...");
+                logHolder.tvTitle.setText(getHeaderTitleForMessage(msg));
 
                 int elapsed = msg.elapsedSeconds;
                 if (elapsed <= 0 && fragment.aiRunStartTime > 0) {
                     elapsed = (int) Math.max(1, (System.currentTimeMillis() - fragment.aiRunStartTime) / 1000);
                 }
+
                 logHolder.tvElapsed.setText("Worked for " + elapsed + "s");
 
                 OrbState state = getOrbStateForMessage(msg);
-                if (logHolder.currentOrbState != state) {
+                if (logHolder.currentOrbState != state || logHolder.composeOrb.getChildCount() == 0) {
                     logHolder.currentOrbState = state;
                     ThinkingOrbHelper.setStatusContent(logHolder.composeOrb, state, null);
                 }
@@ -2062,6 +2120,11 @@ public class SkAssistantFragment extends Fragment {
 
                 View popupView = LayoutInflater.from(v.getContext()).inflate(R.layout.layout_pill_copy_popup, null);
 
+                View resendAction = popupView.findViewById(R.id.btn_resend_action);
+                if (resendAction != null) {
+                    resendAction.setVisibility("user".equals(msg.role) ? View.VISIBLE : View.GONE);
+                }
+
                 popupView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
                 int popupWidth = popupView.getMeasuredWidth();
                 int popupHeight = popupView.getMeasuredHeight();
@@ -2106,9 +2169,7 @@ public class SkAssistantFragment extends Fragment {
                     popupWindow.dismiss();
                 });
 
-                View resendAction = popupView.findViewById(R.id.btn_resend_action);
                 if (resendAction != null) {
-                    resendAction.setVisibility("user".equals(msg.role) ? View.VISIBLE : View.GONE);
                     resendAction.setOnClickListener(btn -> {
                         HapticManager.vibrateRun(btn);
                         if (fragment != null) {
@@ -2326,25 +2387,67 @@ public class SkAssistantFragment extends Fragment {
         }
     }
 
-    public static OrbState resolveOrbState(String text) {
-        OrbState state = OrbState.WORKING;
-        if (text != null) {
-            String lower = text.toLowerCase(java.util.Locale.US);
-            if (lower.contains("error") || lower.contains("fail") || lower.contains("retry") || lower.contains("rate limit")) {
-                state = OrbState.ERROR;
-            } else if (lower.contains("searching") || lower.contains("fetching") || lower.contains("browsing") || lower.contains("web")) {
-                state = OrbState.SEARCHING;
-            } else if (lower.contains("mapping") || lower.contains("weaving")) {
-                state = OrbState.WEAVING;
-            } else if (lower.contains("thinking") || lower.contains("reasoning") || lower.contains("analyzing") || lower.contains("grasping")) {
-                state = OrbState.THINKING;
-            } else if (lower.contains("building") || lower.contains("applying") || lower.contains("patching") || lower.contains("injecting") || lower.contains("adding")) {
-                state = OrbState.BUILDING;
-            } else if (lower.contains("complete") || lower.contains("success") || lower.contains("done") || lower.contains("finished")) {
-                state = OrbState.SUCCESS;
+    public static OrbState resolveOrbStateForToolOrText(String toolName, String text) {
+        if (toolName != null && !toolName.isEmpty()) {
+            String lowerTool = toolName.toLowerCase(java.util.Locale.US);
+            // 1. Searching / reading tools
+            if (lowerTool.contains("search") || lowerTool.contains("find") || lowerTool.contains("grep")
+                    || lowerTool.contains("web") || lowerTool.contains("url") || lowerTool.contains("browse")
+                    || lowerTool.contains("history") || lowerTool.equals("read_file") || lowerTool.equals("read_method")
+                    || lowerTool.equals("list_methods") || lowerTool.equals("list_files")
+                    || lowerTool.equals("list_project_files") || lowerTool.equals("view_file_outline")
+                    || lowerTool.equals("get_class_outline") || lowerTool.contains("manifest_entries")) {
+                return OrbState.SEARCHING;
+            }
+            // 2. Weaving / structure / layout inspection / library / device tools
+            if (lowerTool.equals("get_layout_xml") || lowerTool.equals("read_layout_xml")
+                    || lowerTool.contains("project_structure") || lowerTool.contains("list_components")
+                    || lowerTool.contains("local_library") || lowerTool.contains("device_info")) {
+                return OrbState.WEAVING;
+            }
+            // 3. Building / writing / patching / layout / component / activity tools
+            if (lowerTool.contains("modify") || lowerTool.contains("patch") || lowerTool.contains("add_")
+                    || lowerTool.contains("insert") || lowerTool.contains("apply") || lowerTool.contains("update")
+                    || lowerTool.contains("register") || lowerTool.contains("create") || lowerTool.contains("inject")) {
+                return OrbState.BUILDING;
             }
         }
-        return state;
+
+        return resolveOrbState(text);
+    }
+
+    public static OrbState resolveOrbState(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return OrbState.WORKING;
+        }
+        String lower = text.toLowerCase(java.util.Locale.US);
+        if (lower.contains("error") || lower.contains("fail") || lower.contains("retry") || lower.contains("rate limit") || lower.contains("cancel")) {
+            return OrbState.ERROR;
+        }
+        if (lower.contains("search") || lower.contains("find") || lower.contains("grep")
+                || lower.contains("reading") || lower.contains("fetch") || lower.contains("brows")
+                || lower.contains("history") || lower.contains("outline") || lower.contains("listing file")) {
+            return OrbState.SEARCHING;
+        }
+        if (lower.contains("mapping") || lower.contains("weaving") || lower.contains("inspecting layout")
+                || lower.contains("project structure") || lower.contains("library") || lower.contains("metadata")) {
+            return OrbState.WEAVING;
+        }
+        if (lower.contains("build") || lower.contains("apply") || lower.contains("patch")
+                || lower.contains("inject") || lower.contains("adding") || lower.contains("creating")
+                || lower.contains("modif") || lower.contains("updat") || lower.contains("register")) {
+            return OrbState.BUILDING;
+        }
+        if (lower.contains("think") || lower.contains("reason") || lower.contains("analyz")
+                || lower.contains("grasp") || lower.contains("generat") || lower.contains("pictur")
+                || lower.contains("validat") || lower.contains("plan") || lower.contains("synthes")
+                || lower.contains("summariz") || lower.contains("hold on") || lower.contains("truncat")) {
+            return OrbState.THINKING;
+        }
+        if (lower.equals("processing complete") || lower.equals("done") || lower.equals("finished") || lower.equals("success")) {
+            return OrbState.SUCCESS;
+        }
+        return OrbState.WORKING;
     }
 
     public static int getToolIconRes(String toolName) {
@@ -2352,11 +2455,11 @@ public class SkAssistantFragment extends Fragment {
         String lower = toolName.toLowerCase(java.util.Locale.US);
         if (lower.contains("search") || lower.contains("find") || lower.contains("grep")) {
             return R.drawable.ic_mtrl_search;
-        } else if (lower.contains("web") || lower.contains("url")) {
+        } else if (lower.contains("web") || lower.contains("url") || lower.contains("browse")) {
             return R.drawable.ic_mtrl_web;
         } else if (lower.contains("layout") || lower.contains("view")) {
             return R.drawable.ic_mtrl_design;
-        } else if (lower.contains("java") || lower.contains("code") || lower.contains("method") || lower.contains("outline")) {
+        } else if (lower.contains("file") || lower.contains("java") || lower.contains("code") || lower.contains("method") || lower.contains("outline")) {
             return R.drawable.ic_mtrl_code;
         } else if (lower.contains("manifest") || lower.contains("permission")) {
             return R.drawable.ic_mtrl_shield_lock;
@@ -2374,55 +2477,74 @@ public class SkAssistantFragment extends Fragment {
         if (toolName == null || toolName.trim().isEmpty()) return "Executing operation";
         switch (toolName) {
             case "read_file":
-                return "Reading code-editing behavior";
+                return "Reading file";
             case "search_web":
             case "web_search":
                 return "Searching the web";
             case "read_url":
+            case "web_browse":
                 return "Reading webpage content";
             case "list_files":
+            case "list_project_files":
                 return "Listing project files";
             case "find_files":
+            case "search_project_files":
                 return "Finding files in project";
             case "get_layout_xml":
+            case "read_layout_xml":
                 return "Inspecting layout XML";
             case "update_layout_xml":
-                return "Updating layout UI";
             case "apply_layout_xml":
                 return "Applying layout changes";
             case "find_manifest_entries":
+            case "search_manifest":
                 return "Searching AndroidManifest";
             case "add_java_imports":
+            case "add_imports":
+            case "inject_imports":
                 return "Adding Java imports";
             case "add_source_code":
+            case "insert_source_code":
+            case "add_source_directly":
+            case "add_onCreate_code":
                 return "Adding Java source code";
             case "read_method":
                 return "Reading Java method";
             case "list_methods":
                 return "Listing methods in file";
             case "view_file_outline":
+            case "get_class_outline":
                 return "Inspecting file outline";
             case "grep_code":
+            case "search_in_code":
                 return "Searching codebase";
             case "modify_java_file":
             case "patch_java_file":
+            case "add_java_patch":
                 return "Patching Java file";
             case "modify_manifest_xml":
             case "patch_manifest_xml":
+            case "add_xml_patch":
                 return "Modifying AndroidManifest";
             case "toggle_local_library":
+            case "manage_local_library":
                 return "Configuring local library";
             case "add_manifest_permission":
+            case "add_permission":
                 return "Adding Android permission";
             case "add_sketchware_component":
+            case "add_component":
                 return "Adding Sketchware component";
             case "list_components":
+            case "list_available_components":
                 return "Listing components";
             case "apply_custom_view":
                 return "Applying custom view";
             case "get_device_info":
                 return "Querying device metadata";
             case "search_chat_history":
+            case "search_conversation":
+            case "get_chat_history":
                 return "Searching chat history";
             case "get_project_structure":
                 return "Inspecting project structure";
