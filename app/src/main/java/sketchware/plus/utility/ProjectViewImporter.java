@@ -1,8 +1,18 @@
 package sketchware.plus.utility;
 
 import android.app.Activity;
+import android.net.Uri;
 import android.util.Pair;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.besome.sketch.adapters.ProjectsAdapter;
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.ComponentBean;
 import com.besome.sketch.beans.EventBean;
@@ -10,6 +20,7 @@ import com.besome.sketch.beans.ProjectFileBean;
 import com.besome.sketch.beans.ViewBean;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +30,12 @@ import a.a.a.eC;
 import a.a.a.hC;
 import a.a.a.jC;
 import a.a.a.lC;
+import a.a.a.mB;
+import a.a.a.wB;
+import a.a.a.wq;
 import a.a.a.yB;
+import sketchware.plus.R;
+import sketchware.plus.databinding.MyprojectsItemBinding;
 
 public class ProjectViewImporter {
 
@@ -39,25 +55,101 @@ public class ProjectViewImporter {
             return;
         }
 
-        CharSequence[] projectTitles = new CharSequence[otherProjects.size()];
-        for (int i = 0; i < otherProjects.size(); i++) {
-            HashMap<String, Object> proj = otherProjects.get(i);
-            String wsName = yB.c(proj, "my_ws_name");
-            String appName = yB.c(proj, "my_app_name");
-            String scId = yB.c(proj, "sc_id");
-            String name = (wsName != null && !wsName.isEmpty()) ? wsName : appName;
-            projectTitles[i] = name + " (ID: " + scId + ")";
+        MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(activity);
+        dialogBuilder.setTitle("Select Project");
+
+        RecyclerView recyclerView = new RecyclerView(activity);
+        recyclerView.setLayoutManager(new LinearLayoutManager(activity));
+        int padH = (int) wB.a(activity, 16f);
+        recyclerView.setPadding(padH, 0, padH, 0);
+        recyclerView.setClipToPadding(true);
+        recyclerView.setVerticalFadingEdgeEnabled(true);
+        recyclerView.setFadingEdgeLength((int) wB.a(activity, 32f));
+
+        androidx.appcompat.app.AlertDialog dialog = dialogBuilder.setView(recyclerView).create();
+
+        ProjectListAdapter adapter = new ProjectListAdapter(activity, otherProjects, project -> {
+            dialog.dismiss();
+            String sourceScId = yB.c(project, "sc_id");
+            showViewSelectionDialog(activity, currentScId, sourceScId, onImportSuccess);
+        });
+        recyclerView.setAdapter(adapter);
+
+        dialog.show();
+    }
+
+    private static class ProjectListAdapter extends RecyclerView.Adapter<ProjectListAdapter.ViewHolder> {
+        private final Activity activity;
+        private final ArrayList<HashMap<String, Object>> projects;
+        private final OnProjectSelectedListener listener;
+
+        public interface OnProjectSelectedListener {
+            void onSelected(HashMap<String, Object> project);
         }
 
-        new MaterialAlertDialogBuilder(activity)
-                .setTitle("Select Project")
-                .setItems(projectTitles, (dialog, which) -> {
-                    HashMap<String, Object> selectedProj = otherProjects.get(which);
-                    String sourceScId = yB.c(selectedProj, "sc_id");
-                    showViewSelectionDialog(activity, currentScId, sourceScId, onImportSuccess);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        public ProjectListAdapter(Activity activity, ArrayList<HashMap<String, Object>> projects, OnProjectSelectedListener listener) {
+            this.activity = activity;
+            this.projects = projects;
+            this.listener = listener;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            MyprojectsItemBinding binding = MyprojectsItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+            return new ViewHolder(binding);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            holder.itemView.setBackgroundResource(ProjectsAdapter.getShapedBackgroundForList(projects, position));
+            HashMap<String, Object> projectMap = projects.get(position);
+            String scId = yB.c(projectMap, "sc_id");
+
+            holder.binding.imgIcon.setImageResource(R.drawable.default_icon);
+
+            if (yB.a(projectMap, "custom_icon")) {
+                String iconFolder = wq.e() + File.separator + scId;
+                File iconFile = new File(iconFolder, "icon.png");
+                if (iconFile.exists()) {
+                    try {
+                        String providerPath = activity.getPackageName() + ".provider";
+                        Uri uri = FileProvider.getUriForFile(activity, providerPath, iconFile);
+                        holder.binding.imgIcon.setImageURI(uri);
+                    } catch (Exception e) {
+                        holder.binding.imgIcon.setImageResource(R.drawable.default_icon);
+                    }
+                }
+            }
+
+            String version = " - " + yB.c(projectMap, "sc_ver_name") + " (" + yB.c(projectMap, "sc_ver_code") + ")";
+            holder.binding.appName.setText(yB.c(projectMap, "my_ws_name") + version);
+            holder.binding.projectName.setText(yB.c(projectMap, "my_app_name"));
+            holder.binding.packageName.setText(yB.c(projectMap, "my_sc_pkg_name"));
+            holder.binding.tvPublished.setVisibility(View.VISIBLE);
+            holder.binding.tvPublished.setText(scId);
+            holder.binding.expand.setVisibility(View.GONE);
+
+            holder.itemView.setOnClickListener(v -> {
+                if (!mB.a()) {
+                    listener.onSelected(projectMap);
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return projects.size();
+        }
+
+        static class ViewHolder extends RecyclerView.ViewHolder {
+            private final MyprojectsItemBinding binding;
+
+            public ViewHolder(@NonNull MyprojectsItemBinding binding) {
+                super(binding.getRoot());
+                this.binding = binding;
+            }
+        }
     }
 
     private static void showViewSelectionDialog(Activity activity, String currentScId, String sourceScId, Runnable onImportSuccess) {
@@ -79,23 +171,84 @@ public class ProjectViewImporter {
             return;
         }
 
-        CharSequence[] viewTitles = new CharSequence[allSourceFiles.size()];
-        for (int i = 0; i < allSourceFiles.size(); i++) {
-            ProjectFileBean fileBean = allSourceFiles.get(i);
-            String typeLabel = (fileBean.fileType == ProjectFileBean.PROJECT_FILE_TYPE_CUSTOM_VIEW
-                    || fileBean.fileType == ProjectFileBean.PROJECT_FILE_TYPE_DRAWER)
-                    ? "Custom View" : "Activity";
-            viewTitles[i] = fileBean.fileName + " [" + typeLabel + "]";
+        MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(activity);
+        dialogBuilder.setTitle("Select View to Import");
+
+        RecyclerView recyclerView = new RecyclerView(activity);
+        recyclerView.setLayoutManager(new LinearLayoutManager(activity));
+        int padH = (int) wB.a(activity, 16f);
+        recyclerView.setPadding(padH, 0, padH, 0);
+        recyclerView.setClipToPadding(true);
+        recyclerView.setVerticalFadingEdgeEnabled(true);
+        recyclerView.setFadingEdgeLength((int) wB.a(activity, 32f));
+
+        androidx.appcompat.app.AlertDialog dialog = dialogBuilder.setView(recyclerView).create();
+
+        ViewListAdapter adapter = new ViewListAdapter(allSourceFiles, fileBean -> {
+            dialog.dismiss();
+            importView(activity, currentScId, sourceScId, fileBean, onImportSuccess);
+        });
+        recyclerView.setAdapter(adapter);
+
+        dialog.show();
+    }
+
+    private static class ViewListAdapter extends RecyclerView.Adapter<ViewListAdapter.ViewHolder> {
+        private final ArrayList<ProjectFileBean> viewFiles;
+        private final OnViewSelectedListener listener;
+
+        public interface OnViewSelectedListener {
+            void onSelected(ProjectFileBean fileBean);
         }
 
-        new MaterialAlertDialogBuilder(activity)
-                .setTitle("Select View to Import")
-                .setItems(viewTitles, (dialog, which) -> {
-                    ProjectFileBean selectedSourceFile = allSourceFiles.get(which);
-                    importView(activity, currentScId, sourceScId, selectedSourceFile, onImportSuccess);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        public ViewListAdapter(ArrayList<ProjectFileBean> viewFiles, OnViewSelectedListener listener) {
+            this.viewFiles = viewFiles;
+            this.listener = listener;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            MyprojectsItemBinding binding = MyprojectsItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+            return new ViewHolder(binding);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            holder.itemView.setBackgroundResource(ProjectsAdapter.getShapedBackgroundForList(viewFiles, position));
+            ProjectFileBean fileBean = viewFiles.get(position);
+
+            boolean isCustom = (fileBean.fileType == ProjectFileBean.PROJECT_FILE_TYPE_CUSTOM_VIEW
+                    || fileBean.fileType == ProjectFileBean.PROJECT_FILE_TYPE_DRAWER);
+            String typeLabel = isCustom ? "Custom View" : "Activity";
+
+            holder.binding.imgIcon.setImageResource(isCustom ? R.drawable.ic_mtrl_view_horizontal : R.drawable.sketch_app_icon);
+            holder.binding.appName.setText(fileBean.fileName);
+            holder.binding.projectName.setText(typeLabel);
+            holder.binding.packageName.setText(fileBean.getXmlName());
+            holder.binding.tvPublished.setVisibility(View.GONE);
+            holder.binding.expand.setVisibility(View.GONE);
+
+            holder.itemView.setOnClickListener(v -> {
+                if (!mB.a()) {
+                    listener.onSelected(fileBean);
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return viewFiles.size();
+        }
+
+        static class ViewHolder extends RecyclerView.ViewHolder {
+            private final MyprojectsItemBinding binding;
+
+            public ViewHolder(@NonNull MyprojectsItemBinding binding) {
+                super(binding.getRoot());
+                this.binding = binding;
+            }
+        }
     }
 
     private static void importView(Activity activity, String currentScId, String sourceScId, ProjectFileBean sourceFile, Runnable onImportSuccess) {

@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:fitsSystemWindows="true"
     tools:ignore="ContentDescription">
 
@@ -53,6 +55,8 @@
         android:layout_marginBottom="84dp"
         android:alpha="0"
         android:animateLayoutChanges="true"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:gravity="end"
         android:orientation="vertical"
         android:translationY="200dp"
