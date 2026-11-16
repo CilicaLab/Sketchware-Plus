@@ -67,9 +67,53 @@
             android:id="@+id/createNewView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_alignParentBottom="true"
             android:layout_marginBottom="16dp"
-            android:text="Create new view"
+            android:text="Create or import view"
             app:icon="@drawable/ic_add_white_24dp" />
+
+        <LinearLayout
+            android:id="@+id/optionsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="16dp"
+            android:alpha="0"
+            android:animateLayoutChanges="true"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:translationY="200dp"
+            tools:alpha="1"
+            tools:translationY="0dp">
+
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:id="@+id/createNewButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Create view"
+                app:icon="@drawable/ic_mtrl_add" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/closeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:src="@drawable/close_gray_48dp"
+                app:fabSize="mini"
+                tools:ignore="ContentDescription" />
+
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:id="@+id/importNewButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="Import view"
+                app:icon="@drawable/ic_import_white_24dp" />
+
+        </LinearLayout>
 
     </RelativeLayout>
 

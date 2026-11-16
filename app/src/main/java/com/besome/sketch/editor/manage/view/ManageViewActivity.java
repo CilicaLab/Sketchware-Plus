@@ -10,6 +10,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.animation.OvershootInterpolator;
 import android.widget.Button;
 
 import androidx.annotation.NonNull;
@@ -26,6 +27,9 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
+
+import a.a.a.mB;
+import sketchware.plus.utility.ProjectViewImporter;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -56,6 +60,10 @@ public class ManageViewActivity extends BaseAppCompatActivity implements OnClick
     private xw customViewsFragment;
     private ViewPager viewPager;
     private String sc_id;
+    private View optionsLayout;
+    private View createNewButton;
+    private View importNewButton;
+    private boolean isOptionsExpanded = false;
 
     public final String a(int var1, String var2) {
         String var3 = wq.b(var1);
@@ -219,17 +227,14 @@ public class ManageViewActivity extends BaseAppCompatActivity implements OnClick
 
     @Override
     public void onBackPressed() {
+        if (isOptionsExpanded) {
+            hideShowOptionsButton(true);
+            return;
+        }
         if (selecting) {
             a(false);
         } else {
-            k();
-
-            try {
-                new Handler().postDelayed(() -> new a(this).execute(), 500L);
-            } catch (Exception e) {
-                e.printStackTrace();
-                h();
-            }
+            super.onBackPressed();
         }
     }
 
@@ -253,14 +258,7 @@ public class ManageViewActivity extends BaseAppCompatActivity implements OnClick
                 }
             } else if (viewId == R.id.fab) {
                 a(false);
-
-                boolean isActivitiesTab = viewPager.getCurrentItem() == 0;
-                Intent intent = new Intent(this, isActivitiesTab ? AddViewActivity.class : AddCustomViewActivity.class);
-                intent.putStringArrayListExtra("screen_names", l());
-                if (isActivitiesTab) {
-                    intent.putExtra("request_code", REQUEST_CODE_ADD_ACTIVITY);
-                }
-                startActivityForResult(intent, isActivitiesTab ? REQUEST_CODE_ADD_ACTIVITY : REQUEST_CODE_ADD_CUSTOM_VIEW);
+                hideShowOptionsButton(isOptionsExpanded);
             }
         }
     }
@@ -300,6 +298,44 @@ public class ManageViewActivity extends BaseAppCompatActivity implements OnClick
         tabLayout.setupWithViewPager(viewPager);
         s = findViewById(R.id.fab);
         s.setOnClickListener(this);
+
+        optionsLayout = findViewById(R.id.optionsLayout);
+        createNewButton = findViewById(R.id.createNewButton);
+        importNewButton = findViewById(R.id.importNewButton);
+
+        createNewButton.setOnClickListener(v -> {
+            hideShowOptionsButton(true);
+            boolean isActivitiesTab = viewPager.getCurrentItem() == 0;
+            Intent intent = new Intent(this, isActivitiesTab ? AddViewActivity.class : AddCustomViewActivity.class);
+            intent.putStringArrayListExtra("screen_names", l());
+            if (isActivitiesTab) {
+                intent.putExtra("request_code", REQUEST_CODE_ADD_ACTIVITY);
+            }
+            startActivityForResult(intent, isActivitiesTab ? REQUEST_CODE_ADD_ACTIVITY : REQUEST_CODE_ADD_CUSTOM_VIEW);
+        });
+
+        importNewButton.setOnClickListener(v -> {
+            hideShowOptionsButton(true);
+            if (!mB.a()) {
+                ProjectViewImporter.showImportDialog(this, sc_id, () -> {
+                    m();
+                    if (activitiesFragment != null) activitiesFragment.g();
+                    if (customViewsFragment != null) customViewsFragment.g();
+                });
+            }
+        });
+    }
+
+    private void hideShowOptionsButton(boolean isHide) {
+        isOptionsExpanded = !isHide;
+        optionsLayout.animate()
+                .translationY(isHide ? 200 : 0)
+                .alpha(isHide ? 0 : 1)
+                .setInterpolator(new OvershootInterpolator());
+
+        s.animate()
+                .rotation(isHide ? 0f : 45f)
+                .start();
     }
 
     @Override

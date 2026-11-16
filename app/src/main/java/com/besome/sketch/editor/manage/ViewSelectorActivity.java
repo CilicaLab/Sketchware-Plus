@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.OvershootInterpolator;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -27,6 +28,7 @@ import a.a.a.wq;
 import sketchware.plus.R;
 import sketchware.plus.databinding.FileSelectorPopupSelectXmlActivityItemBinding;
 import sketchware.plus.databinding.FileSelectorPopupSelectXmlBinding;
+import sketchware.plus.utility.ProjectViewImporter;
 import sketchware.plus.utility.SketchwareUtil;
 import sketchware.plus.utility.ThemeUtils;
 import sketchware.plus.utility.UI;
@@ -195,6 +197,7 @@ public class ViewSelectorActivity extends BaseAppCompatActivity {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 if (dy > 0) {
+                    hideShowOptionsButton(true);
                     binding.createNewView.hide();
                 } else {
                     binding.createNewView.show();
@@ -203,6 +206,7 @@ public class ViewSelectorActivity extends BaseAppCompatActivity {
         });
         binding.optionsSelector.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (isChecked) {
+                hideShowOptionsButton(true);
                 if (checkedId == R.id.option_view) {
                     selectedTab = TAB_ACTIVITY;
                 } else if (checkedId == R.id.option_custom_view) {
@@ -212,7 +216,10 @@ public class ViewSelectorActivity extends BaseAppCompatActivity {
                 binding.emptyMessage.setVisibility(viewSelectorAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
             }
         });
-        binding.createNewView.setOnClickListener(v -> {
+        binding.createNewView.setOnClickListener(v -> hideShowOptionsButton(false));
+        binding.closeButton.setOnClickListener(v -> hideShowOptionsButton(true));
+        binding.createNewButton.setOnClickListener(v -> {
+            hideShowOptionsButton(true);
             if (!mB.a()) {
                 if (selectedTab == TAB_ACTIVITY) {
                     Intent intent = new Intent(getApplicationContext(), AddViewActivity.class);
@@ -223,8 +230,15 @@ public class ViewSelectorActivity extends BaseAppCompatActivity {
                     Intent intent = new Intent(getApplicationContext(), AddCustomViewActivity.class);
                     intent.putStringArrayListExtra("screen_names", getScreenNames());
                     startActivityForResult(intent, 266);
-
                 }
+            }
+        });
+        binding.importNewButton.setOnClickListener(v -> {
+            hideShowOptionsButton(true);
+            if (!mB.a()) {
+                ProjectViewImporter.showImportDialog(this, sc_id, () -> {
+                    viewSelectorAdapter.notifyDataSetChanged();
+                });
             }
         });
         binding.container.setOnClickListener(v -> finish());
@@ -232,6 +246,18 @@ public class ViewSelectorActivity extends BaseAppCompatActivity {
 
         UI.addSystemWindowInsetToPadding(binding.container, true, true, true, false);
         UI.addSystemWindowInsetToMargin(binding.createNewView, false, false, false, true);
+    }
+
+    private void hideShowOptionsButton(boolean isHide) {
+        binding.optionsLayout.animate()
+                .translationY(isHide ? 300 : 0)
+                .alpha(isHide ? 0 : 1)
+                .setInterpolator(new OvershootInterpolator());
+
+        binding.createNewView.animate()
+                .translationY(isHide ? 0 : 300)
+                .alpha(isHide ? 1 : 0)
+                .setInterpolator(new OvershootInterpolator());
     }
 
     @Override
