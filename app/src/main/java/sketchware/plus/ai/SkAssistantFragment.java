@@ -2118,6 +2118,7 @@ public class SkAssistantFragment extends Fragment {
             View.OnLongClickListener copyLongClickListener = v -> {
                 HapticManager.vibrateRun(v);
 
+
                 View popupView = LayoutInflater.from(v.getContext()).inflate(R.layout.layout_pill_copy_popup, null);
 
                 View resendAction = popupView.findViewById(R.id.btn_resend_action);
