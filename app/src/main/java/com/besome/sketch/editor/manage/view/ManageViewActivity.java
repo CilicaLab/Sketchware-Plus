@@ -219,6 +219,7 @@ public class ManageViewActivity extends BaseAppCompatActivity implements OnClick
             projectFileBean = data.getParcelableExtra("project_file");
             customViewsFragment.a(projectFileBean);
             customViewsFragment.g();
+            m();
             if (data.hasExtra("preset_views")) {
                 a(projectFileBean, data.getParcelableArrayListExtra("preset_views"));
             }
@@ -253,6 +254,7 @@ public class ManageViewActivity extends BaseAppCompatActivity implements OnClick
                     a(false);
                     activitiesFragment.g();
                     customViewsFragment.g();
+                    m();
                     bB.a(getApplicationContext(), getString(R.string.common_message_complete_delete), bB.TOAST_WARNING).show();
                     s.show();
                 }
