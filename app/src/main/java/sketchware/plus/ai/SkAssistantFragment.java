@@ -2037,8 +2037,12 @@ public class SkAssistantFragment extends Fragment {
                 if (elapsed <= 0 && fragment.aiRunStartTime > 0) {
                     elapsed = (int) Math.max(1, (System.currentTimeMillis() - fragment.aiRunStartTime) / 1000);
                 }
-                String verb = VERBS[RNG.nextInt(VERBS.length)];
-                logHolder.tvElapsed.setText(verb + " for " + elapsed + "s");
+                if (msg.isLogFinished) {
+                    String verb = VERBS[Math.abs(msg.hashCode()) % VERBS.length];
+                    logHolder.tvElapsed.setText(verb + " for " + elapsed + "s");
+                } else {
+                    logHolder.tvElapsed.setText("Working for " + elapsed + "s");
+                }
 
                 if (payloads.contains("payload_steps")) {
                     logHolder.tvTitle.setText(getHeaderTitleForMessage(msg));
@@ -2071,7 +2075,12 @@ public class SkAssistantFragment extends Fragment {
                     elapsed = (int) Math.max(1, (System.currentTimeMillis() - fragment.aiRunStartTime) / 1000);
                 }
 
-                logHolder.tvElapsed.setText("Worked for " + elapsed + "s");
+                if (msg.isLogFinished) {
+                    String verb = VERBS[Math.abs(msg.hashCode()) % VERBS.length];
+                    logHolder.tvElapsed.setText(verb + " for " + elapsed + "s");
+                } else {
+                    logHolder.tvElapsed.setText("Working for " + elapsed + "s");
+                }
 
                 OrbState state = getOrbStateForMessage(msg);
                 if (logHolder.currentOrbState != state || logHolder.composeOrb.getChildCount() == 0) {
