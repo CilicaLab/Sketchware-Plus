@@ -80,6 +80,38 @@ public class SegmentedListHelper {
         }
     }
 
+    public static void applySegmentedCard(com.google.android.material.card.MaterialCardView card, int position, int itemCount) {
+        if (card == null || itemCount <= 0) return;
+
+        Context context = card.getContext();
+        float density = context.getResources().getDisplayMetrics().density;
+        float largePx = 20f * density;
+        float smallPx = 4f * density;
+
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) card.getLayoutParams();
+        if (lp != null) {
+            lp.topMargin = (position == 0) ? (int) (8f * density) : (int) (1f * density);
+            lp.bottomMargin = (position == itemCount - 1) ? (int) (8f * density) : (int) (1f * density);
+            lp.leftMargin = (int) (12f * density);
+            lp.rightMargin = (int) (12f * density);
+            card.setLayoutParams(lp);
+        }
+
+        float topLeft = (position == 0 || itemCount == 1) ? largePx : smallPx;
+        float topRight = (position == 0 || itemCount == 1) ? largePx : smallPx;
+        float bottomLeft = (position == itemCount - 1 || itemCount == 1) ? largePx : smallPx;
+        float bottomRight = (position == itemCount - 1 || itemCount == 1) ? largePx : smallPx;
+
+        card.setShapeAppearanceModel(
+                card.getShapeAppearanceModel().toBuilder()
+                        .setTopLeftCornerSize(topLeft)
+                        .setTopRightCornerSize(topRight)
+                        .setBottomLeftCornerSize(bottomLeft)
+                        .setBottomRightCornerSize(bottomRight)
+                        .build()
+        );
+    }
+
     private static int getThemeColor(Context context, int attrResId) {
         TypedValue typedValue = new TypedValue();
         if (context.getTheme().resolveAttribute(attrResId, typedValue, true)) {

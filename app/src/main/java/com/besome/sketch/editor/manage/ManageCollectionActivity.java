@@ -61,6 +61,7 @@ import mod.jbk.util.AudioMetadata;
 import mod.jbk.util.BlockUtil;
 import mod.jbk.util.SoundPlayingAdapter;
 import sketchware.plus.R;
+import sketchware.plus.utility.SegmentedListHelper;
 
 public class ManageCollectionActivity extends BaseAppCompatActivity implements View.OnClickListener {
     private static final int REQUEST_CODE_ADD_IMAGE_DIALOG = 267;
@@ -674,6 +675,7 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
         }
 
         private void onBindViewHolder(SoundCollectionViewHolder holder, int position) {
+            SegmentedListHelper.applySegmentedCard(holder.cardView, position, getItemCount());
             ProjectResourceBean bean = (ProjectResourceBean) currentCollectionTypeItems.get(position);
             var audioMetadata = holder.audioMetadata;
             var audio = getAudio(position);
@@ -712,6 +714,7 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
         }
 
         private void onBindViewHolder(FontCollectionViewHolder holder, int position) {
+            SegmentedListHelper.applySegmentedCard(holder.cardView, position, getItemCount());
             ProjectResourceBean bean = (ProjectResourceBean) currentCollectionTypeItems.get(position);
             if (selectingToBeDeletedItems) {
                 holder.deleteContainer.setVisibility(View.VISIBLE);
@@ -737,6 +740,7 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
         }
 
         private void onBindViewHolder(WidgetCollectionViewHolder holder, int position) {
+            SegmentedListHelper.applySegmentedCard(holder.cardView, position, getItemCount());
             WidgetCollectionBean bean = (WidgetCollectionBean) currentCollectionTypeItems.get(position);
             if (selectingToBeDeletedItems) {
                 holder.deleteContainer.setVisibility(View.VISIBLE);
@@ -758,6 +762,7 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
         }
 
         private void onBindViewHolder(BlockCollectionViewHolder holder, int position) {
+            SegmentedListHelper.applySegmentedCard(holder.cardView, position, getItemCount());
             BlockCollectionBean bean = (BlockCollectionBean) currentCollectionTypeItems.get(position);
             if (selectingToBeDeletedItems) {
                 holder.deleteContainer.setVisibility(View.VISIBLE);
@@ -779,6 +784,7 @@ public class ManageCollectionActivity extends BaseAppCompatActivity implements V
         }
 
         private void onBindViewHolder(MoreBlockCollectionViewHolder holder, int position) {
+            SegmentedListHelper.applySegmentedCard(holder.cardView, position, getItemCount());
             MoreBlockCollectionBean bean = (MoreBlockCollectionBean) currentCollectionTypeItems.get(position);
             if (selectingToBeDeletedItems) {
                 holder.deleteContainer.setVisibility(View.VISIBLE);

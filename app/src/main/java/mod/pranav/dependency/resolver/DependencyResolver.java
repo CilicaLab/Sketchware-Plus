@@ -240,22 +240,22 @@ public class DependencyResolver {
 
     private boolean doResolve(DependencyResolverCallback callback) {
         UtilsKt.setEventReciever(callback);
-        Artifact dummyArtifact = new Artifact(groupId, artifactId, version, null, "jar");
-
         if (isCancelled()) return false;
 
         Artifact mainDep;
         try {
             mainDep = UtilsKt.getArtifact(groupId, artifactId, version);
         } catch (Throwable t) {
-            if (!isCancelled()) callback.onArtifactNotFound(dummyArtifact);
-            return false;
+            // POM parsing in third-party resolver failed (e.g. ConcurrentHashMap NPE or malformed POM).
+            // Fall back to creating a direct artifact without POM parsing.
+            mainDep = new Artifact(groupId, artifactId, version, null, "jar");
         }
 
-        if (mainDep == null || isCancelled()) {
-            if (!isCancelled()) callback.onArtifactNotFound(dummyArtifact);
-            return false;
+        if (mainDep == null) {
+            mainDep = new Artifact(groupId, artifactId, version, null, "jar");
         }
+
+        if (isCancelled()) return false;
 
         if (!"jar".equals(mainDep.getExtension()) && !"aar".equals(mainDep.getExtension())) {
             callback.invalidPackaging(mainDep);
@@ -300,7 +300,11 @@ public class DependencyResolver {
             try {
                 kotlinx.coroutines.BuildersKt.runBlocking(
                         kotlinx.coroutines.Dispatchers.getIO(),
-                        (scope, continuation) -> finalMain.resolveDependencyTree(null, null, continuation)
+                        (scope, continuation) -> finalMain.resolveDependencyTree(
+                                new java.util.concurrent.ConcurrentHashMap<>(),
+                                new java.util.concurrent.ConcurrentLinkedDeque<>(),
+                                continuation
+                        )
                 );
             } catch (Throwable e) {
                 if (!isCancelled()) callback.onDownloadError(mainDep, e);
@@ -518,16 +522,96 @@ public class DependencyResolver {
         callback.onDownloadStart(artifact);
         try {
             artifact.downloadTo(destFile);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (destFile.exists()) destFile.delete();
-            if (e instanceof IOException) throw (IOException) e;
-            throw new IOException(e);
+            // Fallback: try direct HTTP download across all registered repos
+            boolean directDownloaded = tryDirectDownloadFromAllRepos(artifact, destFile, artifact.getExtension(), callback);
+            if (!directDownloaded && "jar".equals(artifact.getExtension())) {
+                File aarDestFile = new File(destFile.getParentFile(), "classes.aar");
+                if (tryDirectDownloadFromAllRepos(artifact, aarDestFile, "aar", callback)) {
+                    if (aarDestFile.exists()) {
+                        aarDestFile.renameTo(destFile);
+                    }
+                    directDownloaded = true;
+                }
+            }
+            if (!directDownloaded) {
+                if (e instanceof IOException) throw (IOException) e;
+                throw new IOException("Failed to download artifact " + artifact + ": " + e.getMessage(), e);
+            }
         }
         if (isCancelled()) {
             if (destFile.exists()) destFile.delete();
             throw new IOException("Download cancelled");
         }
         callback.onDownloadEnd(artifact);
+    }
+
+    private boolean tryDirectDownloadFromAllRepos(Artifact artifact, File destFile, String extension, DependencyResolverCallback callback) {
+        String subPath = artifact.getGroupId().replace('.', '/') + "/" +
+                artifact.getArtifactId() + "/" +
+                artifact.getVersion() + "/" +
+                artifact.getArtifactId() + "-" + artifact.getVersion() + "." + extension;
+
+        for (Map.Entry<String, String> entry : repoUrls.entrySet()) {
+            if (isCancelled()) return false;
+            String repoName = entry.getKey();
+            String repoUrl = entry.getValue();
+            if (!repoUrl.endsWith("/")) repoUrl += "/";
+
+            callback.onSearchingRepository(repoName);
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(repoUrl + subPath).openConnection();
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(15000);
+                connection.connect();
+
+                if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    long totalBytes = connection.getContentLengthLong();
+                    callback.onDownloadStart(artifact);
+
+                    try (InputStream input = new BufferedInputStream(connection.getInputStream());
+                         OutputStream output = new BufferedOutputStream(new FileOutputStream(destFile))) {
+
+                        byte[] buffer = new byte[16384];
+                        long bytesReadTotal = 0;
+                        long lastReportTime = 0;
+                        long lastReportBytes = 0;
+                        int read;
+
+                        while ((read = input.read(buffer)) != -1) {
+                            if (isCancelled()) {
+                                if (destFile.exists()) destFile.delete();
+                                return false;
+                            }
+                            output.write(buffer, 0, read);
+                            bytesReadTotal += read;
+
+                            long now = System.currentTimeMillis();
+                            boolean report = now - lastReportTime >= 100;
+                            if (!report && totalBytes > 0) {
+                                report = (bytesReadTotal - lastReportBytes) * 100 / totalBytes >= 1;
+                            }
+                            if (report) {
+                                lastReportTime = now;
+                                lastReportBytes = bytesReadTotal;
+                                callback.onDownloadProgress(artifact, bytesReadTotal, totalBytes);
+                            }
+                        }
+                        output.flush();
+                        callback.onDownloadProgress(artifact, bytesReadTotal, totalBytes > 0 ? totalBytes : bytesReadTotal);
+                    }
+                    callback.onDownloadEnd(artifact);
+                    return true;
+                }
+            } catch (Exception ignored) {
+                if (destFile.exists()) destFile.delete();
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------
