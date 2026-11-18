@@ -43,10 +43,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.zip.ZipFile;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.ZipFile;
 
 import mod.agus.jcoderz.dex.ClassDef;
 import mod.agus.jcoderz.dex.Dex;
@@ -82,7 +85,6 @@ import proguard.Configuration;
 import proguard.ConfigurationParser;
 import proguard.ParseException;
 import proguard.ProGuard;
-import java.util.LinkedHashSet;
 
 public class ProjectBuilder {
     public static final String TAG = "AppBuilder";
@@ -105,6 +107,10 @@ public class ProjectBuilder {
     private static final String DX_HINT =
             "\n\nDx can't dex Java 8+ bytecode (lambdas, invokedynamic, interface default/static methods)."
                     + "\nFix: switch the dexer to D8 in the project's Build Settings.";
+    private static final Pattern UNRESOLVED_VARIABLE_PATTERN = Pattern.compile(
+            "\\b([A-Za-z_$][A-Za-z0-9_$]*)\\s+cannot be resolved(?: to a variable)?(?!\\s+to\\s+\\w+)\\b");
+    private static final Pattern BINDING_FIELD_PATTERN = Pattern.compile(
+            "(?m)^\\s*public\\s+final\\s+[^;\\r\\n]+\\s+([A-Za-z_$][A-Za-z0-9_$]*)\\s*;\\s*$");
 
     /**
      * Timestamp keeping track of when compiling the project's resources started, needed for stats of how long compiling took.
@@ -768,11 +774,69 @@ public class ProjectBuilder {
                 } else {
                     message = "Java compilation failed with global errors count: " + main.globalErrorsCount;
                 }
+                String viewBindingHint = getViewBindingHint(errOut + "\n" + stdOut);
+                if (viewBindingHint != null) {
+                    message += "\n\n" + viewBindingHint;
+                }
                 throw new zy(message);
             } else {
                 LogUtil.d(TAG, "Compiling Java files took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
             }
         }
+    }
+
+    private String getViewBindingHint(String compilerOutput) {
+        if (!ProjectSettings.SETTING_GENERIC_VALUE_TRUE.equals(
+                settings.getValue(ProjectSettings.SETTING_ENABLE_VIEWBINDING,
+                        ProjectSettings.SETTING_GENERIC_VALUE_FALSE))) {
+            return null;
+        }
+
+        Matcher unresolvedMatcher = UNRESOLVED_VARIABLE_PATTERN.matcher(compilerOutput);
+        LinkedHashSet<String> unresolvedNames = new LinkedHashSet<>();
+        while (unresolvedMatcher.find()) {
+            unresolvedNames.add(unresolvedMatcher.group(1));
+        }
+        if (unresolvedNames.isEmpty()) {
+            return null;
+        }
+
+        File bindingDirectory = new File(yq.javaFilesPath + File.separator
+                + yq.packageName.replace(".", File.separator) + File.separator + "databinding");
+        File[] bindingFiles = bindingDirectory.listFiles((directory, name) -> name.endsWith(".java"));
+        if (bindingFiles == null || bindingFiles.length == 0) {
+            return null;
+        }
+
+        LinkedHashSet<String> matchingFields = new LinkedHashSet<>();
+        for (File bindingFile : bindingFiles) {
+            String bindingSource = FileUtil.readFile(bindingFile.getAbsolutePath());
+            Matcher fieldMatcher = BINDING_FIELD_PATTERN.matcher(bindingSource);
+            LinkedHashSet<String> generatedFields = new LinkedHashSet<>();
+            while (fieldMatcher.find()) {
+                generatedFields.add(fieldMatcher.group(1));
+            }
+
+            String bindingName = bindingFile.getName().substring(
+                    0, bindingFile.getName().length() - ".java".length());
+            for (String unresolvedName : unresolvedNames) {
+                String generatedName = ViewBindingBuilder.generateParameterFromId(unresolvedName);
+                if (generatedFields.contains(unresolvedName)) {
+                    matchingFields.add(bindingName + "." + unresolvedName);
+                } else if (generatedFields.contains(generatedName)) {
+                    matchingFields.add(bindingName + "." + generatedName);
+                }
+            }
+        }
+
+        if (matchingFields.isEmpty()) {
+            return null;
+        }
+        return "View Binding is enabled. This unresolved name matches generated view field(s): "
+                + String.join(", ", matchingFields)
+                + ". In activity code, access the view through the matching binding object "
+                + "(for example, binding.tvStatus), rather than using the view name by itself. "
+                + "XML IDs with underscores are generated in camelCase.";
     }
 
     public void buildApk() throws By {

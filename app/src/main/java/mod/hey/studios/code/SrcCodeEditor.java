@@ -59,6 +59,7 @@ import io.github.rosemoe.sora.widget.schemes.SchemeEclipse;
 import io.github.rosemoe.sora.widget.schemes.SchemeGitHub;
 import io.github.rosemoe.sora.widget.schemes.SchemeNotepadXX;
 import io.github.rosemoe.sora.widget.schemes.SchemeVS2019;
+import mod.hey.studios.project.ProjectSettings;
 import mod.hey.studios.util.Helper;
 import mod.jbk.code.CodeEditorColorSchemes;
 import mod.jbk.code.CodeEditorLanguages;
@@ -380,6 +381,16 @@ public class SrcCodeEditor extends BaseAppCompatActivity implements SkAssistantD
                 binding.editor.setColorScheme(CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_GITHUB));
             }
             languageId = 2;
+        }
+
+        if (title.endsWith(".java")
+                && getIntent().hasExtra("java")
+                && scId != null
+                && ProjectSettings.SETTING_GENERIC_VALUE_TRUE.equals(
+                new ProjectSettings(scId).getValue(
+                        ProjectSettings.SETTING_ENABLE_VIEWBINDING,
+                        ProjectSettings.SETTING_GENERIC_VALUE_FALSE))) {
+            binding.viewBindingNotice.setVisibility(View.VISIBLE);
         }
 
         loadCESettings(this, binding.editor, "act", true);

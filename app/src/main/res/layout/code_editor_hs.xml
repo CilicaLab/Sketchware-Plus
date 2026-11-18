@@ -25,9 +25,23 @@
             app:dividerColor="?attr/colorSurfaceContainerHighest" />
     </com.google.android.material.appbar.AppBarLayout>
 
+    <TextView
+        android:id="@+id/view_binding_notice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
+        android:background="?attr/colorSecondaryContainer"
+        android:padding="12dp"
+        android:text="@string/src_code_editor_view_binding_notice"
+        android:textColor="?attr/colorOnSecondaryContainer"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
     <io.github.rosemoe.sora.widget.CodeEditor
         android:id="@+id/editor"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
 </LinearLayout>
