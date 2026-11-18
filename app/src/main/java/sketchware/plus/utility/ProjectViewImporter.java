@@ -17,6 +17,7 @@ import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.ComponentBean;
 import com.besome.sketch.beans.EventBean;
 import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.ProjectLibraryBean;
 import com.besome.sketch.beans.ViewBean;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -49,6 +50,16 @@ public class ProjectViewImporter {
                 otherProjects.add(proj);
             }
         }
+
+        otherProjects.sort((p1, p2) -> {
+            try {
+                int id1 = Integer.parseInt(yB.c(p1, "sc_id"));
+                int id2 = Integer.parseInt(yB.c(p2, "sc_id"));
+                return Integer.compare(id2, id1);
+            } catch (Exception e) {
+                return 0;
+            }
+        });
 
         if (otherProjects.isEmpty()) {
             bB.a(activity.getApplicationContext(), "No other projects available to import views from.", bB.TOAST_NORMAL).show();
@@ -319,6 +330,10 @@ public class ProjectViewImporter {
 
         bB.a(activity.getApplicationContext(), "Imported view '" + importedFile.fileName + "' with logic successfully!", bB.TOAST_NORMAL).show();
 
+        // 4. Check if imported view needs Firebase and prompt user if Firebase Library is disabled in target project
+        ArrayList<ComponentBean> sourceComponents = sourceData.e(sourceFile.getJavaName());
+        checkAndPromptFirebase(activity, currentScId, sourceComponents, importedFile.fileName);
+
         if (onImportSuccess != null) {
             onImportSuccess.run();
         }
@@ -349,8 +364,11 @@ public class ProjectViewImporter {
         ArrayList<ComponentBean> sourceComponents = sourceData.e(sourceJavaName);
         if (sourceComponents != null) {
             for (ComponentBean comp : sourceComponents) {
-                ComponentBean clonedComp = new ComponentBean(comp.type, comp.componentId, comp.param1, comp.param2, comp.param3);
-                targetData.a(targetJavaName, clonedComp);
+                if (comp.param1 != null && !comp.param1.isEmpty()) {
+                    targetData.a(targetJavaName, comp.type, comp.componentId, comp.param1);
+                } else {
+                    targetData.a(targetJavaName, comp.type, comp.componentId);
+                }
             }
         }
 
@@ -390,6 +408,58 @@ public class ProjectViewImporter {
                 }
             }
         }
+    }
+
+    private static void checkAndPromptFirebase(Activity activity, String targetScId, ArrayList<ComponentBean> components, String importedFileName) {
+        if (components == null || components.isEmpty()) return;
+
+        boolean needsFirebase = false;
+        StringBuilder firebaseComponents = new StringBuilder();
+
+        for (ComponentBean comp : components) {
+            if (isFirebaseComponent(comp.type)) {
+                needsFirebase = true;
+                if (firebaseComponents.length() > 0) {
+                    firebaseComponents.append(", ");
+                }
+                firebaseComponents.append(ComponentBean.getComponentName(activity, comp.type));
+            }
+        }
+
+        if (needsFirebase) {
+            ProjectLibraryBean firebaseLib = jC.c(targetScId).d();
+            boolean isFirebaseOff = firebaseLib == null || ProjectLibraryBean.LIB_USE_N.equals(firebaseLib.useYn);
+
+            if (isFirebaseOff) {
+                new MaterialAlertDialogBuilder(activity)
+                        .setTitle("Enable Firebase Library")
+                        .setMessage("The imported view '" + importedFileName + "' includes Firebase components ("
+                                + firebaseComponents.toString()
+                                + ").\n\nFirebase Library is currently turned off in this project. Would you like to enable Firebase Library now to prevent project corruption?")
+                        .setPositiveButton("Enable Firebase", (dialog, which) -> {
+                            ProjectLibraryBean lib = jC.c(targetScId).d();
+                            lib.useYn = ProjectLibraryBean.LIB_USE_Y;
+                            jC.c(targetScId).c(lib);
+                            jC.c(targetScId).k();
+                            jC.b(targetScId).a(jC.c(targetScId));
+                            bB.a(activity.getApplicationContext(), "Firebase library enabled!", bB.TOAST_NORMAL).show();
+                        })
+                        .setNegativeButton("Skip", null)
+                        .show();
+            }
+        }
+    }
+
+    private static boolean isFirebaseComponent(int type) {
+        return switch (type) {
+            case ComponentBean.COMPONENT_TYPE_FIREBASE,
+                 ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH,
+                 ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE,
+                 ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_PHONE,
+                 ComponentBean.COMPONENT_TYPE_FIREBASE_CLOUD_MESSAGE,
+                 ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_GOOGLE_LOGIN -> true;
+            default -> false;
+        };
     }
 
     private static ArrayList<BlockBean> cloneBlocks(ArrayList<BlockBean> sourceBlocks) {
