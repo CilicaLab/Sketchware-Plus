@@ -1,6 +1,7 @@
 package sketchware.plus.activities.main.fragments.projects;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -22,6 +23,7 @@ import androidx.appcompat.widget.SearchView;
 import androidx.core.view.MenuProvider;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.NestedScrollView;
+import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.DiffUtil;
 
 import com.besome.sketch.adapters.ProjectsAdapter;
@@ -76,21 +78,23 @@ public class ProjectsFragment extends DA {
     private boolean isMenuAdded = false;
 
     private void addMenuProviderSafely() {
-        if (getActivity() != null && menuProvider != null) {
+        FragmentActivity activity = getActivity();
+        if (activity != null && menuProvider != null) {
             try {
-                requireActivity().removeMenuProvider(menuProvider);
+                activity.removeMenuProvider(menuProvider);
             } catch (Exception ignored) {}
             try {
-                requireActivity().addMenuProvider(menuProvider);
+                activity.addMenuProvider(menuProvider);
                 isMenuAdded = true;
             } catch (Exception ignored) {}
         }
     }
 
     private void removeMenuProviderSafely() {
-        if (getActivity() != null && menuProvider != null) {
+        FragmentActivity activity = getActivity();
+        if (activity != null && menuProvider != null) {
             try {
-                requireActivity().removeMenuProvider(menuProvider);
+                activity.removeMenuProvider(menuProvider);
                 isMenuAdded = false;
             } catch (Exception ignored) {}
         }
@@ -110,17 +114,22 @@ public class ProjectsFragment extends DA {
     }
 
     public void toDesignActivity(String sc_id) {
-        Intent intent = new Intent(requireContext(), DesignActivity.class);
+        Context context = getContext();
+        Activity activity = getActivity();
+        if (context == null || activity == null) return;
+        Intent intent = new Intent(context, DesignActivity.class);
         ProjectTracker.setScId(sc_id);
         intent.putExtra("sc_id", sc_id);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        requireActivity().startActivity(intent);
+        activity.startActivity(intent);
     }
 
     @Override
     public void c(int requestCode) {
+        Context context = getContext();
+        if (context == null) return;
         Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-        intent.setData(Uri.parse("package:" + requireContext().getPackageName()));
+        intent.setData(Uri.parse("package:" + context.getPackageName()));
         startActivity(intent);
     }
 
@@ -139,13 +148,17 @@ public class ProjectsFragment extends DA {
     }
 
     public void toProjectSettingsActivity() {
-        Intent intent = new Intent(getActivity(), MyProjectSettingActivity.class);
+        Activity activity = getActivity();
+        if (activity == null) return;
+        Intent intent = new Intent(activity, MyProjectSettingActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         openProjectSettings.launch(intent);
     }
 
     public void restoreProject() {
-        new BackupRestoreManager(getActivity(), this).restore();
+        Activity activity = getActivity();
+        if (activity == null) return;
+        new BackupRestoreManager(activity, this).restore();
     }
 
     @Override
@@ -162,8 +175,9 @@ public class ProjectsFragment extends DA {
     }
 
     public void setupFab() {
-        if (getActivity() == null || !isAdded()) return;
-        ExtendedFloatingActionButton fab = requireActivity().findViewById(R.id.create_new_project);
+        Activity activity = getActivity();
+        if (activity == null || !isAdded()) return;
+        ExtendedFloatingActionButton fab = activity.findViewById(R.id.create_new_project);
         if (fab != null) {
             fab.setText("New project");
             fab.setIconResource(R.drawable.ic_mtrl_add);
@@ -196,12 +210,15 @@ public class ProjectsFragment extends DA {
         UI.addSystemWindowInsetToPadding(binding.myprojects, true, false, true, true);
 
         binding.nestedScroll.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-            ExtendedFloatingActionButton fab = requireActivity().findViewById(R.id.create_new_project);
-            if (fab != null) {
-                if (scrollY > oldScrollY) {
-                    fab.shrink();
-                } else if (scrollY < oldScrollY) {
-                    fab.extend();
+            Activity activity = getActivity();
+            if (activity != null) {
+                ExtendedFloatingActionButton fab = activity.findViewById(R.id.create_new_project);
+                if (fab != null) {
+                    if (scrollY > oldScrollY) {
+                        fab.shrink();
+                    } else if (scrollY < oldScrollY) {
+                        fab.extend();
+                    }
                 }
             }
         });
@@ -265,8 +282,13 @@ public class ProjectsFragment extends DA {
 
         // Don't load project list without having permissions
         if (!c()) {
-            if (binding.swipeRefresh.isRefreshing()) binding.swipeRefresh.setRefreshing(false);
-            ((MainActivity) requireActivity()).s(); // ask for permissions
+            if (binding != null && binding.swipeRefresh.isRefreshing()) {
+                binding.swipeRefresh.setRefreshing(false);
+            }
+            Activity activity = getActivity();
+            if (activity instanceof MainActivity) {
+                ((MainActivity) activity).s(); // ask for permissions
+            }
             return;
         }
 
@@ -276,18 +298,22 @@ public class ProjectsFragment extends DA {
 
             DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ProjectDiffCallback(projectsList, loadedProjects));
 
-            requireActivity().runOnUiThread(() -> {
-                if (binding.swipeRefresh.isRefreshing()) binding.swipeRefresh.setRefreshing(false);
-                if (binding.loadingContainer.getVisibility() == View.VISIBLE) {
-                    binding.loadingContainer.setVisibility(View.GONE);
-                    binding.myprojects.setVisibility(View.VISIBLE);
-                }
-                projectsList.clear();
-                projectsList.addAll(loadedProjects);
-                diffResult.dispatchUpdatesTo(projectsAdapter);
-                if (projectsSearchView != null)
-                    projectsAdapter.filterData(projectsSearchView.getQuery().toString());
-            });
+            Activity activity = getActivity();
+            if (activity != null && isAdded()) {
+                activity.runOnUiThread(() -> {
+                    if (!isAdded() || binding == null) return;
+                    if (binding.swipeRefresh.isRefreshing()) binding.swipeRefresh.setRefreshing(false);
+                    if (binding.loadingContainer.getVisibility() == View.VISIBLE) {
+                        binding.loadingContainer.setVisibility(View.GONE);
+                        binding.myprojects.setVisibility(View.VISIBLE);
+                    }
+                    projectsList.clear();
+                    projectsList.addAll(loadedProjects);
+                    diffResult.dispatchUpdatesTo(projectsAdapter);
+                    if (projectsSearchView != null)
+                        projectsAdapter.filterData(projectsSearchView.getQuery().toString());
+                });
+            }
         });
     }
 
@@ -295,11 +321,15 @@ public class ProjectsFragment extends DA {
         executorService.execute(() -> {
             HashMap<String, Object> newProject = lC.b(sc_id);
             if (newProject != null) {
-                requireActivity().runOnUiThread(() -> {
-                    projectsList.add(0, newProject);
-                    projectsAdapter.notifyDataSetChanged();
-                    binding.myprojects.scrollToPosition(0);
-                });
+                Activity activity = getActivity();
+                if (activity != null && isAdded()) {
+                    activity.runOnUiThread(() -> {
+                        if (!isAdded() || binding == null) return;
+                        projectsList.add(0, newProject);
+                        projectsAdapter.notifyDataSetChanged();
+                        binding.myprojects.scrollToPosition(0);
+                    });
+                }
             }
         });
     }
@@ -311,17 +341,26 @@ public class ProjectsFragment extends DA {
                 int index = IntStream.range(0, projectsList.size()).filter(i -> projectsList.get(i).get("sc_id").equals(sc_id)).findFirst().orElse(-1);
                 if (index != -1) {
                     projectsList.set(index, updatedProject);
-                    requireActivity().runOnUiThread(() -> projectsAdapter.notifyDataSetChanged());
+                    Activity activity = getActivity();
+                    if (activity != null && isAdded()) {
+                        activity.runOnUiThread(() -> {
+                            if (!isAdded() || binding == null) return;
+                            projectsAdapter.notifyDataSetChanged();
+                        });
+                    }
                 }
             }
         });
     }
 
     private void showProjectSortingDialog() {
-        MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(requireActivity());
+        Activity activity = getActivity();
+        if (activity == null || !isAdded()) return;
+
+        MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(activity);
         dialog.setTitle("Sort options");
 
-        SortProjectDialogBinding dialogBinding = SortProjectDialogBinding.inflate(LayoutInflater.from(requireActivity()));
+        SortProjectDialogBinding dialogBinding = SortProjectDialogBinding.inflate(LayoutInflater.from(activity));
         RadioButton sortByName = dialogBinding.sortByName;
         RadioButton sortByID = dialogBinding.sortByID;
         RadioButton sortOrderAsc = dialogBinding.sortOrderAsc;

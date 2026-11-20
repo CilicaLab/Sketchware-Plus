@@ -13,11 +13,24 @@ import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_1_8;
 import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_1_9;
 import static mod.hey.studios.build.BuildSettings.SETTING_NO_HTTP_LEGACY;
 import static mod.hey.studios.build.BuildSettings.SETTING_NO_WARNINGS;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_ALIAS_PASSWORD;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_KEYSTORE_ALIAS;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_KEYSTORE_PASSWORD;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_KEYSTORE_PATH;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_KEY_PASSWORD;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGNING_ALGORITHM;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE_CUSTOM;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE_TESTKEY;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGN_V1;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGN_V2;
+import static mod.hey.studios.build.BuildSettings.SETTING_TEST_RUN_SIGN_V3;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -26,8 +39,13 @@ import androidx.annotation.NonNull;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
+import java.io.File;
+
 import mod.hey.studios.build.BuildSettings;
 import sketchware.plus.databinding.ProjectConfigLayoutBinding;
+import sketchware.plus.filepicker.FilePickerCallback;
+import sketchware.plus.filepicker.FilePickerDialogFragment;
+import sketchware.plus.filepicker.FilePickerOptions;
 import sketchware.plus.utility.SketchwareUtil;
 
 public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
@@ -74,6 +92,19 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        android.app.Dialog dialog = getDialog();
+        if (dialog instanceof com.google.android.material.bottomsheet.BottomSheetDialog) {
+            View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (bottomSheet != null) {
+                com.google.android.material.bottomsheet.BottomSheetBehavior.from(bottomSheet)
+                        .setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
+            }
+        }
+    }
+
+    @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = ProjectConfigLayoutBinding.inflate(inflater, container, false);
         return binding.getRoot();
@@ -99,9 +130,64 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         setCheckboxValue(binding.cbNoHttpLegacy, SETTING_NO_HTTP_LEGACY, false);
         setCheckboxValue(binding.cbEnableLogcat, SETTING_ENABLE_LOGCAT, true);
 
+        String signingType = projectSettings.getValue(SETTING_TEST_RUN_SIGNING_TYPE, SETTING_TEST_RUN_SIGNING_TYPE_TESTKEY);
+        boolean isCustom = SETTING_TEST_RUN_SIGNING_TYPE_CUSTOM.equals(signingType);
+        if (isCustom) {
+            binding.rbTestRunCustom.setChecked(true);
+            binding.cardTestRunCustomKeystore.setVisibility(View.VISIBLE);
+        } else {
+            binding.rbTestRunTestkey.setChecked(true);
+            binding.cardTestRunCustomKeystore.setVisibility(View.GONE);
+        }
+
+        binding.rgTestRunSigning.setOnCheckedChangeListener((group, checkedId) -> {
+            boolean customChecked = checkedId == binding.rbTestRunCustom.getId();
+            binding.cardTestRunCustomKeystore.setVisibility(customChecked ? View.VISIBLE : View.GONE);
+        });
+
+        // Setup signing algorithm dropdown adapter with presets
+        String[] algoPresets = new String[]{"SHA256withRSA", "SHA1withRSA", "SHA256withECDSA", "SHA512withRSA", "MD5withRSA"};
+        ArrayAdapter<String> algoAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, algoPresets);
+        binding.actTestRunSigningAlgorithm.setAdapter(algoAdapter);
+
+        // Load existing values into UI
+        binding.etTestRunKeystorePath.setText(projectSettings.getValue(SETTING_TEST_RUN_KEYSTORE_PATH, ""));
+        binding.etTestRunKeystorePassword.setText(projectSettings.getValue(SETTING_TEST_RUN_KEYSTORE_PASSWORD, ""));
+        binding.etTestRunKeystoreAlias.setText(projectSettings.getValue(SETTING_TEST_RUN_KEYSTORE_ALIAS, ""));
+        binding.etTestRunAliasPassword.setText(projectSettings.getValue(SETTING_TEST_RUN_ALIAS_PASSWORD, ""));
+        binding.actTestRunSigningAlgorithm.setText(projectSettings.getValue(SETTING_TEST_RUN_SIGNING_ALGORITHM, "SHA256withRSA"), false);
+
+        binding.cbTestRunV1.setChecked(projectSettings.getValue(SETTING_TEST_RUN_SIGN_V1, "true").equals("true"));
+        binding.cbTestRunV2.setChecked(projectSettings.getValue(SETTING_TEST_RUN_SIGN_V2, "true").equals("true"));
+        binding.cbTestRunV3.setChecked(projectSettings.getValue(SETTING_TEST_RUN_SIGN_V3, "true").equals("true"));
+
+        binding.btnSelectTestRunKeystore.setOnClickListener(v -> {
+            FilePickerOptions options = new FilePickerOptions();
+            FilePickerCallback callback = new FilePickerCallback() {
+                @Override
+                public void onFileSelected(@NonNull File file) {
+                    binding.etTestRunKeystorePath.setText(file.getAbsolutePath());
+                }
+            };
+            new FilePickerDialogFragment(options, callback).show(getParentFragmentManager(), "filePickerTestRunKeystore");
+        });
+
         binding.btnCancel.setOnClickListener(v -> dismiss());
         binding.btnSave.setOnClickListener(v -> {
             projectSettings.setValues(views);
+            String selectedType = binding.rbTestRunCustom.isChecked()
+                    ? SETTING_TEST_RUN_SIGNING_TYPE_CUSTOM
+                    : SETTING_TEST_RUN_SIGNING_TYPE_TESTKEY;
+            projectSettings.setValue(SETTING_TEST_RUN_SIGNING_TYPE, selectedType);
+            projectSettings.setValue(SETTING_TEST_RUN_KEYSTORE_PATH, binding.etTestRunKeystorePath.getText() != null ? binding.etTestRunKeystorePath.getText().toString().trim() : "");
+            projectSettings.setValue(SETTING_TEST_RUN_KEYSTORE_PASSWORD, binding.etTestRunKeystorePassword.getText() != null ? binding.etTestRunKeystorePassword.getText().toString() : "");
+            projectSettings.setValue(SETTING_TEST_RUN_KEYSTORE_ALIAS, binding.etTestRunKeystoreAlias.getText() != null ? binding.etTestRunKeystoreAlias.getText().toString().trim() : "");
+            projectSettings.setValue(SETTING_TEST_RUN_ALIAS_PASSWORD, binding.etTestRunAliasPassword.getText() != null ? binding.etTestRunAliasPassword.getText().toString() : "");
+            projectSettings.setValue(SETTING_TEST_RUN_KEY_PASSWORD, binding.etTestRunAliasPassword.getText() != null ? binding.etTestRunAliasPassword.getText().toString() : "");
+            projectSettings.setValue(SETTING_TEST_RUN_SIGNING_ALGORITHM, binding.actTestRunSigningAlgorithm.getText() != null ? binding.actTestRunSigningAlgorithm.getText().toString().trim() : "SHA256withRSA");
+            projectSettings.setValue(SETTING_TEST_RUN_SIGN_V1, Boolean.toString(binding.cbTestRunV1.isChecked()));
+            projectSettings.setValue(SETTING_TEST_RUN_SIGN_V2, Boolean.toString(binding.cbTestRunV2.isChecked()));
+            projectSettings.setValue(SETTING_TEST_RUN_SIGN_V3, Boolean.toString(binding.cbTestRunV3.isChecked()));
             dismiss();
         });
     }

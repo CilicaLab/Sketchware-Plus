@@ -12,6 +12,7 @@ import java.util.List;
 
 import a.a.a.lC;
 import a.a.a.yB;
+import mod.hey.studios.build.BuildSettings;
 import mod.jbk.build.BuiltInLibraries;
 
 public class SecurityGuardInjector {
@@ -181,14 +182,36 @@ public class SecurityGuardInjector {
 
     public static String detectAndPersistSigningHash(Context context, String scId) {
         SecurityGuardHandler handler = new SecurityGuardHandler(scId);
-        if (handler.isFeatureEnabled("auto_signature_sync") && !isCustomKeystoreExport) {
-            String testkeyHash = getActiveSigningHash();
-            if (testkeyHash != null) {
-                String normalized = normalizeHash(testkeyHash);
+        BuildSettings buildSettings = new BuildSettings(scId);
+        String signingType = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE, BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE_TESTKEY);
+        boolean isCustomKeystore = BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE_CUSTOM.equals(signingType);
+
+        if ((handler.isFeatureEnabled("auto_signature_sync") || isCustomKeystore) && !isCustomKeystoreExport) {
+            String activeHash = null;
+            if (isCustomKeystore) {
+                String keystorePath = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_PATH, "");
+                String keystorePassword = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_PASSWORD, "");
+                String keystoreAlias = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_ALIAS, "");
+
+                if (!keystorePath.isEmpty() && new File(keystorePath).exists()) {
+                    try {
+                        activeHash = SecurityUtils.getKeystoreSignatureHash(keystorePath, keystorePassword.toCharArray(), keystoreAlias);
+                    } catch (Exception e) {
+                        Log.e("SecurityGuardInjector", "Failed to extract custom keystore signature hash", e);
+                    }
+                }
+            }
+
+            if (activeHash == null) {
+                activeHash = getActiveSigningHash();
+            }
+
+            if (activeHash != null) {
+                String normalized = normalizeHash(activeHash);
                 handler.setFeatureValue("expected_signature", normalized);
                 return normalized;
             } else {
-                Log.w("SecurityGuardInjector", "auto_signature_sync on but testkey cert not found/resolvable");
+                Log.w("SecurityGuardInjector", "auto_signature_sync on but signing cert not found/resolvable");
             }
         }
         return handler.getFeatureString("expected_signature");

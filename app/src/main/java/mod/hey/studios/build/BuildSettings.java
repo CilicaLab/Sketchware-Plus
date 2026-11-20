@@ -24,6 +24,20 @@ public class BuildSettings extends ProjectSettings implements Serializable {
     public static final String SETTING_JAVA_VERSION_11 = "11";
     public static final String SETTING_JAVA_VERSION_17 = "17";
 
+    public static final String SETTING_TEST_RUN_SIGNING_TYPE = "test_run_signing_type";
+    public static final String SETTING_TEST_RUN_SIGNING_TYPE_TESTKEY = "testkey";
+    public static final String SETTING_TEST_RUN_SIGNING_TYPE_CUSTOM = "custom";
+
+    public static final String SETTING_TEST_RUN_KEYSTORE_PATH = "test_run_keystore_path";
+    public static final String SETTING_TEST_RUN_KEYSTORE_PASSWORD = "test_run_keystore_pass";
+    public static final String SETTING_TEST_RUN_KEYSTORE_ALIAS = "test_run_keystore_alias";
+    public static final String SETTING_TEST_RUN_KEY_PASSWORD = "test_run_key_pass";
+    public static final String SETTING_TEST_RUN_ALIAS_PASSWORD = "test_run_alias_pass";
+    public static final String SETTING_TEST_RUN_SIGNING_ALGORITHM = "test_run_signing_algorithm";
+    public static final String SETTING_TEST_RUN_SIGN_V1 = "test_run_sign_v1";
+    public static final String SETTING_TEST_RUN_SIGN_V2 = "test_run_sign_v2";
+    public static final String SETTING_TEST_RUN_SIGN_V3 = "test_run_sign_v3";
+
     public BuildSettings(String sc_id) {
         super(sc_id);
     }
