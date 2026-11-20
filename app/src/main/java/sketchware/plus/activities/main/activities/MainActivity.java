@@ -453,9 +453,9 @@ public class MainActivity extends BasePermissionAppCompatActivity {
     @NonNull
     private BottomSheetDialogView getBottomSheetDialogView() {
         BottomSheetDialogView bottomSheetDialog = new BottomSheetDialogView(this);
-        bottomSheetDialog.setTitle("What's New in v7.0.2");
+        bottomSheetDialog.setTitle("What's New in v7.0.3");
         bottomSheetDialog.setDescription("""
-                Meet Sketchware Plus v7.0.2!\
+                Meet Sketchware Plus v7.0.3!\
                 Featuring SK Assistant AI integration for code generation & bug fixing, modern SDK & Kotlin support, and stability improvements.""");
 
         bottomSheetDialog.setPositiveButton("View changes", (dialog, which) -> {

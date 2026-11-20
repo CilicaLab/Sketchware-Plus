@@ -354,8 +354,7 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
                     To sign an APK, you need a keystore. Use your already created one, and copy it to \
                     /Internal storage/sketchware/keystore/release_key.jks and enter the alias's password.
                     
-                    Note that this only signs your APK using signing scheme V1, to target Android 11+ for example, \
-                    use a 3rd-party tool (for now).""");
+                    You can sign your APK using V1, V2, or V3 signature schemes.""");
             confirmationDialog.setIcon(R.drawable.ic_mtrl_info);
 
             confirmationDialog.setPositiveButton("Understood", (v, which) -> {
