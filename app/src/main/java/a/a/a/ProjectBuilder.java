@@ -57,7 +57,10 @@ import mod.agus.jcoderz.dex.FieldId;
 import mod.agus.jcoderz.dex.MethodId;
 import mod.agus.jcoderz.dex.ProtoId;
 import mod.agus.jcoderz.dx.command.dexer.DxContext;
+import java.security.Key;
+import java.security.KeyStore;
 import java.security.Security;
+import java.security.UnrecoverableKeyException;
 
 import kellinwood.security.zipsigner.ZipSigner;
 import kellinwood.security.zipsigner.optional.CustomKeySigner;
@@ -1200,17 +1203,74 @@ public class ProjectBuilder {
         return builtInLibraryManager;
     }
 
+    private void validateCustomKeystoreCredentials(String keystorePath, String keystorePassword, String alias, String aliasPassword) throws By {
+        if (keystorePath.isEmpty()) {
+            throw new By("Custom Keystore signing failed: Keystore file path is empty. Please select a valid keystore in Build Settings.");
+        }
+
+        File ksFile = new File(keystorePath);
+        if (!ksFile.exists() || !ksFile.isFile()) {
+            throw new By("Custom Keystore signing failed: Keystore file does not exist at '" + keystorePath + "'. Please check the path in Build Settings.");
+        }
+
+        if (keystorePassword.isEmpty()) {
+            throw new By("Custom Keystore signing failed: Keystore password is empty. Please enter your keystore password in Build Settings.");
+        }
+
+        if (alias.isEmpty()) {
+            throw new By("Custom Keystore signing failed: Key alias is empty. Please enter your key alias in Build Settings.");
+        }
+
+        // Pre-validate keystore password and alias in pure Java memory before invoking signing tools to prevent crashes
+        try {
+            Security.addProvider(new BouncyCastleProvider());
+            KeyStore ks = kellinwood.security.zipsigner.optional.KeyStoreFileManager.loadKeyStore(keystorePath, keystorePassword.toCharArray());
+
+            if (!ks.containsAlias(alias)) {
+                throw new By("Custom Keystore signing failed: Key alias '" + alias + "' was not found in keystore at '" + keystorePath + "'.");
+            }
+
+            try {
+                Key key = ks.getKey(alias, aliasPassword.toCharArray());
+                if (key == null) {
+                    throw new By("Custom Keystore signing failed: Key for alias '" + alias + "' could not be retrieved from keystore.");
+                }
+            } catch (UnrecoverableKeyException e) {
+                throw new By("Custom Keystore signing failed: Incorrect alias password for alias '" + alias + "'.");
+            } catch (GeneralSecurityException e) {
+                throw new By("Custom Keystore signing failed: Security exception retrieving alias '" + alias + "' (" + e.getMessage() + ").");
+            }
+        } catch (By e) {
+            throw e;
+        } catch (IOException e) {
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("password") || msg.contains("keystore password was incorrect") || (e.getCause() != null && e.getCause() instanceof UnrecoverableKeyException)) {
+                throw new By("Custom Keystore signing failed: Incorrect keystore password.");
+            }
+            throw new By("Custom Keystore signing failed: Failed to read keystore file (" + (e.getMessage() != null ? e.getMessage() : e.toString()) + ").");
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.contains("password") || msg.contains("Keystore password")) {
+                throw new By("Custom Keystore signing failed: Incorrect keystore password.");
+            }
+            throw new By("Custom Keystore signing failed: " + msg);
+        }
+    }
+
     /**
      * Sign the debug APK file with testkey or custom keystore if configured in BuildSettings.
      */
-    public void signDebugApk() throws GeneralSecurityException, IOException, ClassNotFoundException, IllegalAccessException, InstantiationException {
+    public void signDebugApk() throws GeneralSecurityException, IOException, ClassNotFoundException, IllegalAccessException, InstantiationException, By {
         BuildSettings buildSettings = new BuildSettings(yq.sc_id);
         String signingType = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE, BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE_TESTKEY);
 
+        // Always zipalign the unsigned APK first before applying V1/V2/V3 signatures
+        runZipalign(yq.unsignedUnalignedApkPath, yq.unsignedAlignedApkPath);
+
         if (BuildSettings.SETTING_TEST_RUN_SIGNING_TYPE_CUSTOM.equals(signingType)) {
-            String keystorePath = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_PATH, "");
+            String keystorePath = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_PATH, "").trim();
             String keystorePassword = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_PASSWORD, "");
-            String keystoreAlias = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_ALIAS, "");
+            String keystoreAlias = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEYSTORE_ALIAS, "").trim();
             String aliasPassword = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_ALIAS_PASSWORD, "");
             if (aliasPassword.isEmpty()) {
                 aliasPassword = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_KEY_PASSWORD, keystorePassword);
@@ -1219,71 +1279,71 @@ public class ProjectBuilder {
                 aliasPassword = keystorePassword;
             }
 
-            String signingAlgorithm = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGNING_ALGORITHM, "SHA256withRSA");
+            String signingAlgorithm = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGNING_ALGORITHM, "SHA256withRSA").trim();
             boolean v1 = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGN_V1, "true").equals("true");
             boolean v2 = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGN_V2, "true").equals("true");
             boolean v3 = buildSettings.getValue(BuildSettings.SETTING_TEST_RUN_SIGN_V3, "true").equals("true");
 
-            if (!keystorePath.isEmpty() && new File(keystorePath).exists()) {
-                boolean success = false;
-                // 1. Try ApkSigner (V1/V2/V3 schemes)
+            // Pre-flight validation - throws By exception on wrong password / bad path / wrong alias
+            validateCustomKeystoreCredentials(keystorePath, keystorePassword, keystoreAlias, aliasPassword);
+
+            boolean success = false;
+
+            // 1. Try ApkSigner with V1, V2, and V3 schemes enabled on the zipaligned APK
+            try {
+                ApkSigner apkSigner = new ApkSigner();
+                apkSigner.signWithCustomKeyStore(
+                        yq.unsignedAlignedApkPath,
+                        yq.finalToInstallApkPath,
+                        keystorePath,
+                        keystorePassword,
+                        keystoreAlias,
+                        aliasPassword,
+                        v1,
+                        v2,
+                        v3,
+                        line -> LogUtil.d(TAG, "ApkSigner: " + line)
+                );
+                File finalApk = new File(yq.finalToInstallApkPath);
+                success = finalApk.exists() && finalApk.length() > 0;
+            } catch (Exception e) {
+                LogUtil.e(TAG, "ApkSigner custom signing failed, attempting ZipSigner fallback...", e);
+            }
+
+            // 2. Fallback to ZipSigner (CustomKeySigner) if ApkSigner failed
+            if (!success) {
                 try {
-                    ApkSigner apkSigner = new ApkSigner();
-                    apkSigner.signWithCustomKeyStore(
-                            yq.unsignedUnalignedApkPath,
-                            yq.finalToInstallApkPath,
+                    Security.addProvider(new BouncyCastleProvider());
+                    ZipSigner zipSigner = new ZipSigner();
+                    CustomKeySigner.signZip(
+                            zipSigner,
                             keystorePath,
-                            keystorePassword,
+                            keystorePassword.toCharArray(),
                             keystoreAlias,
-                            aliasPassword,
-                            v1,
-                            v2,
-                            v3,
-                            line -> LogUtil.d(TAG, "ApkSigner: " + line)
+                            aliasPassword.toCharArray(),
+                            signingAlgorithm,
+                            yq.unsignedAlignedApkPath,
+                            yq.finalToInstallApkPath
                     );
                     File finalApk = new File(yq.finalToInstallApkPath);
                     success = finalApk.exists() && finalApk.length() > 0;
+                } catch (By e) {
+                    throw e;
                 } catch (Exception e) {
-                    LogUtil.e(TAG, "ApkSigner custom signing failed, attempting ZipSigner fallback...", e);
+                    LogUtil.e(TAG, "Custom keystore signing failed", e);
+                    throw new By("Custom Keystore signing failed: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
                 }
-
-                // 2. Fallback to ZipSigner (CustomKeySigner) if ApkSigner failed
-                if (!success) {
-                    try {
-                        Security.addProvider(new BouncyCastleProvider());
-                        ZipSigner zipSigner = new ZipSigner();
-                        CustomKeySigner.signZip(
-                                zipSigner,
-                                keystorePath,
-                                keystorePassword.toCharArray(),
-                                keystoreAlias,
-                                aliasPassword.toCharArray(),
-                                signingAlgorithm,
-                                yq.unsignedUnalignedApkPath,
-                                yq.finalToInstallApkPath
-                        );
-                        File finalApk = new File(yq.finalToInstallApkPath);
-                        success = finalApk.exists() && finalApk.length() > 0;
-                        if (success) {
-                            LogUtil.d(TAG, "Successfully signed test run APK using ZipSigner fallback.");
-                        }
-                    } catch (Exception e) {
-                        LogUtil.e(TAG, "ZipSigner custom signing fallback also failed.", e);
-                    }
-                }
-
-                if (success) {
-                    LogUtil.d(TAG, "Successfully signed test run APK using custom keystore at " + keystorePath);
-                    return;
-                } else {
-                    LogUtil.w(TAG, "Custom keystore signing failed with both ApkSigner and ZipSigner. Falling back to default testkey.");
-                }
-            } else {
-                LogUtil.w(TAG, "Custom keystore path is invalid or missing (" + keystorePath + "). Falling back to default testkey.");
             }
+
+            if (success) {
+                LogUtil.d(TAG, "Successfully signed test run APK using custom keystore at " + keystorePath);
+                return;
+            }
+
+            throw new By("Custom Keystore signing failed: Output APK file was not produced.");
         }
 
-        TestkeySignBridge.signWithTestkey(yq.unsignedUnalignedApkPath, yq.finalToInstallApkPath);
+        TestkeySignBridge.signWithTestkey(yq.unsignedAlignedApkPath, yq.finalToInstallApkPath);
     }
 
     private void mergeDexes(File target, List<Dex> dexes) throws IOException {
