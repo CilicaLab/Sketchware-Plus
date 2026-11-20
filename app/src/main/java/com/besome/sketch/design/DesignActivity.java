@@ -167,6 +167,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     private int currentTabNumber;
     private CustomViewPager viewPager;
     private CoordinatorLayout coordinatorLayout;
+    private Snackbar currentSnackbar;
     private DrawerLayout drawer;
     private yq q;
     private DB r;
@@ -464,11 +465,14 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
      * @param error The error, to be later displayed as text in {@link CompileLogActivity}
      */
     private void indicateCompileErrorOccurred(String error) {
+        if (currentSnackbar != null) {
+            currentSnackbar.dismiss();
+        }
         new CompileErrorSaver(sc_id).writeLogsToFile(error);
-        Snackbar snackbar = Snackbar.make(coordinatorLayout, "Show compile log", Snackbar.LENGTH_INDEFINITE);
-        snackbar.setAction(Helper.getResString(R.string.common_word_show), v -> {
+        currentSnackbar = Snackbar.make(coordinatorLayout, "Show compile log", Snackbar.LENGTH_INDEFINITE);
+        currentSnackbar.setAction(Helper.getResString(R.string.common_word_show), v -> {
             if (!mB.a()) {
-                snackbar.dismiss();
+                currentSnackbar.dismiss();
                 Intent intent = new Intent(getApplicationContext(), CompileLogActivity.class);
                 intent.putExtra("error", error);
                 intent.putExtra("sc_id", sc_id);
@@ -476,7 +480,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 startActivity(intent);
             }
         });
-        snackbar.show();
+        currentSnackbar.show();
     }
 
     @Override
@@ -515,9 +519,38 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     }
 
     /**
+     * Shows a Snackbar indicating that the app was built successfully and can be opened.
+     */
+    private void showOpenAppSnackbar() {
+        if (currentSnackbar != null) {
+            currentSnackbar.dismiss();
+        }
+        currentSnackbar = Snackbar.make(coordinatorLayout, "App built successfully", Snackbar.LENGTH_INDEFINITE);
+        currentSnackbar.setAction("OPEN", v -> {
+            currentSnackbar.dismiss();
+            Intent launcher = getPackageManager().getLaunchIntentForPackage(q.packageName);
+            if (launcher != null) {
+                try {
+                    startActivity(launcher);
+                } catch (Exception e) {
+                    SketchwareUtil.toastError("Failed to launch app: " + e.getMessage());
+                }
+            } else {
+                if (FileUtil.isExistFile(q.finalToInstallApkPath)) {
+                    requestPackageInstallerInstall();
+                } else {
+                    SketchwareUtil.toastError("Couldn't launch project, either not installed or not with launcher activity.");
+                }
+            }
+        });
+        currentSnackbar.show();
+    }
+
+    /**
      * Opens the debug APK to install.
      */
     private void installBuiltApk() {
+        showOpenAppSnackbar();
         if (!ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_ROOT_AUTO_INSTALL_PROJECTS)) {
             requestPackageInstallerInstall();
         } else {
@@ -730,6 +763,10 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
             @Override
             public void onPageSelected(int position) {
+                if (currentSnackbar != null) {
+                    currentSnackbar.dismiss();
+                    currentSnackbar = null;
+                }
                 if (currentTabNumber == 1) {
                     if (eventTabAdapter != null) {
                         eventTabAdapter.c();
