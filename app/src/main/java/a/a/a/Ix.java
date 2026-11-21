@@ -87,6 +87,16 @@ public class Ix {
     }
 
     /**
+     * Helper to add a Firebase component registrar metadata tag.
+     */
+    private void addFirebaseRegistrar(XmlBuilder serviceTag, String registrarClassName) {
+        XmlBuilder metadataTag = new XmlBuilder("meta-data");
+        metadataTag.addAttribute("android", "name", "com.google.firebase.components:" + registrarClassName);
+        metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
+        serviceTag.addChildNode(metadataTag);
+    }
+
+    /**
      * Adds Firebase metadata to AndroidManifest.
      *
      * @param applicationTag AndroidManifest {@link XmlBuilder} object
@@ -101,29 +111,23 @@ public class Ix {
         XmlBuilder serviceTag = new XmlBuilder("service");
         serviceTag.addAttribute("android", "name", "com.google.firebase.components.ComponentDiscoveryService");
         serviceTag.addAttribute("android", "exported", "false");
+
+        addFirebaseRegistrar(serviceTag, "com.google.firebase.FirebaseCommonRegistrar");
+        addFirebaseRegistrar(serviceTag, "com.google.firebase.concurrent.ExecutorsRegistrar");
+        addFirebaseRegistrar(serviceTag, "com.google.firebase.installations.FirebaseInstallationsRegistrar");
+        addFirebaseRegistrar(serviceTag, "com.google.firebase.datatransport.TransportRegistrar");
+
         if (c.isFirebaseAuthUsed) {
-            XmlBuilder metadataTag = new XmlBuilder("meta-data");
-            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.auth.FirebaseAuthRegistrar");
-            metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
-            serviceTag.addChildNode(metadataTag);
+            addFirebaseRegistrar(serviceTag, "com.google.firebase.auth.FirebaseAuthRegistrar");
         }
         if (c.isFirebaseDatabaseUsed) {
-            XmlBuilder metadataTag = new XmlBuilder("meta-data");
-            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.database.FirebaseDatabaseRegistrar");
-            metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
-            serviceTag.addChildNode(metadataTag);
+            addFirebaseRegistrar(serviceTag, "com.google.firebase.database.FirebaseDatabaseRegistrar");
         }
         if (c.isFirebaseStorageUsed) {
-            XmlBuilder metadataTag = new XmlBuilder("meta-data");
-            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.storage.StorageRegistrar");
-            metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
-            serviceTag.addChildNode(metadataTag);
+            addFirebaseRegistrar(serviceTag, "com.google.firebase.storage.StorageRegistrar");
         }
         if (c.x.isFCMUsed) {
-            XmlBuilder metadataTag = new XmlBuilder("meta-data");
-            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingRegistrar");
-            metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
-            serviceTag.addChildNode(metadataTag);
+            addFirebaseRegistrar(serviceTag, "com.google.firebase.messaging.FirebaseMessagingRegistrar");
         }
         applicationTag.addChildNode(serviceTag);
     }
