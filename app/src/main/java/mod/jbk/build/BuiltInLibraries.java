@@ -121,6 +121,7 @@ public class BuiltInLibraries {
     public static String FIREBASE_ANALYTICS = "firebase-analytics-24.0.0";
     public static String FIREBASE_ANNOTATIONS = "firebase-annotations-18.0.0";
     public static String FIREBASE_APPCHECK = "firebase-appcheck-20.0.0";
+    public static String FIREBASE_APPCHECK_INTEROP = "firebase-appcheck-interop-17.1.0";
     public static String FIREBASE_APPCHECK_DEBUG = "firebase-appcheck-debug-20.0.0";
     public static String FIREBASE_APPCHECK_DEBUG_TESTING = "firebase-appcheck-debug-testing-20.0.0";
     public static String FIREBASE_APPCHECK_PLAYINTEGRITY = "firebase-appcheck-playintegrity-20.0.0";
@@ -135,7 +136,13 @@ public class BuiltInLibraries {
     public static String FIREBASE_DATABASE = "firebase-database-23.0.0";
     public static String FIREBASE_DATABASE_COLLECTION = "firebase-database-collection-17.0.1";
     public static String FIREBASE_DATACONNECT = "firebase-dataconnect-18.0.1";
+    public static String FIREBASE_DATATRANSPORT = "firebase-datatransport-21.0.0";
     public static String FIREBASE_ENCODERS = "firebase-encoders-18.0.0";
+    public static String FIREBASE_ENCODERS_JSON = "firebase-encoders-json-18.0.1";
+    public static String FIREBASE_ENCODERS_PROTO = "firebase-encoders-proto-16.0.0";
+    public static String TRANSPORT_API = "transport-api-5.0.0";
+    public static String TRANSPORT_BACKEND_CCT = "transport-backend-cct-5.0.0";
+    public static String TRANSPORT_RUNTIME = "transport-runtime-5.0.0";
     public static String FIREBASE_FIRESTORE = "firebase-firestore-27.1.0";
     public static String FIREBASE_FUNCTIONS = "firebase-functions-23.0.0";
     public static String FIREBASE_IID = "firebase-iid-19.0.0";
@@ -143,6 +150,7 @@ public class BuiltInLibraries {
     public static String FIREBASE_INAPPMESSAGING = "firebase-inappmessaging-23.0.0";
     public static String FIREBASE_INAPPMESSAGING_DISPLAY = "firebase-inappmessaging-display-23.0.0";
     public static String FIREBASE_INSTALLATIONS = "firebase-installations-20.0.0";
+    public static String FIREBASE_INSTALLATIONS_INTEROP = "firebase-installations-interop-18.0.0";
     public static String FIREBASE_MEASUREMENT_CONNECTOR = "firebase-measurement-connector-18.0.0";
     public static String FIREBASE_MESSAGING = "firebase-messaging-26.0.1";
     public static String FIREBASE_MESSAGING_DIRECTBOOT = "firebase-messaging-directboot-26.0.1";
@@ -418,9 +426,11 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_APPCHECK_RECAPTCHA, List.of(FIREBASE_APPCHECK, FIREBASE_COMMON)),
 
+            new BuiltInLibrary(FIREBASE_APPCHECK_INTEROP, List.of(FIREBASE_COMMON)),
+
             new BuiltInLibrary(FIREBASE_AUTH, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_FRAGMENT, ANDROIDX_LOCALBROADCASTMANAGER,
                     PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS,
-                    FIREBASE_AUTH_INTEROP, FIREBASE_COMMON)),
+                    FIREBASE_AUTH_INTEROP, FIREBASE_APPCHECK_INTEROP, FIREBASE_COMMON)),
 
             new BuiltInLibrary(FIREBASE_AUTH_INTEROP, List.of(PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, FIREBASE_COMMON)),
 
@@ -436,16 +446,20 @@ public class BuiltInLibraries {
             new BuiltInLibrary(FIREBASE_CRASHLYTICS_NDK, List.of(FIREBASE_CRASHLYTICS)),
 
             new BuiltInLibrary(FIREBASE_DATABASE, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT,
-                    PLAY_SERVICES_TASKS, FIREBASE_AUTH_INTEROP, FIREBASE_COMMON,
+                    PLAY_SERVICES_TASKS, FIREBASE_AUTH_INTEROP, FIREBASE_APPCHECK_INTEROP, FIREBASE_COMMON,
                     FIREBASE_COMPONENTS, FIREBASE_DATABASE_COLLECTION)),
 
             new BuiltInLibrary(FIREBASE_DATABASE_COLLECTION, List.of(PLAY_SERVICES_BASE)),
 
-            new BuiltInLibrary(FIREBASE_DATACONNECT, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS)),
+            new BuiltInLibrary(FIREBASE_DATATRANSPORT, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, TRANSPORT_API, TRANSPORT_BACKEND_CCT, TRANSPORT_RUNTIME)),
 
             new BuiltInLibrary(FIREBASE_ENCODERS, List.of()),
 
-            new BuiltInLibrary(FIREBASE_FIRESTORE, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_DATABASE_COLLECTION, FIREBASE_AUTH_INTEROP)),
+            new BuiltInLibrary(FIREBASE_ENCODERS_JSON, List.of(FIREBASE_ENCODERS)),
+
+            new BuiltInLibrary(FIREBASE_ENCODERS_PROTO, List.of(FIREBASE_ENCODERS)),
+
+            new BuiltInLibrary(FIREBASE_FIRESTORE, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_DATABASE_COLLECTION, FIREBASE_AUTH_INTEROP, FIREBASE_APPCHECK_INTEROP)),
 
             new BuiltInLibrary(FIREBASE_FUNCTIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_AUTH_INTEROP, PLAY_SERVICES_TASKS)),
 
@@ -459,13 +473,16 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_INAPPMESSAGING_DISPLAY, List.of(FIREBASE_INAPPMESSAGING, ANDROIDX_APPCOMPAT, GLIDE)),
 
-            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, PLAY_SERVICES_TASKS)),
+            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS_INTEROP, PLAY_SERVICES_TASKS)),
+
+            new BuiltInLibrary(FIREBASE_INSTALLATIONS_INTEROP, List.of(FIREBASE_COMMON)),
 
             new BuiltInLibrary(FIREBASE_MEASUREMENT_CONNECTOR, List.of(PLAY_SERVICES_BASEMENT)),
 
             new BuiltInLibrary(FIREBASE_MESSAGING, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, PLAY_SERVICES_BASEMENT,
                     PLAY_SERVICES_TASKS, FIREBASE_COMMON, FIREBASE_IID,
-                    FIREBASE_MEASUREMENT_CONNECTOR), "com.google.firebase.messaging"),
+                    FIREBASE_MEASUREMENT_CONNECTOR, FIREBASE_DATATRANSPORT, FIREBASE_ENCODERS_JSON, FIREBASE_ENCODERS_PROTO,
+                    FIREBASE_INSTALLATIONS, FIREBASE_INSTALLATIONS_INTEROP), "com.google.firebase.messaging"),
 
             new BuiltInLibrary(FIREBASE_MESSAGING_DIRECTBOOT, List.of(FIREBASE_MESSAGING)),
 
@@ -474,7 +491,7 @@ public class BuiltInLibraries {
             new BuiltInLibrary(FIREBASE_PNV, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS)),
 
             new BuiltInLibrary(FIREBASE_STORAGE, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_BASE, PLAY_SERVICES_TASKS,
-                    FIREBASE_AUTH_INTEROP, FIREBASE_COMMON)),
+                    FIREBASE_AUTH_INTEROP, FIREBASE_APPCHECK_INTEROP, FIREBASE_COMMON)),
 
             new BuiltInLibrary(GLIDE, List.of(ANDROIDX_EXIFINTERFACE, ANDROIDX_FRAGMENT, ANDROIDX_TRACING,
                     ANDROIDX_VECTORDRAWABLE_ANIMATED, GLIDE_ANNOTATIONS,
@@ -572,6 +589,12 @@ public class BuiltInLibraries {
             new BuiltInLibrary(PLAY_SERVICES_TASKS, List.of(PLAY_SERVICES_BASEMENT)),
 
             new BuiltInLibrary(USER_MESSAGING_PLATFORM, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_ADS_IDENTIFIER, PLAY_SERVICES_BASEMENT)),
+
+            new BuiltInLibrary(TRANSPORT_API, List.of(ANDROIDX_ANNOTATION_JVM)),
+
+            new BuiltInLibrary(TRANSPORT_BACKEND_CCT, List.of(TRANSPORT_API, TRANSPORT_RUNTIME)),
+
+            new BuiltInLibrary(TRANSPORT_RUNTIME, List.of(TRANSPORT_API)),
 
             new BuiltInLibrary(WAVE_SIDE_BAR, List.of(), "com.sayuti.lib"),
 
