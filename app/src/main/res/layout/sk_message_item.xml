@@ -4,45 +4,36 @@
     android:layout_height="wrap_content"
     android:padding="8dp">
 
-    <!-- Assistant/System Bubble (Left) -->
-    <com.google.android.material.card.MaterialCardView
+    <!-- Assistant/System Message (Left) -->
+    <LinearLayout
         android:id="@+id/card_assistant"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:visibility="gone"
-        app:cardBackgroundColor="?attr/colorSurfaceVariant"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constrainedWidth="true"
         app:layout_constraintWidth_percent="0.90">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/tv_role_left"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="12dp">
+            android:layout_marginBottom="4dp"
+            android:textAllCaps="true"
+            android:textColor="?attr/colorSecondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/tv_role_left"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
-                android:textAllCaps="true"
-                android:textColor="?attr/colorSecondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_content_left"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+        <TextView
+            android:id="@+id/tv_content_left"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
 
     <!-- User Bubble (Right) -->
     <com.google.android.material.card.MaterialCardView
