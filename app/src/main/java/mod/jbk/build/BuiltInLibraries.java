@@ -119,6 +119,7 @@ public class BuiltInLibraries {
     public static String ERROR_PRONE_ANNOTATIONS = "error_prone_annotations-2.38.0";
     public static String FIREBASE_AI = "firebase-ai-18.1.0";
     public static String FIREBASE_ANALYTICS = "firebase-analytics-24.0.0";
+    public static String FIREBASE_ANNOTATIONS = "firebase-annotations-18.0.0";
     public static String FIREBASE_APPCHECK = "firebase-appcheck-20.0.0";
     public static String FIREBASE_APPCHECK_DEBUG = "firebase-appcheck-debug-20.0.0";
     public static String FIREBASE_APPCHECK_DEBUG_TESTING = "firebase-appcheck-debug-testing-20.0.0";
@@ -127,7 +128,7 @@ public class BuiltInLibraries {
     public static String FIREBASE_AUTH = "firebase-auth-25.0.0";
     public static String FIREBASE_AUTH_INTEROP = "firebase-auth-interop-18.0.0";
     public static String FIREBASE_COMMON = "firebase-common-23.0.0";
-    public static String FIREBASE_COMPONENTS = "firebase-components-16.0.0";
+    public static String FIREBASE_COMPONENTS = "firebase-components-19.0.0";
     public static String FIREBASE_CONFIG = "firebase-config-24.0.1";
     public static String FIREBASE_CRASHLYTICS = "firebase-crashlytics-21.0.1";
     public static String FIREBASE_CRASHLYTICS_NDK = "firebase-crashlytics-ndk-21.0.1";
@@ -401,11 +402,13 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(ERROR_PRONE_ANNOTATIONS),
 
-            new BuiltInLibrary(FIREBASE_AI, List.of(FIREBASE_COMMON, JETBRAINS_KOTLIN_STDLIB)),
+            new BuiltInLibrary(FIREBASE_AI, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, JETBRAINS_KOTLIN_STDLIB)),
 
             new BuiltInLibrary(FIREBASE_ANALYTICS, List.of(FIREBASE_COMMON, PLAY_SERVICES_MEASUREMENT_BASE, PLAY_SERVICES_MEASUREMENT_SDK_API)),
 
-            new BuiltInLibrary(FIREBASE_APPCHECK, List.of(FIREBASE_COMMON, PLAY_SERVICES_TASKS)),
+            new BuiltInLibrary(FIREBASE_ANNOTATIONS),
+
+            new BuiltInLibrary(FIREBASE_APPCHECK, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, PLAY_SERVICES_TASKS)),
 
             new BuiltInLibrary(FIREBASE_APPCHECK_DEBUG, List.of(FIREBASE_APPCHECK, FIREBASE_COMMON)),
 
@@ -421,29 +424,30 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_AUTH_INTEROP, List.of(PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, FIREBASE_COMMON)),
 
-            new BuiltInLibrary(FIREBASE_COMMON, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, AUTO_VALUE_ANNOTATIONS)),
+            new BuiltInLibrary(FIREBASE_COMMON, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, AUTO_VALUE_ANNOTATIONS,
+                    FIREBASE_COMPONENTS, FIREBASE_ANNOTATIONS)),
 
             new BuiltInLibrary(FIREBASE_COMPONENTS, List.of(ANDROIDX_ANNOTATION_JVM)),
 
-            new BuiltInLibrary(FIREBASE_CONFIG, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS)),
+            new BuiltInLibrary(FIREBASE_CONFIG, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS)),
 
-            new BuiltInLibrary(FIREBASE_CRASHLYTICS, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS, FIREBASE_ENCODERS)),
+            new BuiltInLibrary(FIREBASE_CRASHLYTICS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS, FIREBASE_ENCODERS)),
 
             new BuiltInLibrary(FIREBASE_CRASHLYTICS_NDK, List.of(FIREBASE_CRASHLYTICS)),
 
             new BuiltInLibrary(FIREBASE_DATABASE, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT,
                     PLAY_SERVICES_TASKS, FIREBASE_AUTH_INTEROP, FIREBASE_COMMON,
-                    FIREBASE_DATABASE_COLLECTION)),
+                    FIREBASE_COMPONENTS, FIREBASE_DATABASE_COLLECTION)),
 
             new BuiltInLibrary(FIREBASE_DATABASE_COLLECTION, List.of(PLAY_SERVICES_BASE)),
 
-            new BuiltInLibrary(FIREBASE_DATACONNECT, List.of(FIREBASE_COMMON)),
+            new BuiltInLibrary(FIREBASE_DATACONNECT, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS)),
 
             new BuiltInLibrary(FIREBASE_ENCODERS, List.of()),
 
-            new BuiltInLibrary(FIREBASE_FIRESTORE, List.of(FIREBASE_COMMON, FIREBASE_DATABASE_COLLECTION, FIREBASE_AUTH_INTEROP)),
+            new BuiltInLibrary(FIREBASE_FIRESTORE, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_DATABASE_COLLECTION, FIREBASE_AUTH_INTEROP)),
 
-            new BuiltInLibrary(FIREBASE_FUNCTIONS, List.of(FIREBASE_COMMON, FIREBASE_AUTH_INTEROP, PLAY_SERVICES_TASKS)),
+            new BuiltInLibrary(FIREBASE_FUNCTIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_AUTH_INTEROP, PLAY_SERVICES_TASKS)),
 
             new BuiltInLibrary(FIREBASE_IID, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, ANDROIDX_LEGACY_SUPPORT_CORE_UTILS,
                     PLAY_SERVICES_BASEMENT, PLAY_SERVICES_STATS, PLAY_SERVICES_TASKS,
@@ -451,11 +455,11 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_IID_INTEROP, List.of(PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT)),
 
-            new BuiltInLibrary(FIREBASE_INAPPMESSAGING, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS)),
+            new BuiltInLibrary(FIREBASE_INAPPMESSAGING, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS)),
 
             new BuiltInLibrary(FIREBASE_INAPPMESSAGING_DISPLAY, List.of(FIREBASE_INAPPMESSAGING, ANDROIDX_APPCOMPAT, GLIDE)),
 
-            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, PLAY_SERVICES_TASKS)),
+            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, PLAY_SERVICES_TASKS)),
 
             new BuiltInLibrary(FIREBASE_MEASUREMENT_CONNECTOR, List.of(PLAY_SERVICES_BASEMENT)),
 
@@ -465,9 +469,9 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_MESSAGING_DIRECTBOOT, List.of(FIREBASE_MESSAGING)),
 
-            new BuiltInLibrary(FIREBASE_PERF, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS)),
+            new BuiltInLibrary(FIREBASE_PERF, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS)),
 
-            new BuiltInLibrary(FIREBASE_PNV, List.of(FIREBASE_COMMON)),
+            new BuiltInLibrary(FIREBASE_PNV, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS)),
 
             new BuiltInLibrary(FIREBASE_STORAGE, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_BASE, PLAY_SERVICES_TASKS,
                     FIREBASE_AUTH_INTEROP, FIREBASE_COMMON)),
