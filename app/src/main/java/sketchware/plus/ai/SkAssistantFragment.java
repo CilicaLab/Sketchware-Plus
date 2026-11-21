@@ -6,11 +6,13 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -45,6 +47,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
 import io.noties.markwon.AbstractMarkwonPlugin;
+import eightbitlab.com.blurview.BlurTarget;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.core.CorePlugin;
 import io.noties.markwon.core.MarkwonTheme;
@@ -2344,6 +2347,7 @@ public class SkAssistantFragment extends Fragment {
             TextView tvRoleLeft, tvContentLeft, tvContentRight;
             View cardAssistant, cardUser, actionContainer;
             Button btnApply, btnRevert;
+            FeatheredBlurView blurAssistant, blurUser;
 
             ViewHolder(View itemView) {
                 super(itemView);
@@ -2355,6 +2359,56 @@ public class SkAssistantFragment extends Fragment {
                 actionContainer = itemView.findViewById(R.id.action_container);
                 btnApply = itemView.findViewById(R.id.btn_apply);
                 btnRevert = itemView.findViewById(R.id.btn_revert);
+
+                if (cardAssistant instanceof FeatheredBlurView) {
+                    blurAssistant = (FeatheredBlurView) cardAssistant;
+                }
+                if (cardUser instanceof FeatheredBlurView) {
+                    blurUser = (FeatheredBlurView) cardUser;
+                }
+
+                setupBlurViews();
+            }
+
+            private void setupBlurViews() {
+                BlurTarget blurTarget = getBlurTarget(itemView);
+                if (blurTarget != null) {
+                    Drawable clearDrawable = blurTarget.getBackground();
+                    if (clearDrawable == null) {
+                        View patternBg = blurTarget.findViewById(R.id.pattern_bg);
+                        if (patternBg != null) {
+                            clearDrawable = patternBg.getBackground();
+                        }
+                    }
+                    if (clearDrawable == null) {
+                        int surfaceColor = MaterialColors.getColor(blurTarget, com.google.android.material.R.attr.colorSurface, Color.BLACK);
+                        clearDrawable = new ColorDrawable(surfaceColor);
+                    }
+
+                    if (blurAssistant != null) {
+                        blurAssistant.setupWith(blurTarget)
+                                .setFrameClearDrawable(clearDrawable)
+                                .setBlurRadius(12f)
+                                .setOverlayColor(Color.parseColor("#30000000"));
+                    }
+                    if (blurUser != null) {
+                        blurUser.setupWith(blurTarget)
+                                .setFrameClearDrawable(clearDrawable)
+                                .setBlurRadius(12f)
+                                .setOverlayColor(Color.parseColor("#300056D2"));
+                    }
+                }
+            }
+
+            private BlurTarget getBlurTarget(View view) {
+                View current = view;
+                while (current.getParent() instanceof View) {
+                    current = (View) current.getParent();
+                    if (current instanceof BlurTarget) {
+                        return (BlurTarget) current;
+                    }
+                }
+                return null;
             }
         }
 
