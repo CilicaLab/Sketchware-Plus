@@ -599,8 +599,6 @@ public class mq {
             case "FirebaseCloudMessage":
                 importList.add("com.google.android.gms.tasks.OnCompleteListener");
                 importList.add("com.google.android.gms.tasks.Task");
-                importList.add("com.google.firebase.iid.FirebaseInstanceId");
-                importList.add("com.google.firebase.iid.InstanceIdResult");
                 importList.add("com.google.firebase.messaging.FirebaseMessaging");
                 return importList;
 

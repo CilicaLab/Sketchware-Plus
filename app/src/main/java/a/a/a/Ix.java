@@ -109,7 +109,7 @@ public class Ix {
         }
         if (c.isFirebaseDatabaseUsed) {
             XmlBuilder metadataTag = new XmlBuilder("meta-data");
-            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.database.DatabaseRegistrar");
+            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.database.FirebaseDatabaseRegistrar");
             metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
             serviceTag.addChildNode(metadataTag);
         }
@@ -121,7 +121,7 @@ public class Ix {
         }
         if (c.x.isFCMUsed) {
             XmlBuilder metadataTag = new XmlBuilder("meta-data");
-            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.iid.Registrar");
+            metadataTag.addAttribute("android", "name", "com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingRegistrar");
             metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
             serviceTag.addChildNode(metadataTag);
         }

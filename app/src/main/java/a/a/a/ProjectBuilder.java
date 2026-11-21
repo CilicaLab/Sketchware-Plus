@@ -5,6 +5,7 @@ import static android.system.OsConstants.S_IWUSR;
 import static android.system.OsConstants.S_IXUSR;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -180,14 +181,28 @@ public class ProjectBuilder {
         synchronized (ASSET_LOCK) {
             File compareToFile = new File(targetFile);
             oB fileUtil = new oB();
+            Context context = SketchApplication.getContext();
             int maxRetries = 3;
+
+            long lastAppUpdate = 0;
+            try {
+                PackageInfo pInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+                lastAppUpdate = pInfo.lastUpdateTime;
+            } catch (Throwable ignored) {
+            }
+
+            SharedPreferences prefs = context.getSharedPreferences("asset_extraction_cache", Context.MODE_PRIVATE);
+            String cacheKey = "extracted_time_" + fileInAssets.replace('/', '_').replace('\\', '_');
+            long savedAppUpdate = prefs.getLong(cacheKey, 0);
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    long lengthOfFileInAssets = fileUtil.a(SketchApplication.getContext(), fileInAssets);
+                    long lengthOfFileInAssets = fileUtil.a(context, fileInAssets);
 
                     boolean cacheValid = compareToFile.exists()
                             && compareToFile.length() > 0
+                            && savedAppUpdate != 0
+                            && savedAppUpdate == lastAppUpdate
                             && (lengthOfFileInAssets <= 0 || compareToFile.length() == lengthOfFileInAssets);
 
                     if (cacheValid && isZipOrJar(targetFile)) {
@@ -207,7 +222,7 @@ public class ProjectBuilder {
 
                     LogUtil.d(TAG, "Extracting asset filename: " + fileInAssets + " -> " + targetFile + " (attempt " + attempt + "/" + maxRetries + ")");
 
-                    fileUtil.a(SketchApplication.getContext(), fileInAssets, targetFile);
+                    fileUtil.a(context, fileInAssets, targetFile);
 
                     boolean extractionSuccessful = compareToFile.exists() && compareToFile.length() > 0;
                     if (extractionSuccessful && lengthOfFileInAssets > 0) {
@@ -220,6 +235,10 @@ public class ProjectBuilder {
                     if (!extractionSuccessful) {
                         fileUtil.a(compareToFile);
                         throw new IOException("Extracted file failed integrity check for asset filename: " + fileInAssets + " (target: " + targetFile + ")");
+                    }
+
+                    if (lastAppUpdate > 0) {
+                        prefs.edit().putLong(cacheKey, lastAppUpdate).apply();
                     }
 
                     return true;

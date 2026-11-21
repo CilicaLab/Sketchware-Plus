@@ -1,26 +1,51 @@
 package mod.jbk.build;
 
+import android.content.Context;
+import android.content.pm.PackageInfo;
 import android.os.Parcel;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 import a.a.a.Jp;
-import a.a.a.KB;
 import a.a.a.ProjectBuilder;
-import a.a.a.oB;
 import mod.jbk.util.LogUtil;
 import sketchware.plus.SketchApplication;
 
 public class BuiltInLibraries {
+    private static final String TAG = "BuiltInLibraries";
+
     public static final File EXTRACTED_COMPILE_ASSETS_PATH = new File(SketchApplication.getContext().getFilesDir(), "libs");
     public static final File EXTRACTED_BUILT_IN_LIBRARIES_PATH = new File(EXTRACTED_COMPILE_ASSETS_PATH, "libs");
     public static final File EXTRACTED_BUILT_IN_LIBRARY_DEX_FILES_PATH = new File(EXTRACTED_COMPILE_ASSETS_PATH, "dexs");
+
+    private static final String ASSET_BASE = "libs/";
+    private static final String DEXS_ARCHIVE = "dexs.zip";
+    private static final String LIBS_ARCHIVE = "libs.zip";
+    private static final String TESTKEY_ARCHIVE = "testkey.zip";
+    private static final String ANDROID_JAR_ARCHIVE = "android.jar.zip";
+    private static final String CORE_LAMBDA_STUBS_JAR = "core-lambda-stubs.jar";
+
+    private static final int MAX_EXTRACT_ATTEMPTS = 3;
+    private static final long MIN_FREE_SPACE_BYTES = 64L * 1024 * 1024;
 
     // None final so that field values won't be optimized into code, and to allow easy changing of library names due to that
 
@@ -92,17 +117,37 @@ public class BuiltInLibraries {
     public static String CIRCLEIMAGEVIEW = "circleimageview-3.1.0";
     public static String CODEVIEW = "CodeView-0.4.0";
     public static String ERROR_PRONE_ANNOTATIONS = "error_prone_annotations-2.38.0";
-    public static String FIREBASE_AUTH = "firebase-auth-19.0.0";
+    public static String FIREBASE_AI = "firebase-ai-18.1.0";
+    public static String FIREBASE_ANALYTICS = "firebase-analytics-24.0.0";
+    public static String FIREBASE_APPCHECK = "firebase-appcheck-20.0.0";
+    public static String FIREBASE_APPCHECK_DEBUG = "firebase-appcheck-debug-20.0.0";
+    public static String FIREBASE_APPCHECK_DEBUG_TESTING = "firebase-appcheck-debug-testing-20.0.0";
+    public static String FIREBASE_APPCHECK_PLAYINTEGRITY = "firebase-appcheck-playintegrity-20.0.0";
+    public static String FIREBASE_APPCHECK_RECAPTCHA = "firebase-appcheck-recaptcha-20.0.0";
+    public static String FIREBASE_AUTH = "firebase-auth-25.0.0";
     public static String FIREBASE_AUTH_INTEROP = "firebase-auth-interop-18.0.0";
-    public static String FIREBASE_COMMON = "firebase-common-19.3.0";
+    public static String FIREBASE_COMMON = "firebase-common-23.0.0";
     public static String FIREBASE_COMPONENTS = "firebase-components-16.0.0";
-    public static String FIREBASE_DATABASE = "firebase-database-19.3.1";
+    public static String FIREBASE_CONFIG = "firebase-config-24.0.1";
+    public static String FIREBASE_CRASHLYTICS = "firebase-crashlytics-21.0.1";
+    public static String FIREBASE_CRASHLYTICS_NDK = "firebase-crashlytics-ndk-21.0.1";
+    public static String FIREBASE_DATABASE = "firebase-database-23.0.0";
     public static String FIREBASE_DATABASE_COLLECTION = "firebase-database-collection-17.0.1";
+    public static String FIREBASE_DATACONNECT = "firebase-dataconnect-18.0.1";
+    public static String FIREBASE_ENCODERS = "firebase-encoders-18.0.0";
+    public static String FIREBASE_FIRESTORE = "firebase-firestore-27.1.0";
+    public static String FIREBASE_FUNCTIONS = "firebase-functions-23.0.0";
     public static String FIREBASE_IID = "firebase-iid-19.0.0";
     public static String FIREBASE_IID_INTEROP = "firebase-iid-interop-17.0.0";
+    public static String FIREBASE_INAPPMESSAGING = "firebase-inappmessaging-23.0.0";
+    public static String FIREBASE_INAPPMESSAGING_DISPLAY = "firebase-inappmessaging-display-23.0.0";
+    public static String FIREBASE_INSTALLATIONS = "firebase-installations-20.0.0";
     public static String FIREBASE_MEASUREMENT_CONNECTOR = "firebase-measurement-connector-18.0.0";
-    public static String FIREBASE_MESSAGING = "firebase-messaging-19.0.0";
-    public static String FIREBASE_STORAGE = "firebase-storage-19.0.0";
+    public static String FIREBASE_MESSAGING = "firebase-messaging-26.0.1";
+    public static String FIREBASE_MESSAGING_DIRECTBOOT = "firebase-messaging-directboot-26.0.1";
+    public static String FIREBASE_PERF = "firebase-perf-23.0.1";
+    public static String FIREBASE_PNV = "firebase-pnv-17.0.0";
+    public static String FIREBASE_STORAGE = "firebase-storage-23.0.0";
     public static String GLIDE = "glide-5.0.4";
     public static String GLIDE_ANNOTATIONS = "annotations-5.0.4";
     public static String GLIDE_DISKLRUCACHE = "disklrucache-5.0.4";
@@ -356,22 +401,49 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(ERROR_PRONE_ANNOTATIONS),
 
+            new BuiltInLibrary(FIREBASE_AI, List.of(FIREBASE_COMMON, JETBRAINS_KOTLIN_STDLIB)),
+
+            new BuiltInLibrary(FIREBASE_ANALYTICS, List.of(FIREBASE_COMMON, PLAY_SERVICES_MEASUREMENT_BASE, PLAY_SERVICES_MEASUREMENT_SDK_API)),
+
+            new BuiltInLibrary(FIREBASE_APPCHECK, List.of(FIREBASE_COMMON, PLAY_SERVICES_TASKS)),
+
+            new BuiltInLibrary(FIREBASE_APPCHECK_DEBUG, List.of(FIREBASE_APPCHECK, FIREBASE_COMMON)),
+
+            new BuiltInLibrary(FIREBASE_APPCHECK_DEBUG_TESTING, List.of(FIREBASE_APPCHECK_DEBUG)),
+
+            new BuiltInLibrary(FIREBASE_APPCHECK_PLAYINTEGRITY, List.of(FIREBASE_APPCHECK, FIREBASE_COMMON)),
+
+            new BuiltInLibrary(FIREBASE_APPCHECK_RECAPTCHA, List.of(FIREBASE_APPCHECK, FIREBASE_COMMON)),
+
             new BuiltInLibrary(FIREBASE_AUTH, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_FRAGMENT, ANDROIDX_LOCALBROADCASTMANAGER,
                     PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS,
                     FIREBASE_AUTH_INTEROP, FIREBASE_COMMON)),
 
             new BuiltInLibrary(FIREBASE_AUTH_INTEROP, List.of(PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, FIREBASE_COMMON)),
 
-            new BuiltInLibrary(FIREBASE_COMMON, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, AUTO_VALUE_ANNOTATIONS,
-                    FIREBASE_COMPONENTS)),
+            new BuiltInLibrary(FIREBASE_COMMON, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS, AUTO_VALUE_ANNOTATIONS)),
 
             new BuiltInLibrary(FIREBASE_COMPONENTS, List.of(ANDROIDX_ANNOTATION_JVM)),
 
+            new BuiltInLibrary(FIREBASE_CONFIG, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS)),
+
+            new BuiltInLibrary(FIREBASE_CRASHLYTICS, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS, FIREBASE_ENCODERS)),
+
+            new BuiltInLibrary(FIREBASE_CRASHLYTICS_NDK, List.of(FIREBASE_CRASHLYTICS)),
+
             new BuiltInLibrary(FIREBASE_DATABASE, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT,
                     PLAY_SERVICES_TASKS, FIREBASE_AUTH_INTEROP, FIREBASE_COMMON,
-                    FIREBASE_COMPONENTS, FIREBASE_DATABASE_COLLECTION)),
+                    FIREBASE_DATABASE_COLLECTION)),
 
             new BuiltInLibrary(FIREBASE_DATABASE_COLLECTION, List.of(PLAY_SERVICES_BASE)),
+
+            new BuiltInLibrary(FIREBASE_DATACONNECT, List.of(FIREBASE_COMMON)),
+
+            new BuiltInLibrary(FIREBASE_ENCODERS, List.of()),
+
+            new BuiltInLibrary(FIREBASE_FIRESTORE, List.of(FIREBASE_COMMON, FIREBASE_DATABASE_COLLECTION, FIREBASE_AUTH_INTEROP)),
+
+            new BuiltInLibrary(FIREBASE_FUNCTIONS, List.of(FIREBASE_COMMON, FIREBASE_AUTH_INTEROP, PLAY_SERVICES_TASKS)),
 
             new BuiltInLibrary(FIREBASE_IID, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, ANDROIDX_LEGACY_SUPPORT_CORE_UTILS,
                     PLAY_SERVICES_BASEMENT, PLAY_SERVICES_STATS, PLAY_SERVICES_TASKS,
@@ -379,11 +451,23 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_IID_INTEROP, List.of(PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT)),
 
+            new BuiltInLibrary(FIREBASE_INAPPMESSAGING, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS)),
+
+            new BuiltInLibrary(FIREBASE_INAPPMESSAGING_DISPLAY, List.of(FIREBASE_INAPPMESSAGING, ANDROIDX_APPCOMPAT, GLIDE)),
+
+            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, PLAY_SERVICES_TASKS)),
+
             new BuiltInLibrary(FIREBASE_MEASUREMENT_CONNECTOR, List.of(PLAY_SERVICES_BASEMENT)),
 
             new BuiltInLibrary(FIREBASE_MESSAGING, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, PLAY_SERVICES_BASEMENT,
                     PLAY_SERVICES_TASKS, FIREBASE_COMMON, FIREBASE_IID,
                     FIREBASE_MEASUREMENT_CONNECTOR), "com.google.firebase.messaging"),
+
+            new BuiltInLibrary(FIREBASE_MESSAGING_DIRECTBOOT, List.of(FIREBASE_MESSAGING)),
+
+            new BuiltInLibrary(FIREBASE_PERF, List.of(FIREBASE_COMMON, FIREBASE_INSTALLATIONS)),
+
+            new BuiltInLibrary(FIREBASE_PNV, List.of(FIREBASE_COMMON)),
 
             new BuiltInLibrary(FIREBASE_STORAGE, List.of(ANDROIDX_ANNOTATION_JVM, PLAY_SERVICES_BASE, PLAY_SERVICES_TASKS,
                     FIREBASE_AUTH_INTEROP, FIREBASE_COMMON)),
@@ -489,6 +573,25 @@ public class BuiltInLibraries {
 
     };
 
+    /**
+     * Lazily built name -> library index so {@link BuiltInLibrary#ofName(String)} is O(1).
+     */
+    private static final class LibraryIndex {
+        static final Map<String, BuiltInLibrary> BY_NAME = build();
+
+        private static Map<String, BuiltInLibrary> build() {
+            Map<String, BuiltInLibrary> map = new HashMap<>();
+            for (BuiltInLibrary library : KNOWN_BUILT_IN_LIBRARIES) {
+                map.putIfAbsent(library.getName(), library);
+            }
+            return map;
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Path helpers
+    // ---------------------------------------------------------------------------------------------
+
     public static File getLibraryPath(String libraryName) {
         return new File(EXTRACTED_BUILT_IN_LIBRARIES_PATH, libraryName);
     }
@@ -510,7 +613,7 @@ public class BuiltInLibraries {
     }
 
     public static String getLibraryDexFilePath(String libraryName) {
-        return new File(EXTRACTED_BUILT_IN_LIBRARY_DEX_FILES_PATH, libraryName + ".dex").getAbsolutePath();
+        return getLibraryDexFile(libraryName).getAbsolutePath();
     }
 
     /**
@@ -520,7 +623,7 @@ public class BuiltInLibraries {
         Jp library = new Jp(libraryName);
 
         if (library.hasAssets()) {
-            return new File(EXTRACTED_BUILT_IN_LIBRARIES_PATH, libraryName + File.separator + "assets");
+            return new File(getLibraryPath(libraryName), "assets");
         } else {
             throw new IllegalArgumentException("Built-in library '" + libraryName + "' doesn't have any assets.");
         }
@@ -537,7 +640,7 @@ public class BuiltInLibraries {
         Jp library = new Jp(libraryName);
 
         if (library.hasResources()) {
-            return new File(EXTRACTED_BUILT_IN_LIBRARIES_PATH, libraryName + File.separator + "res");
+            return new File(getLibraryPath(libraryName), "res");
         } else {
             throw new IllegalArgumentException("Built-in library '" + libraryName + "' doesn't have any resources.");
         }
@@ -548,143 +651,145 @@ public class BuiltInLibraries {
     }
 
     public static File getLibraryProguardConfiguration(String libraryName) {
-        return new File(EXTRACTED_BUILT_IN_LIBRARIES_PATH, libraryName + File.separator + "proguard.txt");
+        return new File(getLibraryPath(libraryName), "proguard.txt");
     }
 
     public static String getLibraryProguardConfigurationPath(String libraryName) {
         return getLibraryProguardConfiguration(libraryName).getAbsolutePath();
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Extraction
+    //
+    // How it works (and why it no longer half-extracts):
+    //  1. Every archive is unzipped into a temp dir first, never straight into the live dir.
+    //  2. The temp dir is validated, then swapped into place.
+    //  3. Only AFTER the swap succeeds is a stamp file (app install time) written.
+    //  4. On the next build, "valid" means: stamp matches this install AND the content looks sane.
+    //     A crash/kill/low-storage mid-extract leaves no stamp, so it re-extracts cleanly.
+    //  5. A new APK install changes the stamp, so updated assets always get re-extracted.
+    // ---------------------------------------------------------------------------------------------
+
     public static void extractCompileAssets(@NonNull BuildProgressReceiver... progressReceivers) {
         synchronized (ProjectBuilder.ASSET_LOCK) {
-            if (!EXTRACTED_COMPILE_ASSETS_PATH.exists()) {
-                if (!EXTRACTED_COMPILE_ASSETS_PATH.mkdirs()) {
-                    throw new RuntimeException(new IOException("Failed to create directory " + EXTRACTED_COMPILE_ASSETS_PATH));
-                }
-            }
-
-            String dexsArchiveName = "dexs.zip";
-            String libsArchiveName = "libs.zip";
-            String testkeyArchiveName = "testkey.zip";
-
-            String dexsArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, dexsArchiveName).getAbsolutePath();
-            String libsArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, libsArchiveName).getAbsolutePath();
-            String testkeyArchivePath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, testkeyArchiveName).getAbsolutePath();
-            File dexsDir = BuiltInLibraries.EXTRACTED_BUILT_IN_LIBRARY_DEX_FILES_PATH;
-            File libsDir = BuiltInLibraries.EXTRACTED_BUILT_IN_LIBRARIES_PATH;
-            File testkeyDir = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "testkey");
-
-            String baseAssetsPath = "libs" + File.separator;
+            ensureDirectory(EXTRACTED_COMPILE_ASSETS_PATH);
+            ensureFreeSpace(EXTRACTED_COMPILE_ASSETS_PATH);
 
             maybeExtractAndroidJar(progressReceivers);
 
-            String dexsAssetPath = baseAssetsPath + dexsArchiveName;
-            boolean dexsChanged = ProjectBuilder.hasFileChanged(dexsAssetPath, dexsArchivePath);
-            if (dexsChanged || !isDirectoryValid(dexsDir)) {
-                if (!dexsChanged) {
-                    LogUtil.w("BuiltInLibraries", "DEX directory missing/corrupted for asset filename: " + dexsAssetPath + ". Forcing re-extraction.");
-                }
-                extractArchiveWithRetry(dexsAssetPath, dexsArchivePath, dexsDir, () -> {
-                    for (BuildProgressReceiver receiver : progressReceivers) {
-                        receiver.onProgress("Extracting built-in libraries' DEX files...", 4);
-                    }
-                    oB fileUtil = new oB(false);
-                    fileUtil.b(dexsDir.getAbsolutePath());
-                    fileUtil.f(dexsDir.getAbsolutePath());
-                    new KB().a(dexsArchivePath, dexsDir.getAbsolutePath());
-                    if (!isDirectoryValid(dexsDir)) {
-                        throw new IOException("Extracted DEX directory is missing or empty for asset filename: " + dexsAssetPath);
-                    }
-                });
-            }
+            ensureDirectoryArchive(DEXS_ARCHIVE, EXTRACTED_BUILT_IN_LIBRARY_DEX_FILES_PATH,
+                    "Extracting built-in libraries' DEX files...", 4, progressReceivers);
 
-            String libsAssetPath = baseAssetsPath + libsArchiveName;
-            boolean libsChanged = ProjectBuilder.hasFileChanged(libsAssetPath, libsArchivePath);
-            if (libsChanged || !isDirectoryValid(libsDir)) {
-                if (!libsChanged) {
-                    LogUtil.w("BuiltInLibraries", "Libraries directory missing/corrupted for asset filename: " + libsAssetPath + ". Forcing re-extraction.");
-                }
-                extractArchiveWithRetry(libsAssetPath, libsArchivePath, libsDir, () -> {
-                    for (BuildProgressReceiver receiver : progressReceivers) {
-                        receiver.onProgress("Extracting built-in libraries' resources...", 5);
-                    }
-                    oB fileUtil = new oB(false);
-                    fileUtil.b(libsDir.getAbsolutePath());
-                    fileUtil.f(libsDir.getAbsolutePath());
-                    new KB().a(libsArchivePath, libsDir.getAbsolutePath());
-                    if (!isDirectoryValid(libsDir)) {
-                        throw new IOException("Extracted libraries directory is missing or empty for asset filename: " + libsAssetPath);
-                    }
-                });
-            }
+            ensureDirectoryArchive(LIBS_ARCHIVE, EXTRACTED_BUILT_IN_LIBRARIES_PATH,
+                    "Extracting built-in libraries' resources...", 5, progressReceivers);
 
             maybeExtractCoreLambdaStubsJar();
 
-            String testkeyAssetPath = baseAssetsPath + testkeyArchiveName;
-            boolean testkeyChanged = ProjectBuilder.hasFileChanged(testkeyAssetPath, testkeyArchivePath);
-            if (testkeyChanged || !isDirectoryValid(testkeyDir)) {
-                if (!testkeyChanged) {
-                    LogUtil.w("BuiltInLibraries", "Testkey directory missing/corrupted for asset filename: " + testkeyAssetPath + ". Forcing re-extraction.");
-                }
-                extractArchiveWithRetry(testkeyAssetPath, testkeyArchivePath, testkeyDir, () -> {
-                    for (BuildProgressReceiver receiver : progressReceivers) {
-                        receiver.onProgress("Extracting built-in signing keys...", 6);
-                    }
-                    oB fileUtil = new oB(false);
-                    fileUtil.b(testkeyDir.getAbsolutePath());
-                    fileUtil.f(testkeyDir.getAbsolutePath());
-                    new KB().a(testkeyArchivePath, testkeyDir.getAbsolutePath());
-                    if (!isDirectoryValid(testkeyDir)) {
-                        throw new IOException("Extracted testkey directory is missing or empty for asset filename: " + testkeyAssetPath);
-                    }
-                });
-            }
+            ensureDirectoryArchive(TESTKEY_ARCHIVE, new File(EXTRACTED_COMPILE_ASSETS_PATH, "testkey"),
+                    "Extracting built-in signing keys...", 6, progressReceivers);
         }
     }
 
     public static void maybeExtractAndroidJar(@NonNull BuildProgressReceiver... receivers) {
         synchronized (ProjectBuilder.ASSET_LOCK) {
-            String androidJarArchiveName = "android.jar.zip";
-            String androidJarAssetPath = "libs" + File.separator + androidJarArchiveName;
-            String androidJarZipPath = new File(EXTRACTED_COMPILE_ASSETS_PATH, androidJarArchiveName).getAbsolutePath();
+            ensureDirectory(EXTRACTED_COMPILE_ASSETS_PATH);
+
             File targetJar = new File(EXTRACTED_COMPILE_ASSETS_PATH, "android.jar");
+            File stampFile = stampFileFor(ANDROID_JAR_ARCHIVE);
+            String stamp = currentStamp(ANDROID_JAR_ARCHIVE);
 
-            boolean changed = ProjectBuilder.hasFileChanged(androidJarAssetPath, androidJarZipPath);
-            boolean jarValid = targetJar.exists() && targetJar.length() > 0 && ProjectBuilder.isValidZipArchive(targetJar);
-
-            if (changed || !jarValid) {
-                if (!changed) {
-                    LogUtil.w("BuiltInLibraries", "Target android.jar missing/corrupted for asset filename: " + androidJarAssetPath + ". Forcing re-extraction.");
-                }
-                extractArchiveWithRetry(androidJarAssetPath, androidJarZipPath, targetJar, () -> {
-                    for (BuildProgressReceiver receiver : receivers) {
-                        receiver.onProgress("Extracting built-in android.jar...", 7);
-                    }
-                    new oB().c(targetJar.getAbsolutePath());
-                    new KB().a(androidJarZipPath, EXTRACTED_COMPILE_ASSETS_PATH.getAbsolutePath());
-                    if (!targetJar.exists() || targetJar.length() == 0 || !ProjectBuilder.isValidZipArchive(targetJar)) {
-                        throw new IOException("Extracted android.jar is missing or corrupted at " + targetJar.getAbsolutePath());
-                    }
-                });
+            if (isStampCurrent(stampFile, stamp) && isValidZipArchive(targetJar)) {
+                return;
             }
+
+            String assetPath = ASSET_BASE + ANDROID_JAR_ARCHIVE;
+            File tempDir = tempDirFor("android.jar");
+
+            extractWithRetry(assetPath, () -> {
+                report(receivers, "Extracting built-in android.jar...", 7);
+
+                stampFile.delete();
+                // Also wipes the case where android.jar somehow ended up being a directory.
+                deleteRecursively(targetJar);
+                deleteRecursively(tempDir);
+
+                unzipAsset(assetPath, tempDir);
+
+                File extractedJar = findFile(tempDir, "android.jar");
+                if (extractedJar == null) {
+                    throw new IOException("'" + assetPath + "' doesn't contain an android.jar");
+                }
+                if (!isValidZipArchive(extractedJar)) {
+                    throw new IOException("android.jar from '" + assetPath + "' is corrupted");
+                }
+                if (!extractedJar.renameTo(targetJar)) {
+                    copyFile(extractedJar, targetJar);
+                }
+                deleteRecursively(tempDir);
+
+                if (!isValidZipArchive(targetJar)) {
+                    throw new IOException("Extracted android.jar is missing or corrupted at " + targetJar.getAbsolutePath());
+                }
+                writeStamp(stampFile, stamp);
+            }, tempDir, targetJar);
         }
     }
 
     public static void maybeExtractCoreLambdaStubsJar() {
         synchronized (ProjectBuilder.ASSET_LOCK) {
-            String coreLambdaStubsJarName = "core-lambda-stubs.jar";
-            String coreLambdaStubsAssetPath = "libs" + File.separator + coreLambdaStubsJarName;
-            String coreLambdaStubsJarPath = new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, coreLambdaStubsJarName).getAbsolutePath();
-            ProjectBuilder.hasFileChanged(coreLambdaStubsAssetPath, coreLambdaStubsJarPath);
+            String assetPath = ASSET_BASE + CORE_LAMBDA_STUBS_JAR;
+            File target = new File(EXTRACTED_COMPILE_ASSETS_PATH, CORE_LAMBDA_STUBS_JAR);
+            try {
+                // Same copy-if-changed helper the rest of the builder uses.
+                ProjectBuilder.hasFileChanged(assetPath, target.getAbsolutePath());
+            } catch (Throwable t) {
+                LogUtil.w(TAG, "Failed to copy " + assetPath, t);
+            }
+            if (!target.isFile() || target.length() == 0) {
+                LogUtil.w(TAG, CORE_LAMBDA_STUBS_JAR + " is missing at " + target.getAbsolutePath());
+            }
         }
     }
 
-    private static boolean isDirectoryValid(File dir) {
-        if (dir == null || !dir.exists() || !dir.isDirectory()) {
-            return false;
+    private static void ensureDirectoryArchive(String archiveName, File targetDir, String progressMessage,
+                                               int progressStep, BuildProgressReceiver[] receivers) {
+        File stampFile = stampFileFor(archiveName);
+        String stamp = currentStamp(archiveName);
+
+        if (isStampCurrent(stampFile, stamp) && isDirectoryValid(targetDir)) {
+            return;
         }
-        File[] files = dir.listFiles();
-        return files != null && files.length > 0;
+
+        String assetPath = ASSET_BASE + archiveName;
+        File tempDir = tempDirFor(archiveName);
+
+        LogUtil.w(TAG, "'" + archiveName + "' needs (re-)extraction into " + targetDir.getAbsolutePath());
+
+        extractWithRetry(assetPath, () -> {
+            report(receivers, progressMessage, progressStep);
+
+            stampFile.delete();
+            deleteRecursively(tempDir);
+
+            unzipAsset(assetPath, tempDir);
+            if (!isDirectoryValid(tempDir)) {
+                throw new IOException("Extracted directory is empty for asset filename: " + assetPath);
+            }
+
+            deleteRecursively(targetDir);
+            if (!tempDir.renameTo(targetDir)) {
+                try {
+                    copyDirectory(tempDir, targetDir);
+                    deleteRecursively(tempDir);
+                } catch (Exception e) {
+                    throw new IOException("Failed to move/copy " + tempDir + " to " + targetDir + ": " + e.getMessage(), e);
+                }
+            }
+            if (!isDirectoryValid(targetDir)) {
+                throw new IOException("Extracted directory is missing or empty for asset filename: " + assetPath);
+            }
+            writeStamp(stampFile, stamp);
+        }, tempDir, targetDir);
     }
 
     @FunctionalInterface
@@ -692,37 +797,276 @@ public class BuiltInLibraries {
         void run() throws Exception;
     }
 
-    private static void extractArchiveWithRetry(String assetPath, String zipPath, File targetDirOrFile, ExtractAction action) {
-        int maxRetries = 3;
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    private static void extractWithRetry(String assetPath, ExtractAction action, File... cleanupOnFailure) {
+        Throwable last = null;
+        for (int attempt = 1; attempt <= MAX_EXTRACT_ATTEMPTS; attempt++) {
             try {
                 action.run();
                 return;
             } catch (Throwable e) {
-                LogUtil.w("BuiltInLibraries", "Failed attempt " + attempt + "/" + maxRetries + " extracting asset filename: " + assetPath + " (target zip: " + zipPath + ")", e);
-                new File(zipPath).delete();
-                if (targetDirOrFile != null && targetDirOrFile.exists()) {
-                    if (targetDirOrFile.isDirectory()) {
-                        new oB(false).b(targetDirOrFile.getAbsolutePath());
-                    } else {
-                        targetDirOrFile.delete();
+                last = e;
+                LogUtil.w(TAG, "Failed attempt " + attempt + "/" + MAX_EXTRACT_ATTEMPTS + " extracting asset: " + assetPath, e);
+                for (File file : cleanupOnFailure) {
+                    deleteRecursively(file);
+                }
+                if (attempt < MAX_EXTRACT_ATTEMPTS) {
+                    try {
+                        Thread.sleep(150L * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
                     }
                 }
-                if (attempt == maxRetries) {
-                    LogUtil.e("BuiltInLibraries", "CRITICAL: Permanent failure extracting asset library: " + assetPath + " (zip: " + zipPath + ")", e);
-                    if (e instanceof RuntimeException) {
-                        throw (RuntimeException) e;
-                    }
-                    throw new RuntimeException("Failed to extract asset library '" + assetPath + "' after " + maxRetries + " attempts", e);
+            }
+        }
+
+        LogUtil.e(TAG, "CRITICAL: Permanent failure extracting asset: " + assetPath, last);
+        throw new RuntimeException("Failed to extract '" + assetPath + "' after " + MAX_EXTRACT_ATTEMPTS
+                + " attempts: " + (last != null ? last.getMessage() : "unknown error")
+                + ". If this says the asset doesn't exist, the APK was built without it.", last);
+    }
+
+    private static void unzipAsset(String assetPath, File destDir) throws IOException {
+        ensureDirectory(destDir);
+
+        String destRoot = destDir.getCanonicalPath();
+        String destPrefix = destRoot + File.separator;
+        byte[] buffer = new byte[64 * 1024];
+        int fileCount = 0;
+
+        Context context = SketchApplication.getContext();
+        try (InputStream raw = context.getAssets().open(assetPath);
+             ZipInputStream zip = new ZipInputStream(new BufferedInputStream(raw, 64 * 1024))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                String name = entry.getName().replace('\\', '/');
+                File out = new File(destDir, name);
+                String canonical = out.getCanonicalPath();
+
+                // Zip Slip guard
+                if (!canonical.equals(destRoot) && !canonical.startsWith(destPrefix)) {
+                    throw new IOException("Blocked unsafe zip entry: " + entry.getName());
                 }
-                try {
-                    ProjectBuilder.hasFileChanged(assetPath, zipPath);
-                    Thread.sleep(100);
-                } catch (Exception ignored) {
+
+                if (entry.isDirectory()) {
+                    ensureDirectory(out);
+                    continue;
+                }
+
+                File parent = out.getParentFile();
+                if (parent != null) {
+                    ensureDirectory(parent);
+                }
+
+                if (out.exists() && out.isDirectory()) {
+                    deleteRecursively(out);
+                }
+
+                try (OutputStream os = new FileOutputStream(out)) {
+                    int read;
+                    while ((read = zip.read(buffer)) != -1) {
+                        os.write(buffer, 0, read);
+                    }
+                    os.flush();
+                }
+                fileCount++;
+            }
+        }
+
+        if (fileCount == 0) {
+            throw new IOException("Archive '" + assetPath + "' contained no files");
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Stamp + validation helpers
+    // ---------------------------------------------------------------------------------------------
+
+    private static String currentStamp(String archiveName) {
+        try {
+            Context context = SketchApplication.getContext();
+            PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            long assetSize = 0;
+            try (InputStream is = context.getAssets().open(ASSET_BASE + archiveName)) {
+                assetSize = is.available();
+            } catch (Throwable ignored) {
+            }
+            return info.lastUpdateTime + "/" + info.versionName + "/" + assetSize;
+        } catch (Throwable t) {
+            return "unknown";
+        }
+    }
+
+    private static File stampFileFor(String archiveName) {
+        return new File(EXTRACTED_COMPILE_ASSETS_PATH, ".stamp-" + archiveName);
+    }
+
+    private static File tempDirFor(String name) {
+        return new File(EXTRACTED_COMPILE_ASSETS_PATH, ".tmp-" + name);
+    }
+
+    private static boolean isStampCurrent(File stampFile, String expected) {
+        if (!stampFile.isFile()) {
+            return false;
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(stampFile), StandardCharsets.UTF_8))) {
+            return expected.equals(reader.readLine());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static void writeStamp(File stampFile, String stamp) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(stampFile)) {
+            fos.write(stamp.getBytes(StandardCharsets.UTF_8));
+            fos.flush();
+            fos.getFD().sync();
+        }
+    }
+
+    private static boolean isDirectoryValid(File dir) {
+        if (dir == null || !dir.isDirectory()) {
+            return false;
+        }
+        String[] files = dir.list();
+        return files != null && files.length > 0;
+    }
+
+    private static boolean isValidZipArchive(File file) {
+        if (file == null || !file.isFile() || file.length() == 0) {
+            return false;
+        }
+        try (ZipFile zip = new ZipFile(file)) {
+            return zip.entries().hasMoreElements();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static void ensureFreeSpace(File dir) {
+        long free = dir.getUsableSpace();
+        if (free > 0 && free < MIN_FREE_SPACE_BYTES) {
+            throw new RuntimeException(new IOException("Not enough free storage to extract built-in libraries ("
+                    + (free / (1024 * 1024)) + " MB free)"));
+        }
+    }
+
+    private static void report(BuildProgressReceiver[] receivers, String message, int step) {
+        for (BuildProgressReceiver receiver : receivers) {
+            receiver.onProgress(message, step);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // File helpers (plain java.io, no obfuscated utility classes)
+    // ---------------------------------------------------------------------------------------------
+
+    private static void ensureDirectory(File dir) {
+        if (dir == null) return;
+        if (dir.isDirectory()) return;
+
+        File parent = dir.getParentFile();
+        if (parent != null) {
+            ensureDirectory(parent);
+        }
+
+        if (dir.exists() && !dir.isDirectory()) {
+            deleteRecursively(dir);
+        }
+
+        if (!dir.exists()) {
+            if (!dir.mkdir() && !dir.isDirectory()) {
+                if (!dir.mkdirs() && !dir.isDirectory()) {
+                    throw new RuntimeException(new IOException("Failed to create directory " + dir));
                 }
             }
         }
     }
+
+    private static void copyDirectory(File src, File dest) throws IOException {
+        if (src == null || !src.exists()) {
+            return;
+        }
+        if (src.isDirectory()) {
+            ensureDirectory(dest);
+            File[] children = src.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    copyDirectory(child, new File(dest, child.getName()));
+                }
+            }
+        } else {
+            File parent = dest.getParentFile();
+            if (parent != null) {
+                ensureDirectory(parent);
+            }
+            if (dest.exists() && dest.isDirectory()) {
+                deleteRecursively(dest);
+            }
+            try (InputStream in = new FileInputStream(src);
+                 OutputStream out = new FileOutputStream(dest)) {
+                byte[] buf = new byte[64 * 1024];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
+                out.flush();
+            }
+        }
+    }
+
+    private static void deleteRecursively(File file) {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        if (!file.delete() && file.exists()) {
+            LogUtil.w(TAG, "Couldn't delete " + file.getAbsolutePath());
+        }
+    }
+
+    private static File findFile(File root, String name) {
+        File[] children = root.listFiles();
+        if (children == null) {
+            return null;
+        }
+        for (File child : children) {
+            if (child.isFile() && child.getName().equals(name)) {
+                return child;
+            }
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                File found = findFile(child, name);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void copyFile(File from, File to) throws IOException {
+        try (InputStream in = new FileInputStream(from); OutputStream out = new FileOutputStream(to)) {
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            out.flush();
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Model
+    // ---------------------------------------------------------------------------------------------
 
     public static class BuiltInLibrary implements Parcelable {
         public static final Creator<BuiltInLibrary> CREATOR = new Creator<>() {
@@ -736,6 +1080,7 @@ public class BuiltInLibraries {
                 return new BuiltInLibrary[size];
             }
         };
+
         private final String name;
         private final List<String> dependencyNames;
         private final String packageName;
@@ -774,13 +1119,7 @@ public class BuiltInLibraries {
         }
 
         public static Optional<BuiltInLibrary> ofName(String name) {
-            for (BuiltInLibrary builtInLibrary : KNOWN_BUILT_IN_LIBRARIES) {
-                if (builtInLibrary.getName().equals(name)) {
-                    return Optional.of(builtInLibrary);
-                }
-            }
-
-            return Optional.empty();
+            return Optional.ofNullable(LibraryIndex.BY_NAME.get(name));
         }
 
         public String getName() {
@@ -792,7 +1131,7 @@ public class BuiltInLibraries {
         }
 
         public Optional<String> getPackageName() {
-            return packageName == null ? Optional.empty() : Optional.of(packageName);
+            return Optional.ofNullable(packageName);
         }
 
         public boolean hasResources() {
