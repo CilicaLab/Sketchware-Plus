@@ -9,6 +9,9 @@ def get_git_commit_info():
     commit_hash_short = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%h']).decode('utf-8')
     return commit_author, commit_message, commit_hash, commit_hash_short
 
+def escape_markdown_v1(text):
+    return text.replace('_', '\\_').replace('*', '\\*').replace('`', '\\`').replace('[', '\\[')
+
 # Telegram API credentials
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
@@ -17,6 +20,11 @@ group_id = int(os.getenv("CHAT_ID"))
 
 # File paths to send
 apk_path = os.getenv("APK_PATH")
+branch_name = os.getenv("BRANCH_NAME", "master")
+escaped_branch = escape_markdown_v1(branch_name)
+
+topic_id = os.getenv("TOPIC_ID")
+reply_to = int(topic_id) if topic_id and topic_id != "0" else None
 
 # Get the latest commit info
 commit_author, commit_message, commit_hash, commit_hash_short = get_git_commit_info()
@@ -53,21 +61,25 @@ async def send_file(file_path):
     print(f"Sending file: {file_path} to the Telegram group")
 
     message = (
+        f"Branch: {escaped_branch}\n"
         f"**Commit by:** {commit_author}\n"
         f"**Commit message:** {commit_message}\n"
         f"**Commit hash:** #{commit_hash_short}\n"
         f"**Version:** Android >= 8"
     )
 
+    send_args = {
+        "entity": group_id,
+        "file": file_path,
+        "parse_mode": 'markdown',
+        "caption": message,
+        "progress_callback": progress,
+    }
+    if reply_to is not None:
+        send_args["reply_to"] = reply_to
+
     try:
-        await client.send_file(
-            entity=group_id,
-            file=file_path,
-            parse_mode='markdown',
-            caption=message,
-            progress_callback=progress,
-            reply_to=int(os.getenv("TOPIC_ID"))
-        )
+        await client.send_file(**send_args)
         print("\nFile sent successfully")
     except Exception as e:
         print(f"Failed to send file: {e}")
