@@ -21,14 +21,13 @@ def main():
     bot_token = os.environ['BOT_TOKEN']
     chat_id = os.environ['CHAT_ID']
     topic_id = os.environ.get('TOPIC_ID')
-    branch_name = os.environ.get('BRANCH_NAME', 'master')
-    escaped_branch = escape_markdown_v2(branch_name)
+    branch = os.environ.get('BRANCH_NAME', 'master')
 
     commit_author, commit_message, commit_hash, commit_hash_short = get_git_commit_info()
 
     message = (
-        f"Branch: *{escaped_branch}*\n"
         f"A new [commit](https://github.com/CilicaLab/Sketchware-Plus/commit/{commit_hash}) has been merged to the repository by *{commit_author}*.\n\n"
+        f"*Branch:* {branch}\n\n"
         f"*What has changed:*\n>{escape_parentheses(commit_message)}\n\n"
         f"I'm currently building it and will send you the APKs here within ~10 mins if the build is successful.\n\n#{commit_hash_short}"
     )
