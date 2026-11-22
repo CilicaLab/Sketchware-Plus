@@ -197,6 +197,8 @@ public class BuiltInLibraries {
     public static String USER_MESSAGING_PLATFORM = "user-messaging-platform-2.0.0";
     public static String WAVE_SIDE_BAR = "wave-side-bar";
 
+
+
     public static final BuiltInLibrary[] KNOWN_BUILT_IN_LIBRARIES = {
             new BuiltInLibrary(ANDROIDX_ACTIVITY, List.of(ANDROIDX_ANNOTATION_JVM, ANDROIDX_CORE_KTX, ANDROIDX_CORE_VIEWTREE,
                     ANDROIDX_LIFECYCLE_COMMON, ANDROIDX_LIFECYCLE_RUNTIME,
