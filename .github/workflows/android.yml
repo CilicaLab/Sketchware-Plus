@@ -35,11 +35,23 @@ jobs:
         run: |
           pip install requests
 
+      - name: Select Telegram Chat and Topic
+        shell: bash
+        run: |
+          if [ "${{ github.ref_name }}" = "library-update" ]; then
+            echo "SEL_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID_V2 }}" >> $GITHUB_ENV
+            echo "SEL_TOPIC_ID=${{ secrets.TELEGRAM_TOPIC_ID_V2 }}" >> $GITHUB_ENV
+          else
+            echo "SEL_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> $GITHUB_ENV
+            echo "SEL_TOPIC_ID=${{ secrets.TELEGRAM_TOPIC_ID }}" >> $GITHUB_ENV
+          fi
+
       - name: Send a message to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          CHAT_ID: ${{ env.SEL_CHAT_ID }}
+          TOPIC_ID: ${{ env.SEL_TOPIC_ID }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
           python ./.github/workflows/notify_telegram.py
         continue-on-error: true
@@ -130,13 +142,25 @@ jobs:
           path: bot_session.session
           key: telegram-session-${{ runner.os }}-bot_session
 
+      - name: Select Telegram Chat and Topic
+        shell: bash
+        run: |
+          if [ "${{ github.ref_name }}" = "library-update" ]; then
+            echo "SEL_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID_V2 }}" >> $GITHUB_ENV
+            echo "SEL_TOPIC_ID=${{ secrets.TELEGRAM_TOPIC_ID_V2 }}" >> $GITHUB_ENV
+          else
+            echo "SEL_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> $GITHUB_ENV
+            echo "SEL_TOPIC_ID=${{ secrets.TELEGRAM_TOPIC_ID }}" >> $GITHUB_ENV
+          fi
+
       - name: Send APKs to Telegram
         env:
           API_ID: ${{ secrets.TELEGRAM_API_ID }}
           API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          CHAT_ID: ${{ env.SEL_CHAT_ID }}
+          TOPIC_ID: ${{ env.SEL_TOPIC_ID }}
+          BRANCH_NAME: ${{ github.ref_name }}
           APK_PATH: ./downloaded-artifact/app-release-${{ needs.build.outputs.short_sha }}.apk
         run: |
           python ./.github/workflows/deploy_artifacts.py
@@ -145,6 +169,7 @@ jobs:
   updateAppData:
     name: Update App Data
     runs-on: ubuntu-latest
+    if: github.ref_name == 'master'
     steps:
       - uses: actions/checkout@v4
         with:

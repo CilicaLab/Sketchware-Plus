@@ -1,18 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="8dp">
 
-    <!-- Assistant/System Bubble (Left) -->
-    <com.google.android.material.card.MaterialCardView
+    <!-- Assistant/System Message (Left) -->
+    <com.cilicalab.blur.BlurView
         android:id="@+id/card_assistant"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:cardBackgroundColor="?attr/colorSurfaceVariant"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -20,6 +18,7 @@
         app:layout_constraintWidth_percent="0.90">
 
         <LinearLayout
+            android:id="@+id/container_assistant"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -42,17 +41,14 @@
                 android:textAppearance="@style/TextAppearance.AppCompat.Body1"
                 android:textColor="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+    </com.cilicalab.blur.BlurView>
 
     <!-- User Bubble (Right) -->
-    <com.google.android.material.card.MaterialCardView
+    <com.cilicalab.blur.BlurView
         android:id="@+id/card_user"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:cardBackgroundColor="?attr/colorPrimaryContainer"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
@@ -60,6 +56,7 @@
         app:layout_constraintWidth_max="300dp">
 
         <LinearLayout
+            android:id="@+id/container_user"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -72,7 +69,7 @@
                 android:textAppearance="@style/TextAppearance.AppCompat.Body1"
                 android:textColor="?attr/colorOnPrimaryContainer" />
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+    </com.cilicalab.blur.BlurView>
 
     <!-- Action Container (Middle) -->
     <LinearLayout

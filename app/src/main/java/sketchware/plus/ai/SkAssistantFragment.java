@@ -6,11 +6,13 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -45,6 +47,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
 import io.noties.markwon.AbstractMarkwonPlugin;
+import com.cilicalab.blur.BlurView;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.core.CorePlugin;
 import io.noties.markwon.core.MarkwonTheme;
@@ -624,6 +627,7 @@ public class SkAssistantFragment extends Fragment {
                                     }
                                 }
                                 adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
+                                saveHistory();
                             } else {
                                 statusMsg.content = "Thinking...";
                                 adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
@@ -1765,7 +1769,36 @@ public class SkAssistantFragment extends Fragment {
                 JSONArray array = new JSONArray(content);
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
-                    loadedMessages.add(new Message(obj.getString("role"), obj.getString("content")));
+                    String role = obj.optString("role", "user");
+                    String contentStr = obj.optString("content", "");
+                    Message msg = new Message(role, contentStr);
+                    if ("status".equals(role)) {
+                        msg.isLogFinished = obj.optBoolean("isLogFinished", true);
+                        msg.elapsedSeconds = obj.optInt("elapsedSeconds", 0);
+                        if (obj.has("steps")) {
+                            JSONArray stepsArray = obj.getJSONArray("steps");
+                            List<ActivityStep> steps = new ArrayList<>();
+                            for (int j = 0; j < stepsArray.length(); j++) {
+                                JSONObject stepObj = stepsArray.getJSONObject(j);
+                                String toolName = stepObj.optString("toolName", "");
+                                String label = stepObj.optString("label", "");
+                                String statusStr = stepObj.optString("status", "DONE");
+                                ActivityStep.Status status;
+                                try {
+                                    status = ActivityStep.Status.valueOf(statusStr);
+                                } catch (Exception e) {
+                                    status = ActivityStep.Status.DONE;
+                                }
+                                if (status == ActivityStep.Status.RUNNING) {
+                                    status = ActivityStep.Status.DONE;
+                                }
+                                long startTime = stepObj.optLong("startTime", System.currentTimeMillis());
+                                steps.add(new ActivityStep(toolName, label, status, startTime));
+                            }
+                            msg.steps = steps;
+                        }
+                    }
+                    loadedMessages.add(msg);
                 }
             } catch (Exception ignored) {}
         }
@@ -1786,10 +1819,26 @@ public class SkAssistantFragment extends Fragment {
         try {
             JSONArray array = new JSONArray();
             for (Message msg : messages) {
-                if ("status".equals(msg.role)) continue;
+                if ("status".equals(msg.role) && (msg.steps == null || msg.steps.isEmpty())) continue;
                 JSONObject obj = new JSONObject();
                 obj.put("role", msg.role);
-                obj.put("content", msg.content);
+                obj.put("content", msg.content != null ? msg.content : "");
+                if ("status".equals(msg.role)) {
+                    obj.put("isLogFinished", msg.isLogFinished);
+                    obj.put("elapsedSeconds", msg.elapsedSeconds);
+                    if (msg.steps != null) {
+                        JSONArray stepsArray = new JSONArray();
+                        for (ActivityStep step : msg.steps) {
+                            JSONObject stepObj = new JSONObject();
+                            stepObj.put("toolName", step.toolName != null ? step.toolName : "");
+                            stepObj.put("label", step.label != null ? step.label : "");
+                            stepObj.put("status", step.status != null ? step.status.name() : "DONE");
+                            stepObj.put("startTime", step.startTime);
+                            stepsArray.put(stepObj);
+                        }
+                        obj.put("steps", stepsArray);
+                    }
+                }
                 array.put(obj);
             }
             FileUtil.writeFile(historyPath, array.toString());
@@ -1925,9 +1974,17 @@ public class SkAssistantFragment extends Fragment {
                     .start();
         }
 
+        private RecyclerView recyclerView;
+
         MessageAdapter(List<Message> messages, SkAssistantFragment fragment) {
             this.messages = messages;
             this.fragment = fragment;
+        }
+
+        @Override
+        public void onAttachedToRecyclerView(@NonNull RecyclerView r) {
+            super.onAttachedToRecyclerView(r);
+            this.recyclerView = r;
         }
 
         @Override
@@ -2066,6 +2123,7 @@ public class SkAssistantFragment extends Fragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             if (holder instanceof ActivityLogViewHolder) {
                 ActivityLogViewHolder logHolder = (ActivityLogViewHolder) holder;
+                logHolder.setupBlurViews(recyclerView);
                 Message msg = messages.get(position);
 
                 logHolder.tvTitle.setText(getHeaderTitleForMessage(msg));
@@ -2117,6 +2175,7 @@ public class SkAssistantFragment extends Fragment {
             }
 
             ViewHolder msgHolder = (ViewHolder) holder;
+            msgHolder.setupBlurViews(recyclerView);
             Message msg = messages.get(position);
             String contentText = msg.jsonData != null ? msg.jsonData.optString("summary", msg.content) : msg.content;
 
@@ -2343,7 +2402,9 @@ public class SkAssistantFragment extends Fragment {
         static class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvRoleLeft, tvContentLeft, tvContentRight;
             View cardAssistant, cardUser, actionContainer;
+            View containerAssistant, containerUser;
             Button btnApply, btnRevert;
+            BlurView blurAssistant, blurUser;
 
             ViewHolder(View itemView) {
                 super(itemView);
@@ -2352,9 +2413,32 @@ public class SkAssistantFragment extends Fragment {
                 tvContentRight = itemView.findViewById(R.id.tv_content_right);
                 cardAssistant = itemView.findViewById(R.id.card_assistant);
                 cardUser = itemView.findViewById(R.id.card_user);
+                containerAssistant = itemView.findViewById(R.id.container_assistant);
+                containerUser = itemView.findViewById(R.id.container_user);
                 actionContainer = itemView.findViewById(R.id.action_container);
                 btnApply = itemView.findViewById(R.id.btn_apply);
                 btnRevert = itemView.findViewById(R.id.btn_revert);
+
+                if (cardAssistant instanceof BlurView) {
+                    blurAssistant = (BlurView) cardAssistant;
+                }
+                if (cardUser instanceof BlurView) {
+                    blurUser = (BlurView) cardUser;
+                }
+            }
+
+            void setupBlurViews(RecyclerView rv) {
+                BlurViewHelper.setup(blurAssistant, rv);
+                BlurViewHelper.setup(blurUser, rv);
+
+                if (containerUser != null) {
+                    int primaryContainer = MaterialColors.getColor(itemView, com.google.android.material.R.attr.colorPrimaryContainer, 0xFF0056D2);
+                    containerUser.setBackgroundColor((primaryContainer & 0x00FFFFFF) | 0x70000000);
+                }
+                if (containerAssistant != null) {
+                    int surfaceVariant = MaterialColors.getColor(itemView, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFF1E1E1E);
+                    containerAssistant.setBackgroundColor((surfaceVariant & 0x00FFFFFF) | 0x70000000);
+                }
             }
         }
 
@@ -2375,8 +2459,10 @@ public class SkAssistantFragment extends Fragment {
             ImageView ivChevron;
             LinearLayout layoutHeader;
             LinearLayout layoutBody;
+            LinearLayout containerActivityLog;
             RecyclerView rvSteps;
             OrbState currentOrbState;
+            BlurView blurCard;
 
             ActivityLogViewHolder(View itemView) {
                 super(itemView);
@@ -2386,12 +2472,26 @@ public class SkAssistantFragment extends Fragment {
                 ivChevron = itemView.findViewById(R.id.iv_chevron);
                 layoutHeader = itemView.findViewById(R.id.layout_header);
                 layoutBody = itemView.findViewById(R.id.layout_body);
+                containerActivityLog = itemView.findViewById(R.id.container_activity_log);
                 rvSteps = itemView.findViewById(R.id.rv_steps);
+                if (itemView instanceof BlurView) {
+                    blurCard = (BlurView) itemView;
+                } else if (itemView.findViewById(R.id.card_activity_log) instanceof BlurView) {
+                    blurCard = itemView.findViewById(R.id.card_activity_log);
+                }
                 composeOrb.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
                 rvSteps.setLayoutManager(new LinearLayoutManager(itemView.getContext()));
                 RecyclerView.ItemAnimator childAnimator = rvSteps.getItemAnimator();
                 if (childAnimator instanceof SimpleItemAnimator) {
                     ((SimpleItemAnimator) childAnimator).setSupportsChangeAnimations(false);
+                }
+            }
+
+            void setupBlurViews(RecyclerView rv) {
+                BlurViewHelper.setup(blurCard, rv);
+                if (containerActivityLog != null) {
+                    int surfaceContainer = MaterialColors.getColor(itemView, com.google.android.material.R.attr.colorSurfaceContainer, 0xFF1E1E1E);
+                    containerActivityLog.setBackgroundColor((surfaceContainer & 0x00FFFFFF) | 0x70000000);
                 }
             }
         }
