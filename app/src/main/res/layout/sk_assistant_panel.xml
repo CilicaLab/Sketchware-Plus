@@ -1,6 +1,5 @@
-<eightbitlab.com.blurview.BlurTarget xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/blur_target"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -15,20 +14,20 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingLeft="8dp"
+        android:paddingLeft="3dp"
         android:paddingTop="0dp"
-        android:paddingRight="8dp">
+        android:paddingRight="3dp">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="4dp"
             android:layout_marginVertical="4dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
             app:cardCornerRadius="12dp"
             app:cardElevation="0dp"
-            app:strokeWidth="1dp"
             app:strokeColor="?attr/colorOutlineVariant"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -49,11 +48,11 @@
                         android:layout_height="24dp"
                         android:layout_marginEnd="4dp"
                         android:visibility="gone"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
                         app:cardCornerRadius="12dp"
                         app:cardElevation="0dp"
-                        app:strokeWidth="1dp"
                         app:strokeColor="?attr/colorOutlineVariant"
-                        app:cardBackgroundColor="?attr/colorSurfaceContainer">
+                        app:strokeWidth="1dp">
 
                         <TextView
                             android:id="@+id/tv_token_usage"
@@ -74,11 +73,11 @@
                         android:layout_width="wrap_content"
                         android:layout_height="24dp"
                         android:layout_marginEnd="4dp"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
                         app:cardCornerRadius="12dp"
                         app:cardElevation="0dp"
-                        app:strokeWidth="1dp"
                         app:strokeColor="?attr/colorOutlineVariant"
-                        app:cardBackgroundColor="?attr/colorSurfaceContainer">
+                        app:strokeWidth="1dp">
 
                         <TextView
                             android:id="@+id/tv_current_model"
@@ -104,16 +103,16 @@
                         style="@style/Widget.Material3.Button.IconButton"
                         android:layout_width="32dp"
                         android:layout_height="32dp"
-                        android:padding="0dp"
                         android:insetLeft="0dp"
                         android:insetTop="0dp"
                         android:insetRight="0dp"
                         android:insetBottom="0dp"
-                        app:iconPadding="0dp"
-                        app:iconGravity="textStart"
+                        android:padding="0dp"
                         android:visibility="gone"
-                        app:iconSize="18dp"
                         app:icon="@drawable/ic_mtrl_undo"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        app:iconSize="18dp"
                         app:iconTint="?attr/colorPrimary" />
 
                     <com.google.android.material.button.MaterialButton
@@ -121,15 +120,15 @@
                         style="@style/Widget.Material3.Button.IconButton"
                         android:layout_width="32dp"
                         android:layout_height="32dp"
-                        android:padding="0dp"
                         android:insetLeft="0dp"
                         android:insetTop="0dp"
                         android:insetRight="0dp"
                         android:insetBottom="0dp"
-                        app:iconPadding="0dp"
-                        app:iconGravity="textStart"
-                        app:iconSize="18dp"
+                        android:padding="0dp"
                         app:icon="@drawable/ic_mtrl_delete"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        app:iconSize="18dp"
                         app:iconTint="?attr/colorError" />
                 </LinearLayout>
 
@@ -162,7 +161,7 @@
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="32dp"
+                android:layout_height="14dp"
                 android:layout_gravity="top"
                 android:background="@drawable/shadow_gradient_top_bottom"
                 android:clickable="false"
@@ -170,7 +169,7 @@
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="32dp"
+                android:layout_height="13dp"
                 android:layout_gravity="bottom"
                 android:background="@drawable/bg_assistant_fade_bottom"
                 android:clickable="false"
@@ -185,23 +184,26 @@
                 android:layout_marginBottom="12dp"
                 android:contentDescription="Scroll to bottom"
                 android:visibility="gone"
+                app:backgroundTint="?attr/colorSecondaryContainer"
+                app:elevation="4dp"
                 app:fabCustomSize="36dp"
                 app:srcCompat="@drawable/ic_mtrl_arrow_down"
-                app:tint="?attr/colorOnSecondaryContainer"
-                app:backgroundTint="?attr/colorSecondaryContainer"
-                app:elevation="4dp" />
+                app:tint="?attr/colorOnSecondaryContainer" />
         </FrameLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/input_pill"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="0dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
             app:cardCornerRadius="28dp"
             app:cardElevation="0dp"
-            app:strokeWidth="1dp"
             app:strokeColor="?attr/colorOutlineVariant"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -231,19 +233,19 @@
                     android:layout_height="40dp"
                     android:layout_gravity="center_vertical"
                     android:layout_marginEnd="4dp"
-                    android:padding="0dp"
+                    android:contentDescription="Send"
                     android:insetLeft="0dp"
                     android:insetTop="0dp"
                     android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    app:iconPadding="0dp"
-                    app:iconGravity="textStart"
+                    android:padding="0dp"
                     app:icon="@drawable/ic_mtrl_send"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
                     app:iconSize="20dp"
-                    app:iconTint="?attr/colorOnPrimary"
-                    android:contentDescription="Send" />
+                    app:iconTint="?attr/colorOnPrimary" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
-</eightbitlab.com.blurview.BlurTarget>
+</FrameLayout>

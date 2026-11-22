@@ -6,7 +6,7 @@
     android:padding="8dp">
 
     <!-- Assistant/System Message (Left) -->
-    <sketchware.plus.ai.FeatheredBlurView
+    <com.cilicalab.blur.BlurView
         android:id="@+id/card_assistant"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -18,10 +18,10 @@
         app:layout_constraintWidth_percent="0.90">
 
         <LinearLayout
+            android:id="@+id/container_assistant"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#701E1E1E"
             android:padding="12dp">
 
             <TextView
@@ -30,7 +30,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
                 android:textAllCaps="true"
-                android:textColor="#FFFFFF"
+                android:textColor="?attr/colorSecondary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -39,12 +39,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-                android:textColor="#FFFFFF" />
+                android:textColor="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
-    </sketchware.plus.ai.FeatheredBlurView>
+    </com.cilicalab.blur.BlurView>
 
     <!-- User Bubble (Right) -->
-    <sketchware.plus.ai.FeatheredBlurView
+    <com.cilicalab.blur.BlurView
         android:id="@+id/card_user"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -56,10 +56,10 @@
         app:layout_constraintWidth_max="300dp">
 
         <LinearLayout
+            android:id="@+id/container_user"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#700056D2"
             android:padding="12dp">
 
             <TextView
@@ -67,9 +67,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-                android:textColor="#FFFFFF" />
+                android:textColor="?attr/colorOnPrimaryContainer" />
         </LinearLayout>
-    </sketchware.plus.ai.FeatheredBlurView>
+    </com.cilicalab.blur.BlurView>
 
     <!-- Action Container (Middle) -->
     <LinearLayout
