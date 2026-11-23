@@ -478,7 +478,7 @@ public class yq {
         if (fileName.endsWith("java")) {
             fileUtil.b(javaFilesPath + File.separator + packageNameAsFolders + File.separator + fileName, fileContent);
         } else if (fileName.equals("AndroidManifest.xml")) {
-            fileUtil.b(androidManifestPath, fileContent);
+            fileUtil.b(androidManifestPath, mod.hilal.saif.android_manifest.AndroidManifestInjector.cleanManifestXml(fileContent));
         } else if (fileName.equals("colors.xml") || fileName.equals("styles.xml") || fileName.equals("strings.xml")) {
             fileUtil.b(resDirectoryPath + File.separator + "values" + File.separator + fileName, fileContent);
         } else if (fileName.equals("provider_paths.xml")) {

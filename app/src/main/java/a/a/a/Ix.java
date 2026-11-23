@@ -120,8 +120,10 @@ public class Ix {
         serviceTag.addAttribute("android", "name", "com.google.firebase.components.ComponentDiscoveryService");
         serviceTag.addAttribute("android", "exported", "false");
 
-        addFirebaseRegistrar(serviceTag, "com.google.firebase.FirebaseCommonRegistrar");
-        addFirebaseRegistrar(serviceTag, "com.google.firebase.concurrent.ExecutorsRegistrar");
+        // Do not add FirebaseCommonRegistrar or ExecutorsRegistrar to Manifest meta-data,
+        // because modern firebase-common (23.0.0+) registers them programmatically in FirebaseApp.
+        // Adding them to the Manifest causes ComponentDiscovery to instantiate them a second time,
+        // producing duplicate UserAgentPublisher components and crashing the app at launch.
         addFirebaseRegistrar(serviceTag, "com.google.firebase.installations.FirebaseInstallationsRegistrar");
         addFirebaseRegistrar(serviceTag, "com.google.firebase.datatransport.TransportRegistrar");
 

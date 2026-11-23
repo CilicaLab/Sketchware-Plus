@@ -269,8 +269,133 @@ public class AndroidManifestInjector {
     }
 
     /**
+     * Checks if a registrar class is programmatically registered by FirebaseApp in firebase-common.
+     * Modern firebase-common (23.0.0+) registers FirebaseCommonRegistrar and ExecutorsRegistrar directly
+     * in Java code. Including them in AndroidManifest.xml causes ComponentDiscovery to instantiate them a second time,
+     * triggering "Multiple components provide com.google.firebase.platforminfo.UserAgentPublisher" at runtime.
+     */
+    private static boolean isProgrammaticallyRegisteredInFirebaseApp(String registrarClass) {
+        if (registrarClass == null) {
+            return false;
+        }
+
+        return "com.google.firebase.FirebaseCommonRegistrar".equals(registrarClass)
+                || "com.google.firebase.FirebaseCommonKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.ktx.FirebaseCommonKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.ktx.FirebaseCommonLegacyRegistrar".equals(registrarClass)
+                || "com.google.firebase.concurrent.ExecutorsRegistrar".equals(registrarClass)
+                || "com.google.firebase.FirebaseExecutorsRegistrar".equals(registrarClass);
+    }
+
+    /**
+     * Maps Firebase ComponentRegistrar class names to their canonical registrar class.
+     * Firebase KTX and legacy registrars provide duplicate components (such as UserAgentPublisher,
+     * FirebaseAuth, etc.) which cause runtime crashes with:
+     * "java.lang.IllegalArgumentException: Multiple components provide com.google.firebase.platforminfo.UserAgentPublisher."
+     */
+    private static String getCanonicalRegistrar(String registrarClass) {
+        if (registrarClass == null) {
+            return null;
+        }
+
+        // Common / Core
+        if ("com.google.firebase.FirebaseCommonRegistrar".equals(registrarClass)
+                || "com.google.firebase.FirebaseCommonKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.ktx.FirebaseCommonKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.ktx.FirebaseCommonLegacyRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.FirebaseCommonRegistrar";
+        }
+
+        // Auth
+        if ("com.google.firebase.auth.FirebaseAuthRegistrar".equals(registrarClass)
+                || "com.google.firebase.auth.FirebaseAuthKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.auth.ktx.FirebaseAuthKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.auth.FirebaseAuthRegistrar";
+        }
+
+        // Database
+        if ("com.google.firebase.database.FirebaseDatabaseRegistrar".equals(registrarClass)
+                || "com.google.firebase.database.FirebaseDatabaseKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.database.ktx.FirebaseDatabaseKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.database.FirebaseDatabaseRegistrar";
+        }
+
+        // Storage
+        if ("com.google.firebase.storage.StorageRegistrar".equals(registrarClass)
+                || "com.google.firebase.storage.StorageKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.storage.ktx.StorageKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.storage.StorageRegistrar";
+        }
+
+        // Messaging
+        if ("com.google.firebase.messaging.FirebaseMessagingRegistrar".equals(registrarClass)
+                || "com.google.firebase.messaging.FirebaseMessagingKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.messaging.ktx.FirebaseMessagingKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.messaging.FirebaseMessagingRegistrar";
+        }
+
+        // Firestore
+        if ("com.google.firebase.firestore.FirestoreRegistrar".equals(registrarClass)
+                || "com.google.firebase.firestore.FirestoreKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.firestore.ktx.FirestoreKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.firestore.FirestoreRegistrar";
+        }
+
+        // Crashlytics
+        if ("com.google.firebase.crashlytics.CrashlyticsRegistrar".equals(registrarClass)
+                || "com.google.firebase.crashlytics.CrashlyticsKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.crashlytics.ktx.CrashlyticsKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.crashlytics.CrashlyticsRegistrar";
+        }
+
+        // Remote Config
+        if ("com.google.firebase.remoteconfig.RemoteConfigRegistrar".equals(registrarClass)
+                || "com.google.firebase.remoteconfig.RemoteConfigKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.remoteconfig.ktx.RemoteConfigKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.remoteconfig.RemoteConfigRegistrar";
+        }
+
+        // Installations
+        if ("com.google.firebase.installations.FirebaseInstallationsRegistrar".equals(registrarClass)
+                || "com.google.firebase.installations.FirebaseInstallationsKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.installations.ktx.FirebaseInstallationsKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.installations.FirebaseInstallationsRegistrar";
+        }
+
+        // InAppMessaging
+        if ("com.google.firebase.inappmessaging.FirebaseInAppMessagingRegistrar".equals(registrarClass)
+                || "com.google.firebase.inappmessaging.FirebaseInAppMessagingKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.inappmessaging.ktx.FirebaseInAppMessagingKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.inappmessaging.FirebaseInAppMessagingRegistrar";
+        }
+
+        // AppCheck
+        if ("com.google.firebase.appcheck.FirebaseAppCheckRegistrar".equals(registrarClass)
+                || "com.google.firebase.appcheck.FirebaseAppCheckKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.appcheck.ktx.FirebaseAppCheckKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.appcheck.FirebaseAppCheckRegistrar";
+        }
+
+        // Functions
+        if ("com.google.firebase.functions.FunctionsRegistrar".equals(registrarClass)
+                || "com.google.firebase.functions.FunctionsKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.functions.ktx.FunctionsKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.functions.FunctionsRegistrar";
+        }
+
+        // Perf
+        if ("com.google.firebase.perf.FirebasePerfRegistrar".equals(registrarClass)
+                || "com.google.firebase.perf.FirebasePerfKtxRegistrar".equals(registrarClass)
+                || "com.google.firebase.perf.ktx.FirebasePerfKtxRegistrar".equals(registrarClass)) {
+            return "com.google.firebase.perf.FirebasePerfRegistrar";
+        }
+
+        return registrarClass;
+    }
+
+    /**
      * Sanitizes and deduplicates Firebase metadata and providers in AndroidManifest.xml.
-     * Prevents runtime crashes caused by duplicate FirebaseInitProvider or duplicate
+     * Prevents runtime crashes caused by duplicate FirebaseInitProvider or duplicate / conflicting
      * ComponentRegistrar meta-data entries (e.g. "Multiple components provide com.google.firebase.platforminfo.UserAgentPublisher").
      */
     public static String cleanManifestXml(String rawXml) {
@@ -304,9 +429,9 @@ public class AndroidManifestInjector {
             }
         }
 
-        // 2. Deduplicate Firebase ComponentRegistrar meta-data tags
+        // 2. Deduplicate and normalize Firebase ComponentRegistrar meta-data tags
         if (cleanedXml.contains("com.google.firebase.components:")) {
-            Set<String> seenRegistrars = new HashSet<>();
+            Set<String> seenCanonicalRegistrars = new HashSet<>();
             Pattern metaDataPattern = Pattern.compile(
                 "<meta-data\\s+[^>]*?android:name=[\"']com\\.google\\.firebase\\.components:([^\"']+)[\"'][^>]*?(/?>|></meta-data>)",
                 Pattern.DOTALL
@@ -316,26 +441,50 @@ public class AndroidManifestInjector {
 
             while (matcher.find()) {
                 String registrarClass = matcher.group(1);
-                boolean isDuplicate = seenRegistrars.contains(registrarClass);
-
-                // Handle FirebaseCommonKtxRegistrar vs FirebaseCommonRegistrar conflict
-                if (!isDuplicate && "com.google.firebase.FirebaseCommonKtxRegistrar".equals(registrarClass)
-                        && seenRegistrars.contains("com.google.firebase.FirebaseCommonRegistrar")) {
-                    isDuplicate = true;
-                }
+                String canonicalClass = getCanonicalRegistrar(registrarClass);
+                boolean isDuplicate = isProgrammaticallyRegisteredInFirebaseApp(registrarClass)
+                        || seenCanonicalRegistrars.contains(canonicalClass);
 
                 if (isDuplicate) {
                     matcher.appendReplacement(sb, "");
                 } else {
-                    seenRegistrars.add(registrarClass);
+                    seenCanonicalRegistrars.add(canonicalClass);
                     String matchedText = matcher.group(0);
                     if (matchedText != null) {
+                        // If the registrar class was a KTX or legacy variant, normalize the tag to the canonical class
+                        if (!canonicalClass.equals(registrarClass)) {
+                            matchedText = matchedText.replace("com.google.firebase.components:" + registrarClass,
+                                    "com.google.firebase.components:" + canonicalClass);
+                        }
                         matcher.appendReplacement(sb, Matcher.quoteReplacement(matchedText));
                     }
                 }
             }
             matcher.appendTail(sb);
             cleanedXml = sb.toString();
+        }
+
+        // 3. Deduplicate ComponentDiscoveryService service tags
+        if (cleanedXml.contains("com.google.firebase.components.ComponentDiscoveryService")) {
+            Pattern servicePattern = Pattern.compile(
+                "<service\\s+[^>]*?android:name=[\"']com\\.google\\.firebase\\.components\\.ComponentDiscoveryService[\"'][^>]*?>(.*?)</service>",
+                Pattern.DOTALL
+            );
+            Matcher serviceMatcher = servicePattern.matcher(cleanedXml);
+            if (serviceMatcher.find()) {
+                int firstEnd = serviceMatcher.end();
+                String prefix = cleanedXml.substring(0, firstEnd);
+                String rest = cleanedXml.substring(firstEnd);
+
+                String cleanedRest = rest.replaceAll(
+                    "<service\\s+[^>]*?android:name=[\"']com\\.google\\.firebase\\.components\\.ComponentDiscoveryService[\"'][^>]*?>(.*?)</service>",
+                    ""
+                ).replaceAll(
+                    "<service\\s+[^>]*?android:name=[\"']com\\.google\\.firebase\\.components\\.ComponentDiscoveryService[\"'][^>]*?/>",
+                    ""
+                );
+                cleanedXml = prefix + cleanedRest;
+            }
         }
 
         return cleanedXml;
