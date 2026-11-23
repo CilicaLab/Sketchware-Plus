@@ -10,6 +10,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import mod.hey.studios.util.Helper;
 import sketchware.plus.utility.FileUtil;
@@ -261,7 +265,80 @@ public class AndroidManifestInjector {
         for (String manifestLine : manifestLines) {
             returnValue.append("\n").append(manifestLine);
         }
-        return returnValue.toString();
+        return cleanManifestXml(returnValue.toString());
+    }
+
+    /**
+     * Sanitizes and deduplicates Firebase metadata and providers in AndroidManifest.xml.
+     * Prevents runtime crashes caused by duplicate FirebaseInitProvider or duplicate
+     * ComponentRegistrar meta-data entries (e.g. "Multiple components provide com.google.firebase.platforminfo.UserAgentPublisher").
+     */
+    public static String cleanManifestXml(String rawXml) {
+        if (rawXml == null || rawXml.isEmpty()) {
+            return rawXml;
+        }
+
+        String cleanedXml = rawXml;
+
+        // 1. Deduplicate FirebaseInitProvider
+        if (cleanedXml.contains("com.google.firebase.provider.FirebaseInitProvider")) {
+            int firstIdx = cleanedXml.indexOf("com.google.firebase.provider.FirebaseInitProvider");
+            int nextIdx = cleanedXml.indexOf("com.google.firebase.provider.FirebaseInitProvider", firstIdx + 1);
+            while (nextIdx != -1) {
+                int blockStart = cleanedXml.lastIndexOf("<provider", nextIdx);
+                int blockEnd = cleanedXml.indexOf("/>", nextIdx);
+                if (blockEnd != -1) {
+                    int endWithTag = cleanedXml.indexOf("</provider>", nextIdx);
+                    if (endWithTag != -1 && endWithTag < blockEnd + 20) {
+                        blockEnd = endWithTag + "</provider>".length();
+                    } else {
+                        blockEnd += 2;
+                    }
+                }
+                if (blockStart != -1 && blockEnd != -1 && blockEnd > blockStart) {
+                    cleanedXml = cleanedXml.substring(0, blockStart) + cleanedXml.substring(blockEnd);
+                } else {
+                    break;
+                }
+                nextIdx = cleanedXml.indexOf("com.google.firebase.provider.FirebaseInitProvider", firstIdx + 1);
+            }
+        }
+
+        // 2. Deduplicate Firebase ComponentRegistrar meta-data tags
+        if (cleanedXml.contains("com.google.firebase.components:")) {
+            Set<String> seenRegistrars = new HashSet<>();
+            Pattern metaDataPattern = Pattern.compile(
+                "<meta-data\\s+[^>]*?android:name=[\"']com\\.google\\.firebase\\.components:([^\"']+)[\"'][^>]*?(/?>|></meta-data>)",
+                Pattern.DOTALL
+            );
+            Matcher matcher = metaDataPattern.matcher(cleanedXml);
+            StringBuffer sb = new StringBuffer();
+
+            while (matcher.find()) {
+                String registrarClass = matcher.group(1);
+                boolean isDuplicate = seenRegistrars.contains(registrarClass);
+
+                // Handle FirebaseCommonKtxRegistrar vs FirebaseCommonRegistrar conflict
+                if (!isDuplicate && "com.google.firebase.FirebaseCommonKtxRegistrar".equals(registrarClass)
+                        && seenRegistrars.contains("com.google.firebase.FirebaseCommonRegistrar")) {
+                    isDuplicate = true;
+                }
+
+                if (isDuplicate) {
+                    matcher.appendReplacement(sb, "");
+                } else {
+                    seenRegistrars.add(registrarClass);
+                    String matchedText = matcher.group(0);
+                    if (matchedText != null) {
+                        matcher.appendReplacement(sb, Matcher.quoteReplacement(matchedText));
+                    }
+                }
+            }
+            matcher.appendTail(sb);
+            cleanedXml = sb.toString();
+        }
+
+        return cleanedXml;
     }
 
     public static void addToApp(XmlBuilder nx, String projectId) {

@@ -86,10 +86,16 @@ public class Ix {
         addedPermissions.add(permissionName);
     }
 
+    private final Set<String> addedFirebaseRegistrars = new HashSet<>();
+
     /**
      * Helper to add a Firebase component registrar metadata tag.
      */
     private void addFirebaseRegistrar(XmlBuilder serviceTag, String registrarClassName) {
+        if (addedFirebaseRegistrars.contains(registrarClassName)) {
+            return;
+        }
+        addedFirebaseRegistrars.add(registrarClassName);
         XmlBuilder metadataTag = new XmlBuilder("meta-data");
         metadataTag.addAttribute("android", "name", "com.google.firebase.components:" + registrarClassName);
         metadataTag.addAttribute("android", "value", "com.google.firebase.components.ComponentRegistrar");
@@ -102,7 +108,9 @@ public class Ix {
      * @param applicationTag AndroidManifest {@link XmlBuilder} object
      */
     private void writeFirebaseMetaData(XmlBuilder applicationTag) {
+        addedFirebaseRegistrars.clear();
         XmlBuilder providerTag = new XmlBuilder("provider");
+        providerTag.addAttribute("android", "name", "com.google.firebase.provider.FirebaseInitProvider");
         providerTag.addAttribute("android", "name", "com.google.firebase.provider.FirebaseInitProvider");
         providerTag.addAttribute("android", "authorities", c.packageName + ".firebaseinitprovider");
         providerTag.addAttribute("android", "exported", "false");
