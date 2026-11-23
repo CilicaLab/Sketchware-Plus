@@ -407,26 +407,40 @@ public class AndroidManifestInjector {
 
         // 1. Deduplicate FirebaseInitProvider
         if (cleanedXml.contains("com.google.firebase.provider.FirebaseInitProvider")) {
-            int firstIdx = cleanedXml.indexOf("com.google.firebase.provider.FirebaseInitProvider");
-            int nextIdx = cleanedXml.indexOf("com.google.firebase.provider.FirebaseInitProvider", firstIdx + 1);
-            while (nextIdx != -1) {
-                int blockStart = cleanedXml.lastIndexOf("<provider", nextIdx);
-                int blockEnd = cleanedXml.indexOf("/>", nextIdx);
-                if (blockEnd != -1) {
-                    int endWithTag = cleanedXml.indexOf("</provider>", nextIdx);
-                    if (endWithTag != -1 && endWithTag < blockEnd + 20) {
-                        blockEnd = endWithTag + "</provider>".length();
-                    } else {
-                        blockEnd += 2;
+            Pattern providerPattern = Pattern.compile(
+                "<provider\\s+[^>]*?android:name=[\"']com\\.google\\.firebase\\.provider\\.FirebaseInitProvider[\"'][^>]*?(/?>|></provider>)",
+                Pattern.DOTALL
+            );
+            Matcher providerMatcher = providerPattern.matcher(cleanedXml);
+            StringBuffer sb = new StringBuffer();
+            boolean firstFound = false;
+
+            while (providerMatcher.find()) {
+                if (firstFound) {
+                    // Remove duplicate FirebaseInitProvider blocks
+                    providerMatcher.appendReplacement(sb, "");
+                } else {
+                    firstFound = true;
+                    String matchedText = providerMatcher.group(0);
+                    if (matchedText != null) {
+                        // Clean up any duplicate android:name attributes within the single provider tag if present
+                        int nameCount = 0;
+                        Pattern nameAttrPattern = Pattern.compile("android:name=[\"']com\\.google\\.firebase\\.provider\\.FirebaseInitProvider[\"']");
+                        Matcher nameMatcher = nameAttrPattern.matcher(matchedText);
+                        StringBuffer cleanTagSb = new StringBuffer();
+                        while (nameMatcher.find()) {
+                            nameCount++;
+                            if (nameCount > 1) {
+                                nameMatcher.appendReplacement(cleanTagSb, "");
+                            }
+                        }
+                        nameMatcher.appendTail(cleanTagSb);
+                        providerMatcher.appendReplacement(sb, Matcher.quoteReplacement(cleanTagSb.toString()));
                     }
                 }
-                if (blockStart != -1 && blockEnd != -1 && blockEnd > blockStart) {
-                    cleanedXml = cleanedXml.substring(0, blockStart) + cleanedXml.substring(blockEnd);
-                } else {
-                    break;
-                }
-                nextIdx = cleanedXml.indexOf("com.google.firebase.provider.FirebaseInitProvider", firstIdx + 1);
             }
+            providerMatcher.appendTail(sb);
+            cleanedXml = sb.toString();
         }
 
         // 2. Deduplicate and normalize Firebase ComponentRegistrar meta-data tags

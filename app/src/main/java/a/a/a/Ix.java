@@ -111,7 +111,6 @@ public class Ix {
         addedFirebaseRegistrars.clear();
         XmlBuilder providerTag = new XmlBuilder("provider");
         providerTag.addAttribute("android", "name", "com.google.firebase.provider.FirebaseInitProvider");
-        providerTag.addAttribute("android", "name", "com.google.firebase.provider.FirebaseInitProvider");
         providerTag.addAttribute("android", "authorities", c.packageName + ".firebaseinitprovider");
         providerTag.addAttribute("android", "exported", "false");
         providerTag.addAttribute("android", "initOrder", "100");
