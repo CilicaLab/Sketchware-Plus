@@ -184,6 +184,7 @@ public class BuiltInLibraries {
     public static String PLAY_SERVICES_AUTH_BASE = "play-services-auth-base-17.0.0";
     public static String PLAY_SERVICES_BASE = "play-services-base-18.0.0";
     public static String PLAY_SERVICES_BASEMENT = "play-services-basement-18.0.0";
+    public static String PLAY_SERVICES_CLOUD_MESSAGING = "play-services-cloud-messaging-17.2.0";
     public static String PLAY_SERVICES_GASS = "play-services-gass-20.0.0";
     public static String PLAY_SERVICES_GCM = "play-services-gcm-17.0.0";
     public static String PLAY_SERVICES_IID = "play-services-iid-17.0.0";
@@ -480,7 +481,7 @@ public class BuiltInLibraries {
             new BuiltInLibrary(FIREBASE_MEASUREMENT_CONNECTOR, List.of(PLAY_SERVICES_BASEMENT)),
 
             new BuiltInLibrary(FIREBASE_MESSAGING, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, PLAY_SERVICES_BASEMENT,
-                    PLAY_SERVICES_TASKS, FIREBASE_COMMON, FIREBASE_IID,
+                    PLAY_SERVICES_TASKS, PLAY_SERVICES_CLOUD_MESSAGING, FIREBASE_COMMON, FIREBASE_IID,
                     FIREBASE_MEASUREMENT_CONNECTOR, FIREBASE_DATATRANSPORT, FIREBASE_ENCODERS_JSON, FIREBASE_ENCODERS_PROTO,
                     FIREBASE_INSTALLATIONS, FIREBASE_INSTALLATIONS_INTEROP), "com.google.firebase.messaging"),
 
@@ -562,6 +563,8 @@ public class BuiltInLibraries {
                     PLAY_SERVICES_TASKS), "com.google.android.gms.base"),
 
             new BuiltInLibrary(PLAY_SERVICES_BASEMENT, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, ANDROIDX_FRAGMENT), "com.google.android.gms.common"),
+
+            new BuiltInLibrary(PLAY_SERVICES_CLOUD_MESSAGING, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS), "com.google.android.gms.cloudmessaging"),
 
             new BuiltInLibrary(PLAY_SERVICES_GASS, List.of(PLAY_SERVICES_ADS_BASE, PLAY_SERVICES_ADS_IDENTIFIER, PLAY_SERVICES_ADS_LITE,
                     PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS)),
