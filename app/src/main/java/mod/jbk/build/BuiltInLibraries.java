@@ -188,7 +188,7 @@ public class BuiltInLibraries {
     public static String PLAY_SERVICES_AUTH_BASE = "play-services-auth-base-17.0.0";
     public static String PLAY_SERVICES_BASE = "play-services-base-18.0.0";
     public static String PLAY_SERVICES_BASEMENT = "play-services-basement-18.0.0";
-    public static String PLAY_SERVICES_CLOUD_MESSAGING = "play-services-cloud-messaging-17.4.0";
+    public static String PLAY_SERVICES_CLOUD_MESSAGING = "play-services-cloud-messaging-17.2.0";
     public static String PLAY_SERVICES_GASS = "play-services-gass-20.0.0";
     public static String PLAY_SERVICES_GCM = "play-services-gcm-17.0.0";
     public static String PLAY_SERVICES_IID = "play-services-iid-17.0.0";
