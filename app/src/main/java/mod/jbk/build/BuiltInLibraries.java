@@ -70,6 +70,10 @@ public class BuiltInLibraries {
     public static String ANDROIDX_CURSORADAPTER = "cursoradapter-1.0.0";
     public static String ANDROIDX_CUSTOMVIEW = "customview-1.1.0";
     public static String ANDROIDX_CUSTOMVIEW_POOLINGCONTAINER = "customview-poolingcontainer-1.0.0";
+    public static String ANDROIDX_DATASTORE = "datastore-1.1.7";
+    public static String ANDROIDX_DATASTORE_CORE = "datastore-core-1.1.7";
+    public static String ANDROIDX_DATASTORE_PREFERENCES = "datastore-preferences-1.1.7";
+    public static String ANDROIDX_DATASTORE_PREFERENCES_CORE = "datastore-preferences-core-1.1.7";
     public static String ANDROIDX_DOCUMENTFILE = "documentfile-1.0.0";
     public static String ANDROIDX_DRAWERLAYOUT = "drawerlayout-1.1.1";
     public static String ANDROIDX_DYNAMICANIMATION = "dynamicanimation-1.1.0";
@@ -220,7 +224,7 @@ public class BuiltInLibraries {
                     ANDROIDX_CORE, ANDROIDX_VECTORDRAWABLE_ANIMATED,
                     ANDROIDX_VECTORDRAWABLE), "androidx.appcompat.resources"),
 
-            new BuiltInLibrary(ANDROIDX_ASYNCLAYOUTINFLATER, List.of(ANDROIDX_ANNOTATION_JVM, ANDROIDX_CORE), "androidx.asynclayoutinflater"),
+            new BuiltInLibrary(ANDROIDX_ASYNCLAYOUTINFLATER, List.of(ANDROIDX_ANNOTATION_JVM, ANDROIDX_CORE)),
 
             new BuiltInLibrary(ANDROIDX_BROWSER, List.of(ANDROIDX_ANNOTATION_JVM, ANDROIDX_COLLECTION_JVM, ANDROIDX_CONCURRENT_FUTURES,
                     ANDROIDX_CORE, ANDROIDX_INTERPOLATOR), "androidx.browser"),
@@ -259,6 +263,14 @@ public class BuiltInLibraries {
             new BuiltInLibrary(ANDROIDX_CUSTOMVIEW, List.of(ANDROIDX_ANNOTATION_JVM, ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE)),
 
             new BuiltInLibrary(ANDROIDX_CUSTOMVIEW_POOLINGCONTAINER, List.of(ANDROIDX_CORE_KTX, JETBRAINS_KOTLIN_STDLIB), "androidx.customview.poolingcontainer"),
+
+            new BuiltInLibrary(ANDROIDX_DATASTORE, List.of(ANDROIDX_DATASTORE_CORE, JETBRAINS_KOTLIN_STDLIB)),
+
+            new BuiltInLibrary(ANDROIDX_DATASTORE_CORE, List.of(JETBRAINS_KOTLIN_STDLIB, JETBRAINS_KOTLINX_COROUTINES_CORE_JVM)),
+
+            new BuiltInLibrary(ANDROIDX_DATASTORE_PREFERENCES, List.of(ANDROIDX_DATASTORE_PREFERENCES_CORE, ANDROIDX_DATASTORE)),
+
+            new BuiltInLibrary(ANDROIDX_DATASTORE_PREFERENCES_CORE, List.of(ANDROIDX_DATASTORE_CORE, JETBRAINS_KOTLIN_STDLIB, JETBRAINS_KOTLINX_COROUTINES_CORE_JVM)),
 
             new BuiltInLibrary(ANDROIDX_DOCUMENTFILE, List.of(ANDROIDX_ANNOTATION_JVM)),
 
@@ -474,7 +486,8 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(FIREBASE_INAPPMESSAGING_DISPLAY, List.of(FIREBASE_INAPPMESSAGING, ANDROIDX_APPCOMPAT, GLIDE)),
 
-            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS_INTEROP, PLAY_SERVICES_TASKS)),
+            new BuiltInLibrary(FIREBASE_INSTALLATIONS, List.of(FIREBASE_COMMON, FIREBASE_COMPONENTS, FIREBASE_INSTALLATIONS_INTEROP,
+                    PLAY_SERVICES_TASKS, ANDROIDX_DATASTORE_PREFERENCES, ANDROIDX_DATASTORE_PREFERENCES_CORE)),
 
             new BuiltInLibrary(FIREBASE_INSTALLATIONS_INTEROP, List.of(FIREBASE_COMMON)),
 
@@ -564,7 +577,7 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(PLAY_SERVICES_BASEMENT, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, ANDROIDX_FRAGMENT), "com.google.android.gms.common"),
 
-            new BuiltInLibrary(PLAY_SERVICES_CLOUD_MESSAGING, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS), "com.google.android.gms.cloudmessaging"),
+            new BuiltInLibrary(PLAY_SERVICES_CLOUD_MESSAGING, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS)),
 
             new BuiltInLibrary(PLAY_SERVICES_GASS, List.of(PLAY_SERVICES_ADS_BASE, PLAY_SERVICES_ADS_IDENTIFIER, PLAY_SERVICES_ADS_LITE,
                     PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS)),
