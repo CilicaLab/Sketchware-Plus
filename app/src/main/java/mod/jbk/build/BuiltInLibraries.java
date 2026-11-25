@@ -186,9 +186,9 @@ public class BuiltInLibraries {
     public static String PLAY_SERVICES_AUTH = "play-services-auth-19.0.0";
     public static String PLAY_SERVICES_AUTH_API_PHONE = "play-services-auth-api-phone-17.0.0";
     public static String PLAY_SERVICES_AUTH_BASE = "play-services-auth-base-17.0.0";
-    public static String PLAY_SERVICES_BASE = "play-services-base-18.0.0";
-    public static String PLAY_SERVICES_BASEMENT = "play-services-basement-18.0.0";
-    public static String PLAY_SERVICES_CLOUD_MESSAGING = "play-services-cloud-messaging-17.2.0";
+    public static String PLAY_SERVICES_BASE = "play-services-base-18.9.0";
+    public static String PLAY_SERVICES_BASEMENT = "play-services-basement-18.9.0";
+    public static String PLAY_SERVICES_CLOUD_MESSAGING = "play-services-cloud-messaging-17.4.0";
     public static String PLAY_SERVICES_GASS = "play-services-gass-20.0.0";
     public static String PLAY_SERVICES_GCM = "play-services-gcm-17.0.0";
     public static String PLAY_SERVICES_IID = "play-services-iid-17.0.0";
@@ -198,7 +198,7 @@ public class BuiltInLibraries {
     public static String PLAY_SERVICES_MEASUREMENT_SDK_API = "play-services-measurement-sdk-api-20.1.2";
     public static String PLAY_SERVICES_PLACES_PLACEREPORT = "play-services-places-placereport-17.0.0";
     public static String PLAY_SERVICES_STATS = "play-services-stats-17.0.0";
-    public static String PLAY_SERVICES_TASKS = "play-services-tasks-18.0.1";
+    public static String PLAY_SERVICES_TASKS = "play-services-tasks-18.4.0";
     public static String USER_MESSAGING_PLATFORM = "user-messaging-platform-2.0.0";
     public static String WAVE_SIDE_BAR = "wave-side-bar";
 
@@ -577,7 +577,7 @@ public class BuiltInLibraries {
 
             new BuiltInLibrary(PLAY_SERVICES_BASEMENT, List.of(ANDROIDX_COLLECTION_JVM, ANDROIDX_CORE, ANDROIDX_FRAGMENT), "com.google.android.gms.common"),
 
-            new BuiltInLibrary(PLAY_SERVICES_CLOUD_MESSAGING, List.of(PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS)),
+            new BuiltInLibrary(PLAY_SERVICES_CLOUD_MESSAGING, List.of(PLAY_SERVICES_BASE, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS)),
 
             new BuiltInLibrary(PLAY_SERVICES_GASS, List.of(PLAY_SERVICES_ADS_BASE, PLAY_SERVICES_ADS_IDENTIFIER, PLAY_SERVICES_ADS_LITE,
                     PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TASKS)),
