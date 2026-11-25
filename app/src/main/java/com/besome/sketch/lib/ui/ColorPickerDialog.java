@@ -70,14 +70,28 @@ public class ColorPickerDialog extends PopupWindow {
         public String attrs = "";
     }
 
-    private File getColorPickerFile() {
+    private File getCustomColorsFile() {
+        return new File(FileUtil.getExternalStorageDir(), ".sketchware/data/system/custom_colors.json");
+    }
+
+    private File getOldColorPickerFile() {
         return new File(FileUtil.getExternalStorageDir(), ".sketchware/data/system/color_picker.json");
     }
 
     private ColorPickerData loadColorPickerData() {
-        File file = getColorPickerFile();
-        if (FileUtil.isExistFile(file.getAbsolutePath())) {
-            String json = FileUtil.readFileIfExist(file.getAbsolutePath());
+        File newFile = getCustomColorsFile();
+        File oldFile = getOldColorPickerFile();
+        if (!FileUtil.isExistFile(newFile.getAbsolutePath()) && FileUtil.isExistFile(oldFile.getAbsolutePath())) {
+            String oldJson = FileUtil.readFileIfExist(oldFile.getAbsolutePath());
+            if (!oldJson.isEmpty()) {
+                FileUtil.makeDir(newFile.getParent());
+                FileUtil.writeFile(newFile.getAbsolutePath(), oldJson);
+                FileUtil.deleteFile(oldFile.getAbsolutePath());
+            }
+        }
+        File targetFile = FileUtil.isExistFile(newFile.getAbsolutePath()) ? newFile : oldFile;
+        if (FileUtil.isExistFile(targetFile.getAbsolutePath())) {
+            String json = FileUtil.readFileIfExist(targetFile.getAbsolutePath());
             if (json != null && !json.isEmpty()) {
                 try {
                     ColorPickerData data = new Gson().fromJson(json, ColorPickerData.class);
@@ -93,7 +107,7 @@ public class ColorPickerDialog extends PopupWindow {
     }
 
     private void saveColorPickerData(ColorPickerData data) {
-        File file = getColorPickerFile();
+        File file = getCustomColorsFile();
         FileUtil.makeDir(file.getParent());
         FileUtil.writeFile(file.getAbsolutePath(), new Gson().toJson(data));
     }
