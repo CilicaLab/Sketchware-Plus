@@ -130,7 +130,7 @@ public class Ix {
             addFirebaseRegistrar(serviceTag, "com.google.firebase.auth.FirebaseAuthRegistrar");
         }
         if (c.isFirebaseDatabaseUsed) {
-            addFirebaseRegistrar(serviceTag, "com.google.firebase.database.FirebaseDatabaseRegistrar");
+            addFirebaseRegistrar(serviceTag, "com.google.firebase.database.DatabaseRegistrar");
         }
         if (c.isFirebaseStorageUsed) {
             addFirebaseRegistrar(serviceTag, "com.google.firebase.storage.StorageRegistrar");

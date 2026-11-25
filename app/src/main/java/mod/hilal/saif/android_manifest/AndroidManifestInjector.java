@@ -315,9 +315,10 @@ public class AndroidManifestInjector {
 
         // Database
         if ("com.google.firebase.database.FirebaseDatabaseRegistrar".equals(registrarClass)
+                || "com.google.firebase.database.DatabaseRegistrar".equals(registrarClass)
                 || "com.google.firebase.database.FirebaseDatabaseKtxRegistrar".equals(registrarClass)
                 || "com.google.firebase.database.ktx.FirebaseDatabaseKtxRegistrar".equals(registrarClass)) {
-            return "com.google.firebase.database.FirebaseDatabaseRegistrar";
+            return "com.google.firebase.database.DatabaseRegistrar";
         }
 
         // Storage
