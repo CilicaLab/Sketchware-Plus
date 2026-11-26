@@ -641,7 +641,9 @@ public class ZipSigner
         throws IOException, GeneralSecurityException
     {
         progressHelper.initProgress();        
-        signZip( zioEntries, new FileOutputStream(outputZipFilename), outputZipFilename);
+        try (FileOutputStream out = new FileOutputStream(outputZipFilename)) {
+            signZip( zioEntries, out, outputZipFilename);
+        }
     }
     
 
@@ -664,7 +666,9 @@ public class ZipSigner
         progressHelper.progress( ProgressEvent.PRORITY_IMPORTANT, resourceAdapter.getString(ResourceAdapter.Item.PARSING_CENTRAL_DIRECTORY));
         
         ZipInput input = ZipInput.read( inputZipFilename);
-        signZip( input.getEntries(), new FileOutputStream( outputZipFilename), outputZipFilename);
+        try (FileOutputStream out = new FileOutputStream(outputZipFilename)) {
+            signZip( input.getEntries(), out, outputZipFilename);
+        }
     }
     
     /** Sign the 
@@ -767,7 +771,13 @@ public class ZipSigner
             
         }
         finally {
-            zipOutput.close();
+            if (zipOutput != null) {
+                try {
+                    zipOutput.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close ZipOutput: " + t.getMessage());
+                }
+            }
             if (canceled) {
                 try {
                     if (outputZipFilename != null) new File( outputZipFilename).delete();

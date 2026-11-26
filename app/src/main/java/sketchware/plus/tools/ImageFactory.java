@@ -30,10 +30,10 @@ public class ImageFactory {
         Bitmap bitmap = getBitmapFromView(view);
         try {
             savedBitmap.createNewFile();
-            FileOutputStream fileOutputStream = new FileOutputStream(savedBitmap);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
-            fileOutputStream.flush();
-            fileOutputStream.close();
+            try (FileOutputStream fileOutputStream = new FileOutputStream(savedBitmap)) {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
+                fileOutputStream.flush();
+            }
         } catch (IOException e) {
             Log.e(ImageFactory.class.getSimpleName(), "Couldn't save bitmap with name " + imageName + ": " + e.getMessage(), e);
         }

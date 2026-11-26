@@ -1,5 +1,8 @@
 package a.a.a;
 
+import com.besome.sketch.beans.ProjectLibraryBean;
+import sketchware.plus.utility.FileUtil;
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -81,7 +84,58 @@ public class jC {
                 d.i();
             }
         }
+        loadFirebaseLibraryFromDisk(str, d);
         return d;
+    }
+
+    public static void saveFirebaseLibraryToDisk(String sc_id, ProjectLibraryBean bean) {
+        try {
+            if (sc_id != null && bean != null) {
+                String path = wq.b(sc_id) + File.separator + "firebase_library.json";
+                String json = new com.google.gson.Gson().toJson(bean);
+                FileUtil.writeFile(path, json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static ProjectLibraryBean loadFirebaseLibraryFromDisk(String sc_id) {
+        try {
+            if (sc_id != null) {
+                String path = wq.b(sc_id) + File.separator + "firebase_library.json";
+                if (FileUtil.isExistFile(path)) {
+                    String json = FileUtil.readFile(path);
+                    if (json != null && !json.trim().isEmpty()) {
+                        return new com.google.gson.Gson().fromJson(json, ProjectLibraryBean.class);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static void loadFirebaseLibraryFromDisk(String sc_id, iC libraryManager) {
+        if (libraryManager != null) {
+            ProjectLibraryBean diskBean = loadFirebaseLibraryFromDisk(sc_id);
+            if (diskBean != null) {
+                boolean diskHasData = diskBean.useYn != null && (diskBean.useYn.equals("Y") || !cleanStringValue(diskBean.reserved1).isEmpty() || !cleanStringValue(diskBean.reserved2).isEmpty());
+                android.util.Log.e("jC_DEBUG", "[MUTATE c] loadFirebaseLibraryFromDisk: diskHasData=" + diskHasData + 
+                        ", useYn=" + diskBean.useYn + ", r1=" + diskBean.reserved1 + 
+                        "\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
+                if (diskHasData) {
+                    libraryManager.c = diskBean;
+                }
+            } else {
+                android.util.Log.e("jC_DEBUG", "[MUTATE c] loadFirebaseLibraryFromDisk: diskBean is null\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
+            }
+        }
+    }
+
+    private static String cleanStringValue(String str) {
+        return str != null ? str.trim() : "";
     }
 
     public static synchronized kC d(String str, boolean z) {

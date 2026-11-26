@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import mod.hey.studios.build.BuildSettings;
+import mod.jbk.util.LogUtil;
 import mod.hey.studios.project.ProjectSettings;
 import mod.hey.studios.util.ProjectFile;
 import mod.hilal.saif.blocks.CommandBlock;
@@ -185,6 +186,7 @@ public class yq {
     public final String importedSoundsPath;
     public final HashMap<String, Object> metadata;
     private final Material3LibraryManager material3LibraryManager;
+    private ProjectLibraryBean cachedFirebaseBean;
     private final oB fileUtil;
     private final Context context;
     public jq N;
@@ -539,7 +541,14 @@ public class yq {
         ProjectLibraryBean adMob = projectLibraryManager.b();
         ProjectLibraryBean appCompat = projectLibraryManager.c();
         ProjectLibraryBean firebase = projectLibraryManager.d();
+        if (firebase == null || (cleanStringValue(firebase.reserved1).isEmpty() && cleanStringValue(firebase.reserved2).isEmpty())) {
+            ProjectLibraryBean compatSlot = projectLibraryManager.c();
+            if (compatSlot != null && (!cleanStringValue(compatSlot.reserved1).isEmpty() || !cleanStringValue(compatSlot.reserved2).isEmpty())) {
+                firebase = compatSlot;
+            }
+        }
         ProjectLibraryBean googleMaps = projectLibraryManager.e();
+        cachedFirebaseBean = firebase;
         this.exportingType = exportingType;
         N = new jq();
         N.packageName = packageName;
@@ -550,6 +559,10 @@ public class yq {
         N.isDebugBuild = exportingType == ExportType.DEBUG_APP;
         isAndroidStudioExport = exportingType == ExportType.ANDROID_STUDIO;
         generateDataBindingClasses = !(exportingType == ExportType.DEBUG_APP || exportingType == ExportType.ANDROID_STUDIO);
+        LogUtil.e("yq", "[DATA FLOW 5] yq.a(): firebase param = (useYn=" +
+                (firebase != null ? firebase.useYn : "null") +
+                ", r1=" + (firebase != null ? firebase.reserved1 : "null") +
+                ", r2=" + (firebase != null ? firebase.reserved2 : "null") + ")");
         if (firebase != null && (firebase.useYn.equals(ProjectLibraryBean.LIB_USE_Y)
                 || !cleanStringValue(firebase.reserved1).isEmpty()
                 || !cleanStringValue(firebase.reserved2).isEmpty())) {
@@ -787,9 +800,25 @@ public class yq {
             a(bean.srcFileName, bean.source);
         }
         if (N.isFirebaseEnabled || N.isAdMobEnabled || N.isMapUsed) {
-            ProjectLibraryBean firebaseLibrary = projectLibraryManager.d();
-            if (N.isFirebaseEnabled && (firebaseLibrary == null || (cleanStringValue(firebaseLibrary.reserved1).isEmpty() && cleanStringValue(firebaseLibrary.reserved2).isEmpty()))) {
-                throw new IllegalStateException("Firebase is used but App ID / API Key is empty. Import google-services.json in Library > Firebase.");
+            ProjectLibraryBean firebaseLibrary = cachedFirebaseBean != null ? cachedFirebaseBean : projectLibraryManager.d();
+            LogUtil.e("yq", "[DATA FLOW 5] yq.b(): N.isFirebaseEnabled=" + N.isFirebaseEnabled +
+                    ", firebaseLibrary slot (d()) = (useYn=" + (firebaseLibrary != null ? firebaseLibrary.useYn : "null") +
+                    ", data=" + (firebaseLibrary != null ? firebaseLibrary.data : "null") +
+                    ", r1=" + (firebaseLibrary != null ? firebaseLibrary.reserved1 : "null") +
+                    ", r2=" + (firebaseLibrary != null ? firebaseLibrary.reserved2 : "null") +
+                    ", r3=" + (firebaseLibrary != null ? firebaseLibrary.reserved3 : "null") + ")");
+            // Fallback: old projects may have Firebase credentials stored in the compat slot.
+            // Check the compat slot silently if the real Firebase slot is empty.
+            if (firebaseLibrary == null || (cleanStringValue(firebaseLibrary.reserved1).isEmpty() && cleanStringValue(firebaseLibrary.reserved2).isEmpty())) {
+                ProjectLibraryBean compatSlot = projectLibraryManager.c();
+                LogUtil.e("yq", "[DATA FLOW 5] yq.b(): firebaseLibrary slot is empty/null. Checking compatSlot (c()) = (r1=" +
+                        (compatSlot != null ? compatSlot.reserved1 : "null") + ", r2=" + (compatSlot != null ? compatSlot.reserved2 : "null") + ")");
+                if (compatSlot != null && (!cleanStringValue(compatSlot.reserved1).isEmpty() || !cleanStringValue(compatSlot.reserved2).isEmpty())) {
+                    // Credentials are in the old compat slot — use them silently (migration happens in ManageLibraryActivity)
+                    firebaseLibrary = compatSlot;
+                } else if (N.isFirebaseEnabled) {
+                    LogUtil.w("yq", "Firebase is used but App ID / API Key is empty. Import google-services.json in Library > Firebase.");
+                }
             }
             XmlBuilderHelper mx = new XmlBuilderHelper();
             mx.addInteger("google_play_services_version", 12451000);
@@ -827,8 +856,9 @@ public class yq {
                 mx.addString("google_maps_key", cleanStringValue(projectLibraryManager.e().data), false);
             }
             String filePath = "values/secrets.xml";
-            fileUtil.b(resDirectoryPath + File.separator + filePath,
-                    CommandBlock.applyCommands(filePath, mx.toCode()));
+            String secretsXmlContent = CommandBlock.applyCommands(filePath, mx.toCode());
+            LogUtil.e("yq", "[DATA FLOW 5] Writing secrets.xml with code:\n" + secretsXmlContent);
+            fileUtil.b(resDirectoryPath + File.separator + filePath, secretsXmlContent);
         }
         generateGradleFiles();
     }

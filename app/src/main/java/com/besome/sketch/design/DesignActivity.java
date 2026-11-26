@@ -55,6 +55,7 @@ import androidx.viewpager.widget.ViewPager;
 
 import com.besome.sketch.adapters.JavaFileAdapter;
 import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.ProjectLibraryBean;
 import com.besome.sketch.beans.BlockBean;
 import com.besome.sketch.beans.ViewBean;
 import com.besome.sketch.common.SrcViewerActivity;
@@ -693,6 +694,32 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             ActivityTracker.recordActivity(ActivityTracker.DEFAULT_FILE_PATH);
             currentBuildTask = buildTask;
             buildTask.execute();
+        });
+        btnRun.setOnLongClickListener(v -> {
+            try {
+                iC libraryManager = jC.c(sc_id);
+                ProjectLibraryBean fb = libraryManager.d(); // real Firebase slot
+                boolean fromCompatFallback = false;
+                if (fb == null || (fb.reserved1 == null || fb.reserved1.isEmpty()) && (fb.reserved2 == null || fb.reserved2.isEmpty())) {
+                    ProjectLibraryBean compatSlot = libraryManager.c();
+                    if (compatSlot != null && (compatSlot.reserved1 != null && !compatSlot.reserved1.isEmpty())) {
+                        fb = compatSlot;
+                        fromCompatFallback = true;
+                    }
+                }
+                String info = "--- Stored Firebase Info ---\n" +
+                        (fromCompatFallback ? "[NOTE: credentials in legacy compat slot - open Library to migrate]\n" : "") +
+                        "Enabled (useYn): " + (fb != null ? fb.useYn : "null") + "\n" +
+                        "Project ID / DB: " + (fb != null ? fb.data : "null") + "\n" +
+                        "App ID (reserved1): " + (fb != null ? fb.reserved1 : "null") + "\n" +
+                        "API Key (reserved2): " + (fb != null ? fb.reserved2 : "null") + "\n" +
+                        "Storage: " + (fb != null ? fb.reserved3 : "null");
+                SketchwareUtil.toast(info, Toast.LENGTH_LONG);
+            } catch (Exception e) {
+                SketchwareUtil.toast("Error reading library info: " + e.getMessage(), Toast.LENGTH_SHORT);
+                e.printStackTrace();
+            }
+            return true;
         });
 
         btnOptions = findViewById(R.id.btn_options);
@@ -1828,6 +1855,13 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     jC.d(sc_id).x();
                 }
                 synchronized (jC.c(sc_id)) {
+                    iC libMgr = jC.c(sc_id);
+                    ProjectLibraryBean fb = libMgr.d();
+                    ProjectLibraryBean compat = libMgr.c();
+                    LogUtil.e("DesignActivity", "[DATA FLOW 3] ProjectSaver saving library config to data path via jC.c(" + sc_id + ").l(): Firebase slot (useYn=" +
+                            (fb != null ? fb.useYn : "null") + ", data=" + (fb != null ? fb.data : "null") +
+                            ", r1=" + (fb != null ? fb.reserved1 : "null") + ", r2=" + (fb != null ? fb.reserved2 : "null") +
+                            ", r3=" + (fb != null ? fb.reserved3 : "null") + "), Compat slot (r1=" + (compat != null ? compat.reserved1 : "null") + ")");
                     jC.c(sc_id).l();
                 }
                 SnapshotManager.getInstance(activity.getApplicationContext()).onProjectSaved(sc_id);
@@ -1876,6 +1910,13 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     jC.d(sc_id).x();
                 }
                 synchronized (jC.c(sc_id)) {
+                    iC libMgr = jC.c(sc_id);
+                    ProjectLibraryBean fb = libMgr.d();
+                    ProjectLibraryBean compat = libMgr.c();
+                    LogUtil.e("DesignActivity", "[DATA FLOW 3] SaveChangesProjectCloser saving library config to data path via jC.c(" + sc_id + ").l(): Firebase slot (useYn=" +
+                            (fb != null ? fb.useYn : "null") + ", data=" + (fb != null ? fb.data : "null") +
+                            ", r1=" + (fb != null ? fb.reserved1 : "null") + ", r2=" + (fb != null ? fb.reserved2 : "null") +
+                            ", r3=" + (fb != null ? fb.reserved3 : "null") + "), Compat slot (r1=" + (compat != null ? compat.reserved1 : "null") + ")");
                     jC.c(sc_id).l();
                 }
                 synchronized (jC.d(sc_id)) {

@@ -30,6 +30,7 @@ public class SketchApplication extends Application {
     @Override
     public void onCreate() {
         mApplicationContext = getApplicationContext();
+        LogUtil.setLogToLogcatToo(true);
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(@NonNull Thread thread, @NonNull Throwable throwable) {
