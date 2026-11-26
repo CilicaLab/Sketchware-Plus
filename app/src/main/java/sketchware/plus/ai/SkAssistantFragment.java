@@ -154,6 +154,10 @@ public class SkAssistantFragment extends Fragment {
     private FloatingActionButton fabScrollBottom;
     private ObjectAnimator fabBounceAnimator;
     public final List<Message> messages = new ArrayList<>();
+    private static final int PAGE_SIZE = 25;
+    private final List<Message> fullHistoryList = new ArrayList<>();
+    private int historyStartIndex = 0;
+    private boolean isLoadingOlderMessages = false;
     private String historyPath;
     public Button btnUndo;
     private MaterialButton btnSend;
@@ -307,7 +311,7 @@ public class SkAssistantFragment extends Fragment {
             if (drawableRes != 0) {
                 patternBg.setVisibility(View.VISIBLE);
                 patternBg.setPattern(patternBg.convertVectorToBitmap(getContext(), drawableRes, 30, 30));
-                int dotColor = MaterialColors.getColor(view, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
+                int dotColor = MaterialColors.getColor(view, R.attr.colorOnSurface, 0xFF000000);
                 patternBg.setColor(dotColor);
                 patternBg.setOpacity(40);
             } else {
@@ -356,6 +360,14 @@ public class SkAssistantFragment extends Fragment {
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
                 updateFabScrollBottomVisibility();
+
+                LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (layoutManager != null && dy < 0) {
+                    int firstVisiblePos = layoutManager.findFirstVisibleItemPosition();
+                    if (firstVisiblePos <= 3) {
+                        loadOlderMessages();
+                    }
+                }
             }
         });
 
@@ -555,7 +567,9 @@ public class SkAssistantFragment extends Fragment {
         String model = aiPref.getString("P12I5", "");
 
 
-        messages.add(new Message("user", prompt));
+        Message userMsg = new Message("user", prompt);
+        messages.add(userMsg);
+        if (!fullHistoryList.contains(userMsg)) fullHistoryList.add(userMsg);
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom(true);
         saveHistory();
@@ -727,7 +741,9 @@ public class SkAssistantFragment extends Fragment {
             }
         }
         if (!alreadyAdded) {
-            messages.add(new Message("system", "AI response has been stopped."));
+            Message stopMsg = new Message("system", "AI response has been stopped.");
+            messages.add(stopMsg);
+            if (!fullHistoryList.contains(stopMsg)) fullHistoryList.add(stopMsg);
             if (adapter != null) {
                 adapter.notifyItemInserted(messages.size() - 1);
                 scrollToBottom();
@@ -1060,7 +1076,9 @@ public class SkAssistantFragment extends Fragment {
             }
             return;
         }
-        messages.add(new Message("system", content));
+        Message sysMsg = new Message("system", content);
+        messages.add(sysMsg);
+        if (!fullHistoryList.contains(sysMsg)) fullHistoryList.add(sysMsg);
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
     }
@@ -1091,7 +1109,8 @@ public class SkAssistantFragment extends Fragment {
                         int lastIdx = messages.size() - 1;
                         Message lastMsg = messages.get(lastIdx);
                         if ("user".equals(lastMsg.role) && lastUserPrompt.equals(lastMsg.content)) {
-                            messages.remove(lastIdx);
+                            Message removed = messages.remove(lastIdx);
+                            fullHistoryList.remove(removed);
                             adapter.notifyItemRemoved(lastIdx);
                         }
                     }
@@ -1107,6 +1126,7 @@ public class SkAssistantFragment extends Fragment {
 
     void appendAssistantMessage(Message msg) {
         messages.add(msg);
+        if (!fullHistoryList.contains(msg)) fullHistoryList.add(msg);
         adapter.notifyItemInserted(messages.size() - 1);
         scrollToBottom();
         saveHistory();
@@ -1609,6 +1629,8 @@ public class SkAssistantFragment extends Fragment {
                 .setMessage("Are you sure you want to clear the chat history?")
                 .setPositiveButton("Clear", (dialog, which) -> {
                     messages.clear();
+                    fullHistoryList.clear();
+                    historyStartIndex = 0;
                     adapter.notifyDataSetChanged();
                     saveHistory();
 
@@ -1805,8 +1827,17 @@ public class SkAssistantFragment extends Fragment {
         
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
+                fullHistoryList.clear();
+                fullHistoryList.addAll(loadedMessages);
                 messages.clear();
-                messages.addAll(loadedMessages);
+
+                int total = fullHistoryList.size();
+                historyStartIndex = Math.max(0, total - PAGE_SIZE);
+
+                if (total > 0) {
+                    messages.addAll(fullHistoryList.subList(historyStartIndex, total));
+                }
+
                 if (adapter != null) {
                     adapter.notifyDataSetChanged();
                 }
@@ -1815,10 +1846,44 @@ public class SkAssistantFragment extends Fragment {
         }
     }
 
+    private void loadOlderMessages() {
+        if (isLoadingOlderMessages || historyStartIndex <= 0) return;
+        isLoadingOlderMessages = true;
+
+        int newStartIndex = Math.max(0, historyStartIndex - PAGE_SIZE);
+        List<Message> olderBatch = new ArrayList<>(fullHistoryList.subList(newStartIndex, historyStartIndex));
+        int addedCount = olderBatch.size();
+        if (addedCount == 0) {
+            isLoadingOlderMessages = false;
+            return;
+        }
+
+        historyStartIndex = newStartIndex;
+        messages.addAll(0, olderBatch);
+
+        if (recyclerView != null && adapter != null) {
+            adapter.notifyItemRangeInserted(0, addedCount);
+
+            LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+            if (layoutManager != null) {
+                View topView = layoutManager.getChildAt(0);
+                int topOffset = topView != null ? topView.getTop() : 0;
+                layoutManager.scrollToPositionWithOffset(addedCount, topOffset);
+            }
+        }
+
+        if (recyclerView != null) {
+            recyclerView.postDelayed(() -> isLoadingOlderMessages = false, 300);
+        } else {
+            isLoadingOlderMessages = false;
+        }
+    }
+
     private void saveHistory() {
         try {
             JSONArray array = new JSONArray();
-            for (Message msg : messages) {
+            List<Message> sourceList = !fullHistoryList.isEmpty() ? fullHistoryList : messages;
+            for (Message msg : sourceList) {
                 if ("status".equals(msg.role) && (msg.steps == null || msg.steps.isEmpty())) continue;
                 JSONObject obj = new JSONObject();
                 obj.put("role", msg.role);
@@ -2220,7 +2285,7 @@ public class SkAssistantFragment extends Fragment {
                     if (drawableRes != 0) {
                         patternBg.setVisibility(View.VISIBLE);
                         patternBg.setPattern(patternBg.convertVectorToBitmap(v.getContext(), drawableRes, 30, 30));
-                        int dotColor = MaterialColors.getColor(popupView, com.google.android.material.R.attr.colorOnSurface, 0xFF000000);
+                        int dotColor = MaterialColors.getColor(popupView, R.attr.colorOnSurface, 0xFF000000);
                         patternBg.setColor(dotColor);
                         patternBg.setOpacity(40);
                     } else {
@@ -2310,8 +2375,8 @@ public class SkAssistantFragment extends Fragment {
                                 .usePlugin(new AbstractMarkwonPlugin() {
                                     @Override
                                     public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
-                                        int codeBg = MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorSurfaceVariant, 0xFF333333);
-                                        int codeText = MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFFE0E0E0);
+                                        int codeBg = MaterialColors.getColor(ctx, R.attr.colorSurfaceVariant, 0xFF333333);
+                                        int codeText = MaterialColors.getColor(ctx, R.attr.colorOnSurfaceVariant, 0xFFE0E0E0);
                                         builder.codeBlockBackgroundColor(codeBg)
                                                .codeTextColor(codeText)
                                                .codeBlockTypeface(Typeface.MONOSPACE)
@@ -2442,11 +2507,11 @@ public class SkAssistantFragment extends Fragment {
                 BlurViewHelper.setup(blurUser, rv);
 
                 if (containerUser != null) {
-                    int primaryContainer = MaterialColors.getColor(itemView, com.google.android.material.R.attr.colorPrimaryContainer, 0xFF0056D2);
+                    int primaryContainer = MaterialColors.getColor(itemView, R.attr.colorPrimaryContainer, 0xFF0056D2);
                     containerUser.setBackgroundColor((primaryContainer & 0x00FFFFFF) | 0x70000000);
                 }
                 if (containerAssistant != null) {
-                    int surfaceVariant = MaterialColors.getColor(itemView, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFF1E1E1E);
+                    int surfaceVariant = MaterialColors.getColor(itemView, R.attr.colorSurfaceContainerHigh, 0xFF1E1E1E);
                     containerAssistant.setBackgroundColor((surfaceVariant & 0x00FFFFFF) | 0x70000000);
                 }
             }
@@ -2500,7 +2565,7 @@ public class SkAssistantFragment extends Fragment {
             void setupBlurViews(RecyclerView rv) {
                 BlurViewHelper.setup(blurCard, rv);
                 if (containerActivityLog != null) {
-                    int surfaceContainer = MaterialColors.getColor(itemView, com.google.android.material.R.attr.colorSurfaceContainer, 0xFF1E1E1E);
+                    int surfaceContainer = MaterialColors.getColor(itemView, R.attr.colorSurfaceContainer, 0xFF1E1E1E);
                     containerActivityLog.setBackgroundColor((surfaceContainer & 0x00FFFFFF) | 0x70000000);
                 }
             }
@@ -2761,6 +2826,7 @@ public class SkAssistantFragment extends Fragment {
             } else {
                 statusMsg = new Message("status", "Working...");
                 messages.add(statusMsg);
+                if (!fullHistoryList.contains(statusMsg)) fullHistoryList.add(statusMsg);
                 existingStatusIndex = messages.size() - 1;
                 adapter.notifyItemInserted(existingStatusIndex);
             }
