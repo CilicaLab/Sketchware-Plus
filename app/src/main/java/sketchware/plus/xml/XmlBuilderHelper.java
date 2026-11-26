@@ -42,18 +42,17 @@ public class XmlBuilderHelper {
             stringBuilder.addAttribute("", "translatable", "false");
         }
 
-        String trimmedValue = value.trim();
-        value = trimmedValue;
-        if (!trimmedValue.isEmpty()) {
-            name = trimmedValue;
-            if (trimmedValue.charAt(0) == '"') {
-                name = trimmedValue.substring(1);
+        if (value != null) {
+            value = value.trim();
+            if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+                value = value.substring(1, value.length() - 1).trim();
+            } else {
+                if (value.startsWith("\"")) value = value.substring(1).trim();
+                if (value.endsWith("\"")) value = value.substring(0, value.length() - 1).trim();
             }
-
-            value = name;
-            if (name.charAt(name.length() - 1) == '"') {
-                value = name.substring(0, name.length() - 1);
-            }
+            if (value.endsWith(",")) value = value.substring(0, value.length() - 1).trim();
+        } else {
+            value = "";
         }
 
         stringBuilder.setNodeValue(value);

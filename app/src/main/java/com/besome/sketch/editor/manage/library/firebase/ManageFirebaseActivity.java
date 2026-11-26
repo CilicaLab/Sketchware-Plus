@@ -254,6 +254,18 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
     }
 
     public void configureImportFirebaseConfigFromJson(String type, String value) {
+        if (value != null) {
+            value = value.trim();
+            if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+                value = value.substring(1, value.length() - 1).trim();
+            } else {
+                if (value.startsWith("\"")) value = value.substring(1).trim();
+                if (value.endsWith("\"")) value = value.substring(0, value.length() - 1).trim();
+            }
+            if (value.endsWith(",")) value = value.substring(0, value.length() - 1).trim();
+        } else {
+            value = "";
+        }
         switch (type) {
             case realtime_db:
                 firebaseLibraryBean.data = value;
@@ -291,11 +303,11 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
     }
 
     private void parseDataFromGoogleServicesJson(String _data) {
-        final String storageBucketRegex = "\"storage_bucket\": ?\"(.*)\"";
-        final String appIdRegex = "\"mobilesdk_app_id\": ?\"(.*)\"";
-        final String apiKeyRegex = "\"current_key\": ?\"(.*)\"";
-        final String rtdbRegex = "\"firebase_url\": ?\"(.*)\"";
-        final String projectIdRegex = "\"project_id\": ?\"(.*)\"";
+        final String storageBucketRegex = "\"storage_bucket\": ?\"([^\"]+)\"";
+        final String appIdRegex = "\"mobilesdk_app_id\": ?\"([^\"]+)\"";
+        final String apiKeyRegex = "\"current_key\": ?\"([^\"]+)\"";
+        final String rtdbRegex = "\"firebase_url\": ?\"([^\"]+)\"";
+        final String projectIdRegex = "\"project_id\": ?\"([^\"]+)\"";
 
         Matcher storageBucketMatcher = Pattern.compile(storageBucketRegex, Pattern.MULTILINE).matcher(_data);
         Matcher appIdMatcher = Pattern.compile(appIdRegex, Pattern.MULTILINE).matcher(_data);

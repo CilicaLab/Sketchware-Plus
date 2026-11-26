@@ -751,11 +751,11 @@ public class yq {
             if (N.isFirebaseEnabled) {
                 String databaseUrl;
                 String projectId;
-                String libraryData = firebaseLibrary.data;
-                if (libraryData != null && !libraryData.trim().isEmpty()) {
+                String libraryData = cleanStringValue(firebaseLibrary.data);
+                if (!libraryData.isEmpty()) {
                     if (libraryData.contains(".")) {
                         databaseUrl = "https://" + libraryData;
-                        projectId = libraryData.trim().replaceAll(FIREBASE_DATABASE_STORAGE_LOCATION_MATCHER, "");
+                        projectId = libraryData.replaceAll(FIREBASE_DATABASE_STORAGE_LOCATION_MATCHER, "");
                     } else {
                         databaseUrl = "https://" + libraryData + ".firebaseio.com";
                         projectId = libraryData;
@@ -763,26 +763,42 @@ public class yq {
                     mx.addString("firebase_database_url", databaseUrl, false);
                     mx.addString("project_id", projectId, false);
                 }
-                if (firebaseLibrary.reserved1 != null && !firebaseLibrary.reserved1.trim().isEmpty()) {
-                    mx.addString("google_app_id", firebaseLibrary.reserved1.trim(), false);
+                String appId = cleanStringValue(firebaseLibrary.reserved1);
+                if (!appId.isEmpty()) {
+                    mx.addString("google_app_id", appId, false);
                 }
-                if (firebaseLibrary.reserved2 != null && !firebaseLibrary.reserved2.trim().isEmpty()) {
-                    mx.addString("google_api_key", firebaseLibrary.reserved2.trim(), false);
-                    mx.addString("google_crash_reporting_api_key", firebaseLibrary.reserved2.trim(), false);
+                String apiKey = cleanStringValue(firebaseLibrary.reserved2);
+                if (!apiKey.isEmpty()) {
+                    mx.addString("google_api_key", apiKey, false);
+                    mx.addString("google_crash_reporting_api_key", apiKey, false);
                 }
-                if (firebaseLibrary.reserved3 != null && !firebaseLibrary.reserved3.trim().isEmpty()) {
-                    mx.addString("google_storage_bucket", firebaseLibrary.reserved3.trim(), false);
+                String storageBucket = cleanStringValue(firebaseLibrary.reserved3);
+                if (!storageBucket.isEmpty()) {
+                    mx.addString("google_storage_bucket", storageBucket, false);
                 }
             }
             if (N.isMapUsed) {
                 // if p3 is false, then "translatable="false" will be added
-                mx.addString("google_maps_key", projectLibraryManager.e().data, false);
+                mx.addString("google_maps_key", cleanStringValue(projectLibraryManager.e().data), false);
             }
             String filePath = "values/secrets.xml";
             fileUtil.b(resDirectoryPath + File.separator + filePath,
                     CommandBlock.applyCommands(filePath, mx.toCode()));
         }
         generateGradleFiles();
+    }
+
+    private static String cleanStringValue(String str) {
+        if (str == null) return "";
+        String s = str.trim();
+        if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
+            s = s.substring(1, s.length() - 1).trim();
+        } else {
+            if (s.startsWith("\"")) s = s.substring(1).trim();
+            if (s.endsWith("\"")) s = s.substring(0, s.length() - 1).trim();
+        }
+        if (s.endsWith(",")) s = s.substring(0, s.length() - 1).trim();
+        return s;
     }
 
     /**
