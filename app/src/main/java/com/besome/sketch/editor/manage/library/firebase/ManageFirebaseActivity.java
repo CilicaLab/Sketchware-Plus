@@ -133,11 +133,22 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
         dialog.show();
     }
 
-    @Override
-    public void onBackPressed() {
-        getIntent().putExtra("firebase", firebaseLibraryBean);
-        setResult(RESULT_OK, getIntent());
-        super.onBackPressed();
+    private void finishWithResult() {
+        Intent i = new Intent();
+        i.putExtra("firebase", firebaseLibraryBean);
+        setResult(RESULT_OK, i);
+        finish();
+    }
+
+    private static boolean has(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private boolean hasFirebaseDetails() {
+        return has(firebaseLibraryBean.data)
+                || has(firebaseLibraryBean.reserved1)
+                || has(firebaseLibraryBean.reserved2)
+                || has(firebaseLibraryBean.reserved3);
     }
 
     @Override
@@ -149,7 +160,7 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
             showImportJsonDialog();
         } else if (id == R.id.layout_switch) {
             //Enable Disable Firebase
-            if (libSwitch.isChecked() || !firebaseLibraryBean.data.isEmpty()) {
+            if (libSwitch.isChecked() || hasFirebaseDetails()) {
                 libSwitch.setChecked(!libSwitch.isChecked());
                 if ("Y".equals(firebaseLibraryBean.useYn) && !libSwitch.isChecked()) {
                     configureLibraryDialog();
@@ -175,7 +186,13 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
         getSupportActionBar().setTitle(Helper.getResString(R.string.design_library_firebase_title_firebase_manager));
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowTitleEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        toolbar.setNavigationOnClickListener(v -> finishWithResult());
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                finishWithResult();
+            }
+        });
 
         s = new DB(getApplicationContext(), "P1");
         firebaseLibraryBean = getIntent().getParcelableExtra("firebase");
@@ -238,7 +255,10 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
     }
 
     private void configure() {
-        libSwitch.setChecked("Y".equals(firebaseLibraryBean.useYn));
+        // Enable the switch only if valid Firebase details are present
+        boolean hasDetails = hasFirebaseDetails();
+        libSwitch.setChecked(hasDetails);
+        firebaseLibraryBean.useYn = hasDetails ? "Y" : "N";
 
         if (firebaseLibraryBean.data != null) {
             tvProjectId.setText(firebaseLibraryBean.data); //Realtime Database Url

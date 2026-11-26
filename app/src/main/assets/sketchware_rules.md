@@ -41,7 +41,7 @@ Never create, modify, or invent a reference to a custom view. Custom views are c
 
 ## Programmatic actions (no UI/Activity needed)
 - Custom view: jC.b(sc_id).d.add(new ProjectFileBean(...)) → jC.b(sc_id).j() → jC.b(sc_id).l() (persists to mysc/<sc_id>/file). Pair with eC.c.put(xmlName, new ArrayList<ViewBean>()) + dataManager.n(path) to attach a layout.
-- Library: jC.c(sc_id).c(libraryBean) → jC.c(sc_id).k() (persists to mysc/<sc_id>/library). Only from KNOWN_BUILT_IN_LIBRARIES.
+- Library: jC.c(sc_id).c = libraryBean (direct field assignment for Firebase) or jC.c(sc_id).b(compat) → jC.c(sc_id).k() (persists to mysc/<sc_id>/library). IMPORTANT: iC.c(bean) is a WRONG setter for Firebase — it writes to the Compat slot (iC.d field). Always use direct field assignment iC.c = bean for Firebase. Only from KNOWN_BUILT_IN_LIBRARIES.
 - Import: jC.a(sc_id).a(activityJavaName, EventBean.EVENT_TYPE_ACTIVITY, 0, "", "Import") to create the event, then add a BlockBean with the import string into eC.d, then save. Never write import text directly into generated Java.
 - Manifest permission: jq.addPermission(String permission), then Ix.a() + yq.a("AndroidManifest.xml", content) persists. Launcher activity: AndroidManifestInjector.setLauncherActivity(sc_id, name). Custom manifest attributes: AndroidManifestInjector, backed by Injection/androidmanifest/attributes.json.
 - AI must NEVER hand-write raw AndroidManifest.xml text and save it directly — always go through jq / AndroidManifestInjector so Ix stays the single source of truth on next build.

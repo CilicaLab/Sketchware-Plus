@@ -29,11 +29,22 @@ public class kv extends LinearLayout implements nv {
     public void a() {
     }
 
+    private static boolean has(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private boolean hasFirebaseDetails() {
+        return has(firebaseLibraryBean.data)
+                || has(firebaseLibraryBean.reserved1)
+                || has(firebaseLibraryBean.reserved2)
+                || has(firebaseLibraryBean.reserved3);
+    }
+
     private void initialize() {
         gB.b(this, 600, 200, null);
 
         binding.layoutSwitch.setOnClickListener(v -> {
-            if (binding.libSwitch.isChecked() || !firebaseLibraryBean.data.isEmpty()) {
+            if (binding.libSwitch.isChecked() || hasFirebaseDetails()) {
                 binding.libSwitch.setChecked(!binding.libSwitch.isChecked());
                 if ("Y".equals(firebaseLibraryBean.useYn) && !binding.libSwitch.isChecked()) {
                     configureLibraryDialog();

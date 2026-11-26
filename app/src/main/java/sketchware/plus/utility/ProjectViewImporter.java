@@ -439,7 +439,7 @@ public class ProjectViewImporter {
                         .setPositiveButton("Enable Firebase", (dialog, which) -> {
                             ProjectLibraryBean lib = jC.c(targetScId).d();
                             lib.useYn = ProjectLibraryBean.LIB_USE_Y;
-                            jC.c(targetScId).c(lib);
+                            jC.c(targetScId).c = lib;  // iC.c is the Firebase slot; iC.c(bean) wrongly writes compat slot
                             jC.c(targetScId).k();
                             jC.b(targetScId).a(jC.c(targetScId));
                             bB.a(activity.getApplicationContext(), "Firebase library enabled!", bB.TOAST_NORMAL).show();

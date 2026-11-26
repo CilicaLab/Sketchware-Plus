@@ -201,8 +201,8 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
     }
 
     private void saveLibraryConfiguration() {
-        jC.c(sc_id).b(compatLibraryBean);
-        jC.c(sc_id).c(firebaseLibraryBean);
+        jC.c(sc_id).d = compatLibraryBean;    // iC.d = compat slot (iC.c() getter returns this)
+        jC.c(sc_id).c = firebaseLibraryBean;  // iC.c = firebase slot (iC.d() getter returns this)
         jC.c(sc_id).a(admobLibraryBean);
         jC.c(sc_id).d(googleMapLibraryBean);
         jC.c(sc_id).k();
@@ -247,6 +247,7 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
 
                 default:
             }
+            saveLibraryConfiguration();
         }
     }
 

@@ -90,12 +90,22 @@ public class FirebaseActivity extends BaseAppCompatActivity implements View.OnCl
             if (stepNumber < STEP_3) {
                 setStep(++stepNumber);
             } else {
+                // Validate Firebase credentials
+                if (isEmpty(firebaseSettings.reserved1) || isEmpty(firebaseSettings.reserved2)) {
+                    bB.a(this, "Firebase App ID / API Key is empty", bB.TOAST_NORMAL).show();
+                    return;
+                }
+                firebaseSettings.useYn = ProjectLibraryBean.LIB_USE_Y;
                 Intent intent = new Intent();
                 intent.putExtra("firebase", firebaseSettings);
                 setResult(Activity.RESULT_OK, intent);
                 finish();
             }
         }
+    }
+
+    private static boolean isEmpty(String s) {
+        return s == null || s.trim().isEmpty();
     }
 
     private void openDocumentation() {
@@ -139,9 +149,11 @@ public class FirebaseActivity extends BaseAppCompatActivity implements View.OnCl
         }
     }
 
-    @Override
-    public void onBackPressed() {
+    private void goBack() {
         if (stepNumber > STEP_1) {
+            if (step.isValid()) {
+                step.a(firebaseSettings);
+            }
             setStep(--stepNumber);
         } else {
             setResult(Activity.RESULT_CANCELED);
@@ -158,7 +170,7 @@ public class FirebaseActivity extends BaseAppCompatActivity implements View.OnCl
             } else if (id == R.id.cv_console) {
                 openFirebaseConsole();
             } else if (id == R.id.img_backbtn || id == R.id.tv_prevbtn) {
-                onBackPressed();
+                goBack();
             } else if (id == R.id.tv_nextbtn) {
                 onNextPressed();
             } else if (id == R.id.btn_import) {
@@ -195,7 +207,13 @@ public class FirebaseActivity extends BaseAppCompatActivity implements View.OnCl
         getSupportActionBar().setTitle(Helper.getResString(R.string.change_firebase_config_title));
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowTitleEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        toolbar.setNavigationOnClickListener(v -> goBack());
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                goBack();
+            }
+        });
 
         if (savedInstanceState != null) {
             sc_id = savedInstanceState.getString("sc_id");
@@ -250,13 +268,24 @@ public class FirebaseActivity extends BaseAppCompatActivity implements View.OnCl
     @Override
     public void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-        firebaseSettings = getIntent().getParcelableExtra("firebase");
+        firebaseSettings = savedInstanceState != null ? savedInstanceState.getParcelable("firebase")
+                : getIntent().getParcelableExtra("firebase");
+        if (firebaseSettings == null) {
+            setResult(Activity.RESULT_CANCELED);
+            finish();
+            return;
+        }
+        if (savedInstanceState != null) {
+            stepNumber = savedInstanceState.getInt("step", STEP_1);
+        }
         setStep(stepNumber);
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
         outState.putString("sc_id", sc_id);
+        outState.putParcelable("firebase", firebaseSettings);
+        outState.putInt("step", stepNumber);
         super.onSaveInstanceState(outState);
     }
 

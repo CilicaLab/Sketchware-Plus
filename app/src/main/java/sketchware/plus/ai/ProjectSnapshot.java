@@ -209,7 +209,7 @@ public class ProjectSnapshot {
 
                     libraryManager.a(admob);
                     libraryManager.b(compat);
-                    libraryManager.c(firebase);
+                    libraryManager.c = firebase;  // iC.c is the Firebase slot; iC.c(bean) wrongly writes compat slot
                     libraryManager.d(googleMap);
                     if (rootLayout != null) {
                         rootManager.set(xmlName, rootLayout);

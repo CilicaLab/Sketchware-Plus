@@ -550,7 +550,9 @@ public class yq {
         N.isDebugBuild = exportingType == ExportType.DEBUG_APP;
         isAndroidStudioExport = exportingType == ExportType.ANDROID_STUDIO;
         generateDataBindingClasses = !(exportingType == ExportType.DEBUG_APP || exportingType == ExportType.ANDROID_STUDIO);
-        if (firebase.useYn.equals(ProjectLibraryBean.LIB_USE_Y)) {
+        if (firebase != null && (firebase.useYn.equals(ProjectLibraryBean.LIB_USE_Y)
+                || !cleanStringValue(firebase.reserved1).isEmpty()
+                || !cleanStringValue(firebase.reserved2).isEmpty())) {
             N.isFirebaseEnabled = true;
             N.addPermission(jq.PERMISSION_INTERNET);
             N.addPermission(jq.PERMISSION_ACCESS_NETWORK_STATE);
@@ -786,9 +788,12 @@ public class yq {
         }
         if (N.isFirebaseEnabled || N.isAdMobEnabled || N.isMapUsed) {
             ProjectLibraryBean firebaseLibrary = projectLibraryManager.d();
+            if (N.isFirebaseEnabled && (firebaseLibrary == null || (cleanStringValue(firebaseLibrary.reserved1).isEmpty() && cleanStringValue(firebaseLibrary.reserved2).isEmpty()))) {
+                throw new IllegalStateException("Firebase is used but App ID / API Key is empty. Import google-services.json in Library > Firebase.");
+            }
             XmlBuilderHelper mx = new XmlBuilderHelper();
             mx.addInteger("google_play_services_version", 12451000);
-            if (N.isFirebaseEnabled) {
+            if (N.isFirebaseEnabled && firebaseLibrary != null) {
                 String databaseUrl;
                 String projectId;
                 String libraryData = cleanStringValue(firebaseLibrary.data);
