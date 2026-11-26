@@ -31,6 +31,10 @@ import java.util.regex.Pattern;
 import a.a.a.DB;
 import a.a.a.GB;
 import a.a.a.bB;
+import a.a.a.lC;
+import a.a.a.yB;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import sketchware.plus.filepicker.FilePickerCallback;
 import sketchware.plus.filepicker.FilePickerDialogFragment;
 import sketchware.plus.filepicker.FilePickerOptions;
@@ -303,47 +307,121 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
     }
 
     private void parseDataFromGoogleServicesJson(String _data) {
-        final String storageBucketRegex = "\"storage_bucket\": ?\"([^\"]+)\"";
-        final String appIdRegex = "\"mobilesdk_app_id\": ?\"([^\"]+)\"";
-        final String apiKeyRegex = "\"current_key\": ?\"([^\"]+)\"";
-        final String rtdbRegex = "\"firebase_url\": ?\"([^\"]+)\"";
-        final String projectIdRegex = "\"project_id\": ?\"([^\"]+)\"";
-
-        Matcher storageBucketMatcher = Pattern.compile(storageBucketRegex, Pattern.MULTILINE).matcher(_data);
-        Matcher appIdMatcher = Pattern.compile(appIdRegex, Pattern.MULTILINE).matcher(_data);
-        Matcher apiKeyMatcher = Pattern.compile(apiKeyRegex, Pattern.MULTILINE).matcher(_data);
-        Matcher rtdbMatcher = Pattern.compile(rtdbRegex, Pattern.MULTILINE).matcher(_data);
-        Matcher projectIdMatcher = Pattern.compile(projectIdRegex, Pattern.MULTILINE).matcher(_data);
-
         StringBuilder notFoundLog = new StringBuilder();
         boolean hasNullConfig = false;
         notFoundLog.append("The google-services.json file you selected does not contain the following configurations:\n");
 
-        if (storageBucketMatcher.find()) {
-            configureImportFirebaseConfigFromJson(storage_bucket, storageBucketMatcher.group(1));
+        String storageBucket = "";
+        String appId = "";
+        String apiKey = "";
+        String realtimeDb = "";
+        String projectId = "";
+
+        try {
+            JSONObject root = new JSONObject(_data);
+            if (root.has("project_info")) {
+                JSONObject projectInfo = root.getJSONObject("project_info");
+                storageBucket = projectInfo.optString("storage_bucket", "");
+                realtimeDb = projectInfo.optString("firebase_url", "");
+                projectId = projectInfo.optString("project_id", "");
+            }
+
+            if (root.has("client")) {
+                JSONArray clientArray = root.getJSONArray("client");
+                JSONObject selectedClient = null;
+
+                String currentPkg = "";
+                try {
+                    if (sc_id != null && !sc_id.isEmpty()) {
+                        currentPkg = yB.c(lC.b(sc_id), "my_sc_pkg_name");
+                    }
+                } catch (Exception ignored) {}
+
+                if (!currentPkg.isEmpty()) {
+                    for (int i = 0; i < clientArray.length(); i++) {
+                        JSONObject clientObj = clientArray.getJSONObject(i);
+                        if (clientObj.has("client_info")) {
+                            JSONObject clientInfo = clientObj.getJSONObject("client_info");
+                            if (clientInfo.has("android_client_info")) {
+                                String pkg = clientInfo.getJSONObject("android_client_info").optString("package_name", "");
+                                if (currentPkg.equals(pkg)) {
+                                    selectedClient = clientObj;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (selectedClient == null && clientArray.length() > 0) {
+                    selectedClient = clientArray.getJSONObject(0);
+                }
+
+                if (selectedClient != null) {
+                    if (selectedClient.has("client_info")) {
+                        appId = selectedClient.getJSONObject("client_info").optString("mobilesdk_app_id", "");
+                    }
+                    if (selectedClient.has("api_key")) {
+                        JSONArray apiKeyArray = selectedClient.getJSONArray("api_key");
+                        if (apiKeyArray.length() > 0) {
+                            apiKey = apiKeyArray.getJSONObject(0).optString("current_key", "");
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (storageBucket.isEmpty()) {
+            Matcher storageBucketMatcher = Pattern.compile("\"storage_bucket\": ?\"([^\"]+)\"").matcher(_data);
+            if (storageBucketMatcher.find()) storageBucket = storageBucketMatcher.group(1);
+        }
+        if (appId.isEmpty()) {
+            Matcher appIdMatcher = Pattern.compile("\"mobilesdk_app_id\": ?\"([^\"]+)\"").matcher(_data);
+            if (appIdMatcher.find()) appId = appIdMatcher.group(1);
+        }
+        if (apiKey.isEmpty()) {
+            Matcher apiKeyMatcher = Pattern.compile("\"current_key\": ?\"([^\"]+)\"").matcher(_data);
+            if (apiKeyMatcher.find()) apiKey = apiKeyMatcher.group(1);
+        }
+        if (realtimeDb.isEmpty()) {
+            Matcher rtdbMatcher = Pattern.compile("\"firebase_url\": ?\"([^\"]+)\"").matcher(_data);
+            if (rtdbMatcher.find()) realtimeDb = rtdbMatcher.group(1);
+        }
+        if (projectId.isEmpty()) {
+            Matcher projectIdMatcher = Pattern.compile("\"project_id\": ?\"([^\"]+)\"").matcher(_data);
+            if (projectIdMatcher.find()) projectId = projectIdMatcher.group(1);
+        }
+
+        if (!storageBucket.isEmpty()) {
+            configureImportFirebaseConfigFromJson(storage_bucket, storageBucket);
         } else {
             notFoundLog.append("StorageBucket, ");
             configureImportFirebaseConfigFromJson(storage_bucket, "");
             hasNullConfig = true;
         }
-        if (appIdMatcher.find()) {
-            configureImportFirebaseConfigFromJson(app_id, appIdMatcher.group(1));
+
+        if (!appId.isEmpty()) {
+            configureImportFirebaseConfigFromJson(app_id, appId);
         } else {
             notFoundLog.append("App ID, ");
             configureImportFirebaseConfigFromJson(app_id, "");
             hasNullConfig = true;
         }
-        if (apiKeyMatcher.find()) {
-            configureImportFirebaseConfigFromJson(api_key, apiKeyMatcher.group(1));
+
+        if (!apiKey.isEmpty()) {
+            configureImportFirebaseConfigFromJson(api_key, apiKey);
         } else {
             notFoundLog.append("API Key, ");
             configureImportFirebaseConfigFromJson(api_key, "");
             hasNullConfig = true;
         }
-        if (rtdbMatcher.find()) {
-            configureImportFirebaseConfigFromJson(realtime_db, rtdbMatcher.group(1).replace("https://", ""));
-        } else if (projectIdMatcher.find()) {
-            configureImportFirebaseConfigFromJson(realtime_db, projectIdMatcher.group(1));
+
+        if (!realtimeDb.isEmpty()) {
+            configureImportFirebaseConfigFromJson(realtime_db, realtimeDb.replace("https://", ""));
+        } else if (!projectId.isEmpty()) {
+            configureImportFirebaseConfigFromJson(realtime_db, projectId);
         } else {
             configureImportFirebaseConfigFromJson(realtime_db, "");
         }

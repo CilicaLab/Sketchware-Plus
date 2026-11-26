@@ -426,6 +426,46 @@ public class yq {
                                 "mApplicationContext = getApplicationContext();\n        DynamicColors.applyToActivitiesIfAvailable(this);")
                         .replace("import android.util.Log;", "import android.util.Log;\nimport com.google.android.material.color.DynamicColors;");
             }
+            boolean isFirebaseUsedInApp = N.isFirebaseEnabled || N.isFirebaseAuthUsed || N.isFirebaseDatabaseUsed || N.isFirebaseStorageUsed || N.x.isFCMUsed || N.x.isFBGoogleUsed;
+            if (isFirebaseUsedInApp) {
+                sketchApplicationFileContent = sketchApplicationFileContent.replace(
+                        "import android.util.Log;",
+                        "import android.util.Log;\nimport com.google.firebase.FirebaseApp;\nimport com.google.firebase.FirebaseOptions;"
+                );
+                String firebaseInitCode = """
+                        try {
+                            FirebaseApp.initializeApp(this);
+                        } catch (Exception _e) {
+                            _e.printStackTrace();
+                        }
+                        if (FirebaseApp.getApps(this).isEmpty()) {
+                            try {
+                                int _appIdRes = getResources().getIdentifier("google_app_id", "string", getPackageName());
+                                int _apiKeyRes = getResources().getIdentifier("google_api_key", "string", getPackageName());
+                                if (_appIdRes != 0 && _apiKeyRes != 0) {
+                                    String _appId = getString(_appIdRes);
+                                    String _apiKey = getString(_apiKeyRes);
+                                    if (!_appId.isEmpty() && !_apiKey.isEmpty()) {
+                                        FirebaseOptions.Builder _builder = new FirebaseOptions.Builder().setApplicationId(_appId).setApiKey(_apiKey);
+                                        int _projIdRes = getResources().getIdentifier("project_id", "string", getPackageName());
+                                        if (_projIdRes != 0) { String _p = getString(_projIdRes); if (!_p.isEmpty()) _builder.setProjectId(_p); }
+                                        int _storageRes = getResources().getIdentifier("google_storage_bucket", "string", getPackageName());
+                                        if (_storageRes != 0) { String _s = getString(_storageRes); if (!_s.isEmpty()) _builder.setStorageBucket(_s); }
+                                        int _dbRes = getResources().getIdentifier("firebase_database_url", "string", getPackageName());
+                                        if (_dbRes != 0) { String _d = getString(_dbRes); if (!_d.isEmpty()) _builder.setDatabaseUrl(_d); }
+                                        FirebaseApp.initializeApp(this, _builder.build());
+                                    }
+                                }
+                            } catch (Exception _e) {
+                                _e.printStackTrace();
+                            }
+                        }
+                        """;
+                sketchApplicationFileContent = sketchApplicationFileContent.replace(
+                        "super.onCreate();",
+                        "super.onCreate();\n        " + firebaseInitCode
+                );
+            }
             if (!notUsingCustomApplicationClass) {
                 sketchApplicationFileContent = sketchApplicationFileContent.replaceAll(
                         "public class CoreManager", "public class " + customClassSimpleName);
