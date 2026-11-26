@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import sketchware.plus.R;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,10 +17,19 @@ import java.util.List;
  */
 public class ActivityLogAdapter extends RecyclerView.Adapter<ActivityLogAdapter.StepViewHolder> {
 
-    private final List<ActivityStep> steps;
+    private List<ActivityStep> steps;
 
     public ActivityLogAdapter(List<ActivityStep> steps) {
-        this.steps = steps;
+        this.steps = steps != null ? steps : new ArrayList<>();
+    }
+
+    public void updateSteps(List<ActivityStep> newSteps) {
+        this.steps = newSteps != null ? newSteps : new ArrayList<>();
+        notifyDataSetChanged();
+    }
+
+    public List<ActivityStep> getSteps() {
+        return steps;
     }
 
     @NonNull

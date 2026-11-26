@@ -522,17 +522,17 @@ public class ToolOrchestrator {
                 // Use ToolExecutor for optimized parallel/sequential execution
                 toolExecutor.executeBatch(toolCalls, new ToolExecutor.Callback() {
                     @Override
-                    public void onToolStart(String toolName) {
+                    public void onToolStart(String toolName, JSONObject args) {
                         mainHandler.post(() -> {
-                            fragment.onToolExecutionStarted(toolName);
+                            fragment.onToolExecutionStarted(toolName, args);
                             HapticManager.vibrateToolCall();
                         });
                     }
 
                     @Override
-                    public void onToolFinish(String toolName, boolean success) {
+                    public void onToolFinish(String toolName, boolean success, JSONObject args) {
                         mainHandler.post(() -> {
-                            fragment.onToolExecutionFinished(toolName, success);
+                            fragment.onToolExecutionFinished(toolName, success, args);
                         });
                     }
 

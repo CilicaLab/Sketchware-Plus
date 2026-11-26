@@ -2064,14 +2064,22 @@ public class SkAssistantFragment extends Fragment {
             }
 
             if (msg.steps != null) {
-                for (int i = msg.steps.size() - 1; i >= 0; i--) {
-                    ActivityStep step = msg.steps.get(i);
+                int runningCount = 0;
+                ActivityStep lastRunningStep = null;
+                for (ActivityStep step : msg.steps) {
                     if (step.status == ActivityStep.Status.RUNNING) {
-                        if (step.label != null && !step.label.isEmpty()) {
-                            return step.label.endsWith("...") ? step.label : (step.label + "...");
-                        }
-                        return "Executing " + step.toolName + "...";
+                        runningCount++;
+                        lastRunningStep = step;
                     }
+                }
+
+                if (runningCount > 1) {
+                    return "Executing " + runningCount + " operations in parallel...";
+                } else if (runningCount == 1 && lastRunningStep != null) {
+                    if (lastRunningStep.label != null && !lastRunningStep.label.isEmpty()) {
+                        return lastRunningStep.label.endsWith("...") ? lastRunningStep.label : (lastRunningStep.label + "...");
+                    }
+                    return "Executing " + lastRunningStep.toolName + "...";
                 }
             }
 
@@ -2088,7 +2096,8 @@ public class SkAssistantFragment extends Fragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position, @NonNull List<Object> payloads) {
             if (!payloads.isEmpty() && holder instanceof ActivityLogViewHolder) {
                 ActivityLogViewHolder logHolder = (ActivityLogViewHolder) holder;
-                Message msg = messages.get(position);
+                int pos = holder.getAdapterPosition() != RecyclerView.NO_POSITION ? holder.getAdapterPosition() : position;
+                Message msg = messages.get(pos);
 
                 int elapsed = msg.elapsedSeconds;
                 if (elapsed <= 0 && fragment.aiRunStartTime > 0) {
@@ -2109,8 +2118,8 @@ public class SkAssistantFragment extends Fragment {
                         ThinkingOrbHelper.setStatusContent(logHolder.composeOrb, state, null);
                     }
                     if (logHolder.rvSteps.getAdapter() instanceof ActivityLogAdapter) {
-                        ((ActivityLogAdapter) logHolder.rvSteps.getAdapter()).notifyDataSetChanged();
-                    } else if (msg.steps != null) {
+                        ((ActivityLogAdapter) logHolder.rvSteps.getAdapter()).updateSteps(msg.steps);
+                    } else {
                         logHolder.rvSteps.setAdapter(new ActivityLogAdapter(msg.steps));
                     }
                 }
@@ -2124,7 +2133,8 @@ public class SkAssistantFragment extends Fragment {
             if (holder instanceof ActivityLogViewHolder) {
                 ActivityLogViewHolder logHolder = (ActivityLogViewHolder) holder;
                 logHolder.setupBlurViews(recyclerView);
-                Message msg = messages.get(position);
+                int pos = holder.getAdapterPosition() != RecyclerView.NO_POSITION ? holder.getAdapterPosition() : position;
+                Message msg = messages.get(pos);
 
                 logHolder.tvTitle.setText(getHeaderTitleForMessage(msg));
 
@@ -2159,8 +2169,8 @@ public class SkAssistantFragment extends Fragment {
                 });
 
                 if (logHolder.rvSteps.getAdapter() instanceof ActivityLogAdapter) {
-                    ((ActivityLogAdapter) logHolder.rvSteps.getAdapter()).notifyDataSetChanged();
-                } else if (msg.steps != null) {
+                    ((ActivityLogAdapter) logHolder.rvSteps.getAdapter()).updateSteps(msg.steps);
+                } else {
                     logHolder.rvSteps.setAdapter(new ActivityLogAdapter(msg.steps));
                 }
                 return;
@@ -2673,7 +2683,67 @@ public class SkAssistantFragment extends Fragment {
         }
     }
 
-    public void onToolExecutionStarted(String toolName) {
+    public static String getFriendlyToolLabel(String toolName, JSONObject args) {
+        if (toolName == null || toolName.trim().isEmpty()) return "Executing operation";
+        String base = getFriendlyToolLabel(toolName);
+        if (args == null) return base;
+
+        try {
+            switch (toolName) {
+                case "search_web":
+                case "web_search": {
+                    String query = args.optString("query", "");
+                    if (!query.isEmpty()) {
+                        if (query.length() > 30) query = query.substring(0, 27) + "...";
+                        return "Searching web: \"" + query + "\"";
+                    }
+                    break;
+                }
+                case "read_url":
+                case "web_browse": {
+                    String url = args.optString("url", "");
+                    if (!url.isEmpty()) {
+                        try {
+                            android.net.Uri uri = android.net.Uri.parse(url);
+                            String host = uri.getHost();
+                            String target = host != null ? host : url;
+                            if (target.length() > 30) target = target.substring(0, 27) + "...";
+                            return "Reading webpage: " + target;
+                        } catch (Exception e) {
+                            if (url.length() > 30) url = url.substring(0, 27) + "...";
+                            return "Reading webpage: " + url;
+                        }
+                    }
+                    break;
+                }
+                case "read_file":
+                case "modify_java_file":
+                case "patch_java_file":
+                case "add_java_patch": {
+                    String path = args.optString("path", args.optString("file", ""));
+                    if (!path.isEmpty()) {
+                        String filename = new java.io.File(path).getName();
+                        return base + ": " + filename;
+                    }
+                    break;
+                }
+                case "find_files":
+                case "search_project_files":
+                case "grep_code":
+                case "search_in_code": {
+                    String query = args.optString("query", args.optString("pattern", ""));
+                    if (!query.isEmpty()) {
+                        if (query.length() > 25) query = query.substring(0, 22) + "...";
+                        return base + ": \"" + query + "\"";
+                    }
+                    break;
+                }
+            }
+        } catch (Exception ignored) {}
+        return base;
+    }
+
+    public void onToolExecutionStarted(String toolName, JSONObject args) {
         if (getActivity() == null) return;
         getActivity().runOnUiThread(() -> {
             int existingStatusIndex = -1;
@@ -2699,7 +2769,7 @@ public class SkAssistantFragment extends Fragment {
                 statusMsg.steps = new ArrayList<>();
             }
 
-            String label = getFriendlyToolLabel(toolName);
+            String label = getFriendlyToolLabel(toolName, args);
             statusMsg.content = label;
             ActivityStep step = new ActivityStep(toolName, label, ActivityStep.Status.RUNNING, System.currentTimeMillis());
             statusMsg.steps.add(step);
@@ -2714,7 +2784,11 @@ public class SkAssistantFragment extends Fragment {
         });
     }
 
-    public void onToolExecutionFinished(String toolName, boolean success) {
+    public void onToolExecutionStarted(String toolName) {
+        onToolExecutionStarted(toolName, null);
+    }
+
+    public void onToolExecutionFinished(String toolName, boolean success, JSONObject args) {
         if (getActivity() == null) return;
         getActivity().runOnUiThread(() -> {
             int existingStatusIndex = -1;
@@ -2730,15 +2804,34 @@ public class SkAssistantFragment extends Fragment {
             Message statusMsg = messages.get(existingStatusIndex);
             if (statusMsg.steps == null || statusMsg.steps.isEmpty()) return;
 
-            for (int i = statusMsg.steps.size() - 1; i >= 0; i--) {
-                ActivityStep s = statusMsg.steps.get(i);
-                if (s.status == ActivityStep.Status.RUNNING && (toolName == null || toolName.equals(s.toolName))) {
-                    s.status = success ? ActivityStep.Status.DONE : ActivityStep.Status.FAILED;
-                    break;
+            String expectedLabel = args != null ? getFriendlyToolLabel(toolName, args) : null;
+
+            boolean matched = false;
+            if (expectedLabel != null) {
+                for (int i = statusMsg.steps.size() - 1; i >= 0; i--) {
+                    ActivityStep s = statusMsg.steps.get(i);
+                    if (s.status == ActivityStep.Status.RUNNING && toolName.equals(s.toolName) && expectedLabel.equals(s.label)) {
+                        s.status = success ? ActivityStep.Status.DONE : ActivityStep.Status.FAILED;
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            if (!matched) {
+                for (int i = statusMsg.steps.size() - 1; i >= 0; i--) {
+                    ActivityStep s = statusMsg.steps.get(i);
+                    if (s.status == ActivityStep.Status.RUNNING && (toolName == null || toolName.equals(s.toolName))) {
+                        s.status = success ? ActivityStep.Status.DONE : ActivityStep.Status.FAILED;
+                        break;
+                    }
                 }
             }
 
             adapter.notifyItemChanged(existingStatusIndex, "payload_steps");
         });
+    }
+
+    public void onToolExecutionFinished(String toolName, boolean success) {
+        onToolExecutionFinished(toolName, success, null);
     }
 }
