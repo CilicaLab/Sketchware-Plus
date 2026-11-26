@@ -14,6 +14,7 @@ import com.besome.sketch.editor.manage.library.material3.Material3LibraryManager
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -192,7 +193,13 @@ public class Jx {
             sb.append(getLauncherActivity(packageName));
         }
 
-        if (buildConfig.isFirebaseEnabled) addImport("com.google.firebase.FirebaseApp");
+        boolean isFirebaseUsedForImports = buildConfig.isFirebaseEnabled || buildConfig.isFirebaseAuthUsed
+                || buildConfig.isFirebaseDatabaseUsed || buildConfig.isFirebaseStorageUsed
+                || buildConfig.x.isFCMUsed || buildConfig.x.isFBGoogleUsed;
+        if (isFirebaseUsedForImports) {
+            addImport("com.google.firebase.FirebaseApp");
+            addImport("com.google.firebase.FirebaseOptions");
+        }
 
         if (buildConfig.isAdMobEnabled) {
             addImport("com.google.android.gms.ads.MobileAds");
@@ -213,13 +220,13 @@ public class Jx {
             addImport("android.app.FragmentManager");
             addImport("android.app.DialogFragment");
         }
+        addImport("android.content.pm.PackageManager");
         if (permissionManager.hasNewPermission() || buildConfig.a(projectFileBean.getActivityName()).a()) {
             if (buildConfig.g) {
                 addImport("androidx.core.content.ContextCompat");
                 addImport("androidx.core.app.ActivityCompat");
             }
             addImport("android.Manifest");
-            addImport("android.content.pm.PackageManager");
         }
         if (isAndroidStudioExport && isViewBindingEnabled) {
             addImport(packageName + ".databinding.*");
@@ -335,6 +342,10 @@ public class Jx {
 
         sb.append(EOL);
         String bindingName = ViewBindingBuilder.generateFileNameForLayout(projectFileBean.fileName);
+        boolean isFirebaseUsed = buildConfig.isFirebaseEnabled || buildConfig.isFirebaseAuthUsed
+                || buildConfig.isFirebaseDatabaseUsed || buildConfig.isFirebaseStorageUsed
+                || buildConfig.x.isFCMUsed || buildConfig.x.isFBGoogleUsed;
+
         if (isFragment) {
             if (buildConfig.g) {
                 sb.append("@NonNull").append(EOL);
@@ -346,17 +357,88 @@ public class Jx {
                 sb.append("public View onCreateView(LayoutInflater _inflater, ViewGroup _container, " +
                         "Bundle _savedInstanceState) {").append(EOL);
             }
+            if (isFirebaseUsed) {
+                sb.append("try {").append(EOL);
+                sb.append("FirebaseApp.initializeApp(getContext());").append(EOL);
+                sb.append("} catch (Exception _e) {").append(EOL);
+                sb.append("_e.printStackTrace();").append(EOL);
+                sb.append("}").append(EOL);
+                sb.append("if (getContext() != null && FirebaseApp.getApps(getContext()).isEmpty()) {").append(EOL);
+                sb.append("try {").append(EOL);
+                sb.append("FirebaseApp.initializeApp(getContext(), new FirebaseOptions.Builder()").append(EOL);
+                sb.append(".setApplicationId(\"1:000000000000:android:0000000000000000\")").append(EOL);
+                sb.append(".setApiKey(\"AIzaSyPlaceholderKeyForFirebaseInitialization\")").append(EOL);
+                sb.append(".setProjectId(\"placeholder-project\")").append(EOL);
+                sb.append(".build());").append(EOL);
+                sb.append("} catch (Exception _e) {").append(EOL);
+                sb.append("_e.printStackTrace();").append(EOL);
+                sb.append("}").append(EOL);
+                sb.append("}").append(EOL);
+            }
             if (isViewBindingEnabled) {
                 sb.append("binding = ").append(bindingName).append(".inflate(_inflater, _container, false);").append(EOL);
-                sb.append("initialize(_savedInstanceState, binding.getRoot());");
+                sb.append("initialize(_savedInstanceState, binding.getRoot());").append(EOL);
             } else {
                 sb.append("View _view = _inflater.inflate(R.layout.").append(projectFileBean.fileName).append(", _container, false);").append(EOL);
-                sb.append("initialize(_savedInstanceState, _view);");
+                sb.append("initialize(_savedInstanceState, _view);").append(EOL);
             }
+            sb.append("initializeLogic();").append(EOL);
+            if (isViewBindingEnabled) {
+                sb.append("return binding.getRoot();").append(EOL);
+            } else {
+                sb.append("return _view;").append(EOL);
+            }
+            sb.append("}").append(EOL);
         } else {
             sb.append("@Override").append(EOL);
             sb.append("protected void onCreate(Bundle _savedInstanceState) {").append(EOL);
             sb.append("super.onCreate(_savedInstanceState);").append(EOL);
+
+            if (isFirebaseUsed) {
+                sb.append("try {").append(EOL);
+                sb.append("FirebaseApp.initializeApp(this);").append(EOL);
+                sb.append("} catch (Exception _e) {").append(EOL);
+                sb.append("_e.printStackTrace();").append(EOL);
+                sb.append("}").append(EOL);
+                sb.append("if (FirebaseApp.getApps(this).isEmpty()) {").append(EOL);
+                sb.append("try {").append(EOL);
+                sb.append("FirebaseApp.initializeApp(this, new FirebaseOptions.Builder()").append(EOL);
+                sb.append(".setApplicationId(\"1:000000000000:android:0000000000000000\")").append(EOL);
+                sb.append(".setApiKey(\"AIzaSyPlaceholderKeyForFirebaseInitialization\")").append(EOL);
+                sb.append(".setProjectId(\"placeholder-project\")").append(EOL);
+                sb.append(".build());").append(EOL);
+                sb.append("} catch (Exception _e) {").append(EOL);
+                sb.append("_e.printStackTrace();").append(EOL);
+                sb.append("}").append(EOL);
+                sb.append("}").append(EOL);
+            }
+
+            if (buildConfig.isAdMobEnabled) {
+                sb.append("MobileAds.initialize(this);").append(EOL);
+                if (fieldsWithStaticInitializers.contains(Lx.getComponentFieldCode("InterstitialAd"))) {
+                    sb.append("_ad_unit_id = \"").append(buildConfig.isDebugBuild ? "ca-app-pub-3940256099942544/1033173712" : buildConfig.interstitialAdUnitId).append("\";").append(EOL);
+                }
+                if (fieldsWithStaticInitializers.contains(Lx.getComponentFieldCode("RewardedVideoAd"))) {
+                    sb.append("_reward_ad_unit_id = \"").append(buildConfig.isDebugBuild ? "ca-app-pub-3940256099942544/5224354917" : buildConfig.rewardAdUnitId).append("\";").append(EOL);
+                }
+
+                if (buildConfig.isDebugBuild) {
+                    StringBuilder testDevicesListCode = new StringBuilder("List<String> testDeviceIds = Arrays.asList(");
+                    ArrayList<String> testDevices = buildConfig.t;
+                    for (int j = 0, testDevicesSize = testDevices.size(); j < testDevicesSize; j++) {
+                        String testDeviceId = testDevices.get(j);
+
+                        testDevicesListCode.append("\"").append(testDeviceId).append("\"");
+                        if (j != testDevicesSize - 1) {
+                            testDevicesListCode.append(", ");
+                        }
+                    }
+                    testDevicesListCode.append(");").append(EOL);
+
+                    sb.append(testDevicesListCode);
+                    sb.append("MobileAds.setRequestConfiguration(new RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build());").append(EOL);
+                }
+            }
 
             if (isViewBindingEnabled) {
                 sb.append("binding = ").append(bindingName).append(".inflate(getLayoutInflater());").append(EOL);
@@ -364,64 +446,10 @@ public class Jx {
             } else {
                 sb.append("setContentView(R.layout.").append(projectFileBean.fileName).append(");").append(EOL);
             }
-            sb.append("initialize(_savedInstanceState);");
-        }
-        sb.append(EOL);
-        if (buildConfig.isFirebaseEnabled) {
-            if (isFragment) {
-                sb.append("FirebaseApp.initializeApp(getContext());");
-            } else {
-                sb.append("FirebaseApp.initializeApp(this);");
-            }
-            sb.append(EOL);
-        }
-
-        if (buildConfig.isAdMobEnabled && !isFragment) {
-            if (!buildConfig.isFirebaseEnabled) {
-                sb.append(EOL);
-            }
-            sb.append("MobileAds.initialize(this);");
-            sb.append(EOL);
-            if (fieldsWithStaticInitializers.contains(Lx.getComponentFieldCode("InterstitialAd"))) {
-                sb.append("_ad_unit_id = \"").append(buildConfig.isDebugBuild ? "ca-app-pub-3940256099942544/1033173712" : buildConfig.interstitialAdUnitId).append("\";");
-            }
-            if (fieldsWithStaticInitializers.contains(Lx.getComponentFieldCode("RewardedVideoAd"))) {
-                sb.append("_reward_ad_unit_id = \"").append(buildConfig.isDebugBuild ? "ca-app-pub-3940256099942544/5224354917" : buildConfig.rewardAdUnitId).append("\";");
-            }
-
-            if (buildConfig.isDebugBuild) {
-                StringBuilder testDevicesListCode = new StringBuilder("List<String> testDeviceIds = Arrays.asList(");
-                ArrayList<String> testDevices = buildConfig.t;
-                for (int j = 0, testDevicesSize = testDevices.size(); j < testDevicesSize; j++) {
-                    String testDeviceId = testDevices.get(j);
-
-                    testDevicesListCode.append("\"").append(testDeviceId).append("\"");
-                    if (j != testDevicesSize - 1) {
-                        testDevicesListCode.append(", ");
-                    }
-                }
-                testDevicesListCode.append(");").append(EOL);
-
-                sb.append(EOL);
-                sb.append(testDevicesListCode);
-                sb.append("MobileAds.setRequestConfiguration(new RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build());");
-            }
-
-            sb.append(EOL);
-        }
-
-        if (!isFragment) {
-            // Adds initializeLogic() call too, don't worry
+            sb.append("initialize(_savedInstanceState);").append(EOL);
             sb.append(permissionManager.writePermission(buildConfig.g, buildConfig.a(projectFileBean.getActivityName()).c));
-        } else {
-            sb.append("initializeLogic();").append(EOL);
-            if (isViewBindingEnabled) {
-                sb.append("return binding.getRoot();").append(EOL);
-            } else {
-                sb.append("return _view;").append(EOL);
-            }
+            sb.append("}").append(EOL);
         }
-        sb.append("}").append(EOL);
 
         if (permissionManager.hasPermission && !isFragment) {
             sb.append(EOL);
@@ -1020,15 +1048,33 @@ public class Jx {
      */
     private void addRequestCodeConstants() {
         int startValue = 100;
+        Set<String> addedComponentIds = new HashSet<>();
+
         for (ComponentBean next : projectDataManager.e(projectFileBean.getJavaName())) {
             switch (next.type) {
                 case ComponentBean.COMPONENT_TYPE_CAMERA:
                 case ComponentBean.COMPONENT_TYPE_FILE_PICKER:
-                case 31:
-                    int incrementedValue = startValue + 1;
-                    filePickerRequestCodes.add(Lx.getRequestCodeConstant(next.componentId, incrementedValue));
-                    startValue = incrementedValue;
+                case ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_GOOGLE_LOGIN:
+                case 35:
+                    if (!addedComponentIds.contains(next.componentId.toUpperCase())) {
+                        addedComponentIds.add(next.componentId.toUpperCase());
+                        int incrementedValue = startValue + 1;
+                        filePickerRequestCodes.add(Lx.getRequestCodeConstant(next.componentId, incrementedValue));
+                        startValue = incrementedValue;
+                    }
                     break;
+            }
+        }
+
+        if (eventManager != null) {
+            for (Hx.ComponentCallback callback : eventManager.getCallbackEvents()) {
+                String name = callback.getComponentName();
+                if (name != null && !name.isEmpty() && !addedComponentIds.contains(name.toUpperCase())) {
+                    addedComponentIds.add(name.toUpperCase());
+                    int incrementedValue = startValue + 1;
+                    filePickerRequestCodes.add(Lx.getRequestCodeConstant(name, incrementedValue));
+                    startValue = incrementedValue;
+                }
             }
         }
     }

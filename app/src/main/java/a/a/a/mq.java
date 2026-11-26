@@ -602,6 +602,7 @@ public class mq {
                 importList.add("com.google.firebase.messaging.FirebaseMessaging");
                 return importList;
 
+            case "FirebasePhoneAuth":
             case "PhoneAuthProvider.OnVerificationStateChangedCallbacks":
                 importList.add("com.google.android.gms.tasks.OnCompleteListener");
                 importList.add("com.google.android.gms.tasks.Task");
@@ -616,6 +617,7 @@ public class mq {
                 importList.add("java.util.concurrent.TimeUnit");
                 return importList;
 
+            case "FirebaseGoogleLogin":
             case "GoogleSignInClient":
                 importList.add("com.google.android.gms.auth.api.signin.GoogleSignIn");
                 importList.add("com.google.android.gms.auth.api.signin.GoogleSignInAccount");

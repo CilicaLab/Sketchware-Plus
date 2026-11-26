@@ -295,11 +295,13 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
         final String appIdRegex = "\"mobilesdk_app_id\": ?\"(.*)\"";
         final String apiKeyRegex = "\"current_key\": ?\"(.*)\"";
         final String rtdbRegex = "\"firebase_url\": ?\"(.*)\"";
+        final String projectIdRegex = "\"project_id\": ?\"(.*)\"";
 
         Matcher storageBucketMatcher = Pattern.compile(storageBucketRegex, Pattern.MULTILINE).matcher(_data);
         Matcher appIdMatcher = Pattern.compile(appIdRegex, Pattern.MULTILINE).matcher(_data);
         Matcher apiKeyMatcher = Pattern.compile(apiKeyRegex, Pattern.MULTILINE).matcher(_data);
         Matcher rtdbMatcher = Pattern.compile(rtdbRegex, Pattern.MULTILINE).matcher(_data);
+        Matcher projectIdMatcher = Pattern.compile(projectIdRegex, Pattern.MULTILINE).matcher(_data);
 
         StringBuilder notFoundLog = new StringBuilder();
         boolean hasNullConfig = false;
@@ -328,15 +330,15 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
         }
         if (rtdbMatcher.find()) {
             configureImportFirebaseConfigFromJson(realtime_db, rtdbMatcher.group(1).replace("https://", ""));
+        } else if (projectIdMatcher.find()) {
+            configureImportFirebaseConfigFromJson(realtime_db, projectIdMatcher.group(1));
         } else {
-            notFoundLog.append("Realtime Database, ");
             configureImportFirebaseConfigFromJson(realtime_db, "");
-            hasNullConfig = true;
+        }
 
-            //Disable Firebase in case it was enabled
-            libSwitch.setChecked(false);
-            firebaseLibraryBean.useYn = "N";
-
+        if (firebaseLibraryBean.reserved1 != null && !firebaseLibraryBean.reserved1.isEmpty()) {
+            libSwitch.setChecked(true);
+            firebaseLibraryBean.useYn = "Y";
         }
 
         if (hasNullConfig) SketchwareUtil.toastError(notFoundLog.toString());

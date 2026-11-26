@@ -564,19 +564,39 @@ public class yq {
                     case ComponentBean.COMPONENT_TYPE_FIREBASE -> {
                         N.isGsonUsed = true;
                         N.isFirebaseDatabaseUsed = true;
+                        N.isFirebaseEnabled = true;
                         N.addPermission(activity.getActivityName(), jq.PERMISSION_INTERNET);
                         N.addPermission(activity.getActivityName(), jq.PERMISSION_ACCESS_NETWORK_STATE);
                     }
                     case ComponentBean.COMPONENT_TYPE_FIREBASE_STORAGE -> {
                         N.isFirebaseStorageUsed = true;
+                        N.isFirebaseEnabled = true;
                         N.addPermission(activity.getActivityName(), jq.PERMISSION_READ_EXTERNAL_STORAGE);
                         N.addPermission(activity.getActivityName(), jq.PERMISSION_WRITE_EXTERNAL_STORAGE);
                     }
                     case ComponentBean.COMPONENT_TYPE_VIBRATOR ->
                             N.addPermission(activity.getActivityName(), jq.PERMISSION_VIBRATE);
                     case ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH -> {
+                        N.isFirebaseEnabled = true;
                         N.isFirebaseAuthUsed = true;
                         N.a(activity.getActivityName()).usesFirebaseAuth = true;
+                        N.addPermission(activity.getActivityName(), jq.PERMISSION_INTERNET);
+                        N.addPermission(activity.getActivityName(), jq.PERMISSION_ACCESS_NETWORK_STATE);
+                    }
+                    case ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_PHONE -> {
+                        N.isFirebaseEnabled = true;
+                        N.isFirebaseAuthUsed = true;
+                        N.a(activity.getActivityName()).usesFirebaseAuth = true;
+                        N.addPermission(activity.getActivityName(), jq.PERMISSION_INTERNET);
+                        N.addPermission(activity.getActivityName(), jq.PERMISSION_ACCESS_NETWORK_STATE);
+                    }
+                    case ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_GOOGLE_LOGIN -> {
+                        N.isFirebaseEnabled = true;
+                        N.isFirebaseAuthUsed = true;
+                        N.x.isFBGoogleUsed = true;
+                        N.a(activity.getActivityName()).usesFirebaseAuth = true;
+                        N.addPermission(activity.getActivityName(), jq.PERMISSION_INTERNET);
+                        N.addPermission(activity.getActivityName(), jq.PERMISSION_ACCESS_NETWORK_STATE);
                     }
                     case ComponentBean.COMPONENT_TYPE_REQUEST_NETWORK -> {
                         N.isGsonUsed = true;
@@ -597,8 +617,6 @@ public class yq {
                             N.addPermission(activity.getActivityName(), jq.PERMISSION_ACCESS_FINE_LOCATION);
                     case ComponentBean.COMPONENT_TYPE_FIREBASE_CLOUD_MESSAGE ->
                             N.x.isFCMUsed = true;
-                    case ComponentBean.COMPONENT_TYPE_FIREBASE_AUTH_GOOGLE_LOGIN ->
-                            N.x.isFBGoogleUsed = true;
                     default -> {
                     }
                 }
@@ -684,6 +702,21 @@ public class yq {
                             N.addPermission(jq.PERMISSION_ACCESS_NETWORK_STATE);
                             break;
 
+                        case "firebaseauthCreateUser":
+                        case "firebaseauthSignInUser":
+                        case "firebaseauthSignInAnonymously":
+                        case "firebaseauthIsLoggedIn":
+                        case "firebaseauthGetCurrentUser":
+                        case "firebaseauthGetUid":
+                        case "firebaseauthResetPassword":
+                        case "firebaseauthSignOutUser":
+                            N.isFirebaseEnabled = true;
+                            N.isFirebaseAuthUsed = true;
+                            N.a(activity.getActivityName()).usesFirebaseAuth = true;
+                            N.addPermission(activity.getActivityName(), jq.PERMISSION_INTERNET);
+                            N.addPermission(activity.getActivityName(), jq.PERMISSION_ACCESS_NETWORK_STATE);
+                            break;
+
                         default:
                     }
                 }
@@ -719,21 +752,26 @@ public class yq {
                 String databaseUrl;
                 String projectId;
                 String libraryData = firebaseLibrary.data;
-                if (libraryData.contains(".")) {
-                    databaseUrl = "https://" + libraryData;
-                    projectId = libraryData.trim().replaceAll(FIREBASE_DATABASE_STORAGE_LOCATION_MATCHER, "");
-                } else {
-                    databaseUrl = "https://" + libraryData + ".firebaseio.com";
-                    projectId = libraryData;
+                if (libraryData != null && !libraryData.trim().isEmpty()) {
+                    if (libraryData.contains(".")) {
+                        databaseUrl = "https://" + libraryData;
+                        projectId = libraryData.trim().replaceAll(FIREBASE_DATABASE_STORAGE_LOCATION_MATCHER, "");
+                    } else {
+                        databaseUrl = "https://" + libraryData + ".firebaseio.com";
+                        projectId = libraryData;
+                    }
+                    mx.addString("firebase_database_url", databaseUrl, false);
+                    mx.addString("project_id", projectId, false);
                 }
-                mx.addString("firebase_database_url", databaseUrl, false);
-                mx.addString("project_id", projectId, false);
-                mx.addString("google_app_id", firebaseLibrary.reserved1, false);
-                if (firebaseLibrary.reserved2 != null && !firebaseLibrary.reserved2.isEmpty()) {
-                    mx.addString("google_api_key", firebaseLibrary.reserved2, false);
+                if (firebaseLibrary.reserved1 != null && !firebaseLibrary.reserved1.trim().isEmpty()) {
+                    mx.addString("google_app_id", firebaseLibrary.reserved1.trim(), false);
                 }
-                if (firebaseLibrary.reserved3 != null && !firebaseLibrary.reserved3.isEmpty()) {
-                    mx.addString("google_storage_bucket", firebaseLibrary.reserved3, false);
+                if (firebaseLibrary.reserved2 != null && !firebaseLibrary.reserved2.trim().isEmpty()) {
+                    mx.addString("google_api_key", firebaseLibrary.reserved2.trim(), false);
+                    mx.addString("google_crash_reporting_api_key", firebaseLibrary.reserved2.trim(), false);
+                }
+                if (firebaseLibrary.reserved3 != null && !firebaseLibrary.reserved3.trim().isEmpty()) {
+                    mx.addString("google_storage_bucket", firebaseLibrary.reserved3.trim(), false);
                 }
             }
             if (N.isMapUsed) {

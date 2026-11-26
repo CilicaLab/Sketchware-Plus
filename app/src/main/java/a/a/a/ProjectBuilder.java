@@ -1190,6 +1190,7 @@ public class ProjectBuilder {
         }
         if (yq.N.isFirebaseAuthUsed) {
             builtInLibraryManager.addLibrary(BuiltInLibraries.FIREBASE_AUTH);
+            builtInLibraryManager.addLibrary(BuiltInLibraries.PLAY_SERVICES_AUTH);
         }
         if (yq.N.isFirebaseDatabaseUsed) {
             builtInLibraryManager.addLibrary(BuiltInLibraries.FIREBASE_DATABASE);

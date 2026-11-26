@@ -27,6 +27,7 @@ public class ExtLibSelected {
         }
         if (component.isFBGoogleUsed) {
             kp.addLibrary(BuiltInLibraries.PLAY_SERVICES_AUTH);
+            kp.addLibrary(BuiltInLibraries.FIREBASE_AUTH);
         }
         if (component.isOTPViewUsed) {
             kp.addLibrary(BuiltInLibraries.OTPVIEW);

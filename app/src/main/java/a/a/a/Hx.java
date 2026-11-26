@@ -80,6 +80,11 @@ public class Hx {
     }
 
     private void addCallbackEvents(int targetType, String targetId, String eventName, String eventLogic) {
+        String typeName = mq.a(targetType);
+        if (!typeName.isEmpty()) {
+            imports.addAll(mq.getImportsByTypeName(projectFileBean.getJavaName(), typeName, null));
+        }
+
         boolean hasOnSuccessLogic = eventName.equals("onPictureTaken") || eventName.equals("onAccountPicker") || eventName.equals("onFilesPicked");
         boolean hasOnCancelledLogic = eventName.equals("onPictureTakenCancel") || eventName.equals("onFilesPickedCancel") || eventName.equals("onAccountPickerCancelled");
 
@@ -248,6 +253,7 @@ public class Hx {
         for (Event next : authEvents) {
             if (next.id.equals(targetId)) {
                 next.addEvent(targetId, eventName, eventLogic);
+                imports.addAll(mq.getImportsByTypeName(projectFileBean.getJavaName(), "FirebaseAuth", null));
                 return;
             }
         }
@@ -318,7 +324,11 @@ public class Hx {
         }
     }
 
-    private static class ComponentCallback {
+    public ArrayList<ComponentCallback> getCallbackEvents() {
+        return callbackEvents;
+    }
+
+    public static class ComponentCallback {
 
         private final int componentId;
         private final String componentName;
@@ -328,6 +338,10 @@ public class Hx {
         private ComponentCallback(int componentId, String componentName) {
             this.componentId = componentId;
             this.componentName = componentName;
+        }
+
+        public String getComponentName() {
+            return componentName;
         }
 
         private void setOnCancelledLogic(String onCancelledLogic) {
