@@ -408,10 +408,12 @@
             android:configChanges="orientation|screenSize" />
         <activity
             android:name="mod.hey.studios.code.SrcCodeEditor"
-            android:configChanges="orientation|screenSize" />
+            android:configChanges="orientation|screenSize"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name="mod.hilal.saif.asd.AsdCodeEditorActivity"
-            android:configChanges="orientation|screenSize" />
+            android:configChanges="orientation|screenSize"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name="mod.hey.studios.project.proguard.ManageProguardActivity"
             android:configChanges="orientation|screenSize" />
@@ -470,10 +472,12 @@
 
         <activity
             android:name=".activities.editor.command.ManageXMLCommandActivity"
-            android:configChanges="orientation|screenSize" />
+            android:configChanges="orientation|screenSize"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.editor.command.ManageJavaCommandActivity"
-            android:configChanges="orientation|screenSize" />
+            android:configChanges="orientation|screenSize"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".activities.editor.component.ManageCustomComponentActivity"
@@ -487,7 +491,8 @@
 
         <activity
             android:name=".activities.editor.view.ViewCodeEditorActivity"
-            android:configChanges="orientation|screenSize" />
+            android:configChanges="orientation|screenSize"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".activities.editor.view.CodeViewerActivity"
