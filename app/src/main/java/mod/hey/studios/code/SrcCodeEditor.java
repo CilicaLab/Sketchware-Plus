@@ -383,16 +383,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity implements SkAssistantD
             languageId = 2;
         }
 
-        if (title.endsWith(".java")
-                && getIntent().hasExtra("java")
-                && scId != null
-                && ProjectSettings.SETTING_GENERIC_VALUE_TRUE.equals(
-                new ProjectSettings(scId).getValue(
-                        ProjectSettings.SETTING_ENABLE_VIEWBINDING,
-                        ProjectSettings.SETTING_GENERIC_VALUE_FALSE))) {
-            binding.viewBindingNotice.setVisibility(View.VISIBLE);
-        }
-
         loadCESettings(this, binding.editor, "act", true);
         loadToolbar();
 
