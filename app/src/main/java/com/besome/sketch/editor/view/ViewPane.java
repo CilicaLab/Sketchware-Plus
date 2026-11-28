@@ -802,11 +802,16 @@ public class ViewPane extends RelativeLayout {
                 int[] childLocationOnScreen = new int[2];
                 linearLayout.getLocationOnScreen(childLocationOnScreen);
                 Rect childRect = new Rect();
-                var layoutParams = (LinearLayout.LayoutParams) child.getLayoutParams();
-                int leftMargin = layoutParams.leftMargin;
-                int rightMargin = layoutParams.rightMargin;
-                int topMargin = layoutParams.topMargin;
-                int bottomMargin = layoutParams.bottomMargin;
+                int leftMargin = 0;
+                int rightMargin = 0;
+                int topMargin = 0;
+                int bottomMargin = 0;
+                if (child.getLayoutParams() instanceof ViewGroup.MarginLayoutParams layoutParams) {
+                    leftMargin = layoutParams.leftMargin;
+                    rightMargin = layoutParams.rightMargin;
+                    topMargin = layoutParams.topMargin;
+                    bottomMargin = layoutParams.bottomMargin;
+                }
                 int childWidth = (int) (child.getMeasuredWidth() * linearLayout.getScaleX());
                 int childHeight = (int) (child.getMeasuredHeight() * linearLayout.getScaleY());
                 if (linearLayout.getOrientation() == LinearLayout.VERTICAL) {
@@ -1004,12 +1009,21 @@ public class ViewPane extends RelativeLayout {
         }
     }
 
-    private int getActualParentType(View view, int defaultValue) {
-        var parent = (ViewGroup) view.getParent();
+    private int getActualParentType(View view, ViewBean viewBean) {
+        ViewGroup parent = null;
+        if (view != null && view.getParent() instanceof ViewGroup vg) {
+            parent = vg;
+        }
+        if (parent == null && rootLayout != null && viewBean != null && viewBean.parent != null && !viewBean.parent.isEmpty()) {
+            View parentView = rootLayout.findViewWithTag(viewBean.parent);
+            if (parentView instanceof ViewGroup vg) {
+                parent = vg;
+            }
+        }
         if (parent != null) {
-            if (parent instanceof ItemLinearLayout) {
+            if (parent instanceof LinearLayout) {
                 return ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
-            } else if (parent instanceof ItemRelativeLayout) {
+            } else if (parent instanceof RelativeLayout) {
                 return ViewBean.VIEW_TYPE_LAYOUT_RELATIVE;
             } else if (parent instanceof ItemCardView) {
                 return ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
@@ -1017,9 +1031,11 @@ public class ViewPane extends RelativeLayout {
                 return ViewBean.VIEW_TYPE_LAYOUT_HSCROLLVIEW;
             } else if (parent instanceof ItemVerticalScrollView) {
                 return ViewBean.VIEW_TYPE_LAYOUT_VSCROLLVIEW;
+            } else if (parent instanceof FrameLayout) {
+                return ViewBean.VIEW_TYPE_LAYOUT_VSCROLLVIEW;
             }
         }
-        return defaultValue;
+        return viewBean != null ? viewBean.parentType : -1;
     }
 
     private void updateLayout(View view, ViewBean viewBean) {
@@ -1046,7 +1062,13 @@ public class ViewPane extends RelativeLayout {
         } else {
             view.setBackgroundColor(PropertiesUtil.parseColor(colorsEditorManager.getColorValue(context, viewBean.layout.backgroundResColor, 3, material3LibraryManager.canUseNightVariantColors())));
         }
-        if (viewBean.parentType == ViewBean.VIEW_TYPE_LAYOUT_LINEAR) {
+
+        int parentType = getActualParentType(view, viewBean);
+        if (parentType != -1) {
+            viewBean.parentType = parentType;
+        }
+
+        if (parentType == ViewBean.VIEW_TYPE_LAYOUT_LINEAR) {
             LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(width, height);
             layoutParams2.setMargins(leftMargin, topMargin, rightMargin, bottomMargin);
             LayoutBean layoutBean3 = viewBean.layout;
@@ -1057,7 +1079,7 @@ public class ViewPane extends RelativeLayout {
             }
             layoutParams2.weight = viewBean.layout.weight;
             view.setLayoutParams(layoutParams2);
-        } else if (viewBean.parentType == ViewBean.VIEW_TYPE_LAYOUT_RELATIVE) {
+        } else if (parentType == ViewBean.VIEW_TYPE_LAYOUT_RELATIVE) {
             RelativeLayout.LayoutParams layoutParams2 = new RelativeLayout.LayoutParams(width, height);
             layoutParams2.setMargins(leftMargin, topMargin, rightMargin, bottomMargin);
             LayoutBean layoutBean3 = viewBean.layout;

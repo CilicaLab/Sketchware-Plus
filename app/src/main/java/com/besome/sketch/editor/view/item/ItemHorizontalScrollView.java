@@ -173,11 +173,18 @@ public class ItemHorizontalScrollView extends FrameLayout implements ItemView, S
         super.onMeasure(parentWidthSpec, parentHeightSpec);
         if (View.MeasureSpec.getMode(parentWidthSpec) != MeasureSpec.UNSPECIFIED && getChildCount() > 0) {
             View firstChild = getChildAt(0);
-            FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) firstChild.getLayoutParams();
+            ViewGroup.LayoutParams lp = firstChild.getLayoutParams();
+            int leftMargin = 0, rightMargin = 0, topMargin = 0, bottomMargin = 0;
+            if (lp instanceof ViewGroup.MarginLayoutParams marginLp) {
+                leftMargin = marginLp.leftMargin;
+                rightMargin = marginLp.rightMargin;
+                topMargin = marginLp.topMargin;
+                bottomMargin = marginLp.bottomMargin;
+            }
             if (getContext().getApplicationInfo().targetSdkVersion >= 23) {
-                horizontalPadding = getPaddingLeft() + getPaddingRight() + layoutParams.leftMargin + layoutParams.rightMargin;
-                topPadding = getPaddingTop() + getPaddingBottom() + layoutParams.topMargin;
-                bottomPadding = layoutParams.bottomMargin;
+                horizontalPadding = getPaddingLeft() + getPaddingRight() + leftMargin + rightMargin;
+                topPadding = getPaddingTop() + getPaddingBottom() + topMargin;
+                bottomPadding = bottomMargin;
             } else {
                 horizontalPadding = getPaddingLeft() + getPaddingRight();
                 topPadding = getPaddingTop();
@@ -188,7 +195,7 @@ public class ItemHorizontalScrollView extends FrameLayout implements ItemView, S
             if (firstChild.getMeasuredWidth() < visibleWidth) {
                 firstChild.measure(
                         View.MeasureSpec.makeMeasureSpec(visibleWidth, MeasureSpec.EXACTLY),
-                        FrameLayout.getChildMeasureSpec(parentHeightSpec, finalIndex, layoutParams.height)
+                        FrameLayout.getChildMeasureSpec(parentHeightSpec, finalIndex, lp != null ? lp.height : ViewGroup.LayoutParams.WRAP_CONTENT)
                 );
             }
         }
