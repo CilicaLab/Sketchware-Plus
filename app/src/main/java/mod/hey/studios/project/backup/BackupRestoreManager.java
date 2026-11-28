@@ -170,7 +170,11 @@ public class BackupRestoreManager {
     }
 
     public void doRestore(String file, boolean restoreLocalLibs) {
-        new RestoreAsyncTask(new WeakReference<>(act), file, restoreLocalLibs, projectsFragment).execute("");
+        doRestore(file, restoreLocalLibs, false);
+    }
+
+    public void doRestore(String file, boolean restoreLocalLibs, boolean forceRestore) {
+        new RestoreAsyncTask(new WeakReference<>(act), file, restoreLocalLibs, forceRestore, projectsFragment).execute("");
     }
 
     public static class BackupProgress {
@@ -277,22 +281,31 @@ public class BackupRestoreManager {
         private final String file;
         private final ProjectsFragment projectsFragment;
         private final boolean restoreLocalLibs;
+        private final boolean forceRestore;
         private BackupFactory bm;
         private AlertDialog dlg;
         private ProgressMsgBoxBinding loadingDialogBinding;
         private boolean error = false;
 
         RestoreAsyncTask(WeakReference<Activity> activityWeakReference, String file, boolean restoreLocalLibraries, ProjectsFragment projectsFragment) {
+            this(activityWeakReference, file, restoreLocalLibraries, false, projectsFragment);
+        }
+
+        RestoreAsyncTask(WeakReference<Activity> activityWeakReference, String file, boolean restoreLocalLibraries, boolean forceRestore, ProjectsFragment projectsFragment) {
             this.activityWeakReference = activityWeakReference;
             this.file = file;
             this.projectsFragment = projectsFragment;
-            restoreLocalLibs = restoreLocalLibraries;
+            this.restoreLocalLibs = restoreLocalLibraries;
+            this.forceRestore = forceRestore;
         }
 
         @Override
         protected void onPreExecute() {
-            loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activityWeakReference.get()));
-            loadingDialogBinding.tvProgress.setText("Initializing restore...");
+            Activity activity = activityWeakReference.get();
+            if (activity == null || activity.isFinishing()) return;
+
+            loadingDialogBinding = ProgressMsgBoxBinding.inflate(LayoutInflater.from(activity));
+            loadingDialogBinding.tvProgress.setText(forceRestore ? "Initializing force restore..." : "Initializing restore...");
             if (loadingDialogBinding.tvPercent != null) {
                 loadingDialogBinding.tvPercent.setText("0%");
             }
@@ -306,8 +319,8 @@ public class BackupRestoreManager {
                 loadingDialogBinding.progressBar.setMax(100);
                 loadingDialogBinding.progressBar.setProgress(0);
             }
-            dlg = new MaterialAlertDialogBuilder(activityWeakReference.get())
-                    .setTitle("Restoring Project")
+            dlg = new MaterialAlertDialogBuilder(activity)
+                    .setTitle(forceRestore ? "Force Restoring Project" : "Restoring Project")
                     .setCancelable(false)
                     .setView(loadingDialogBinding.getRoot())
                     .create();
@@ -322,7 +335,7 @@ public class BackupRestoreManager {
                     publishProgress(new BackupProgress(progressPercent, currentTask)));
 
             try {
-                bm.restore(new File(file));
+                bm.restore(new File(file), forceRestore);
             } catch (Exception e) {
                 bm.error = e.getMessage();
                 error = true;
@@ -356,13 +369,59 @@ public class BackupRestoreManager {
                 dlg.dismiss();
             }
 
+            Activity activity = activityWeakReference.get();
+            if (activity == null || activity.isFinishing()) {
+                return;
+            }
+
             if (!bm.isRestoreSuccess() || error) {
-                SketchwareUtil.toastError("Couldn't restore: " + bm.error, Toast.LENGTH_LONG);
-            } else if (projectsFragment != null) {
-                projectsFragment.refreshProjectsList();
-                SketchwareUtil.toast("Restored successfully");
+                String failureReason = (bm.getError() != null && !bm.getError().isEmpty())
+                        ? bm.getError()
+                        : "Unknown error occurred during restore.";
+
+                if (!forceRestore) {
+                    new MaterialAlertDialogBuilder(activity)
+                            .setTitle("Restore Failed")
+                            .setMessage("Failed to restore project.\n\nReason: " + failureReason
+                                    + "\n\nWould you like to force restore? Note: The restored project could be corrupted or missing data.")
+                            .setPositiveButton("Force restore", (dialog, which) ->
+                                    new RestoreAsyncTask(activityWeakReference, file, restoreLocalLibs, true, projectsFragment).execute(""))
+                            .setNegativeButton(Helper.getResString(R.string.common_word_cancel), null)
+                            .show();
+                } else {
+                    new MaterialAlertDialogBuilder(activity)
+                            .setTitle("Force Restore Failed")
+                            .setMessage("Force restore failed as well.\n\nReason: " + failureReason)
+                            .setPositiveButton(Helper.getResString(R.string.common_word_ok), null)
+                            .show();
+                }
             } else {
-                SketchwareUtil.toast("Restored successfully. Refresh to see the project", Toast.LENGTH_LONG);
+                if (projectsFragment != null) {
+                    projectsFragment.refreshProjectsList();
+                }
+                if (forceRestore) {
+                    if (bm.getError() != null && !bm.getError().isEmpty()) {
+                        new MaterialAlertDialogBuilder(activity)
+                                .setTitle("Project Restored with Warnings")
+                                .setMessage("Project was force-restored, but some warnings were reported:\n\n"
+                                        + bm.getError()
+                                        + "\n\nNote: The restored project could be corrupted or incomplete.")
+                                .setPositiveButton(Helper.getResString(R.string.common_word_ok), null)
+                                .show();
+                    } else {
+                        new MaterialAlertDialogBuilder(activity)
+                                .setTitle("Project Force Restored")
+                                .setMessage("Project was force restored successfully.\n\nNote: The project could be corrupted or missing some original data.")
+                                .setPositiveButton(Helper.getResString(R.string.common_word_ok), null)
+                                .show();
+                    }
+                } else {
+                    if (projectsFragment != null) {
+                        SketchwareUtil.toast("Restored successfully");
+                    } else {
+                        SketchwareUtil.toast("Restored successfully. Refresh to see the project", Toast.LENGTH_LONG);
+                    }
+                }
             }
         }
     }

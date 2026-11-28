@@ -160,32 +160,26 @@ public class SrcCodeEditor extends BaseAppCompatActivity implements SkAssistantD
 
     public static void selectTheme(CodeEditor ed, int which) {
         EditorColorScheme scheme;
-        boolean isTextMate = ed.getEditorLanguage() instanceof TextMateLanguage;
-
-        if (isTextMate) {
-            String tmTheme = switch (which) {
-                case 1, 2 -> CodeEditorColorSchemes.THEME_GITHUB;
-                case 4 -> CodeEditorColorSchemes.THEME_ONE_DARK;
-                case 5 -> CodeEditorColorSchemes.THEME_NORD;
-                case 6 -> CodeEditorColorSchemes.THEME_DRACULA;
-                case 7 -> CodeEditorColorSchemes.THEME_MONOKAI;
-                case 8 -> CodeEditorColorSchemes.THEME_SOLARIZED_DARK;
-                case 9 -> CodeEditorColorSchemes.THEME_ONE_DARK;
-                case 10 -> CodeEditorColorSchemes.THEME_NORD;
-                default -> CodeEditorColorSchemes.THEME_DRACULA;
-            };
-            scheme = CodeEditorColorSchemes.loadTextMateColorScheme(tmTheme);
-        } else {
-            scheme = switch (which) {
-                case 1 -> new SchemeGitHub();
-                case 2 -> new SchemeEclipse();
-                case 3 -> new SchemeDarcula();
-                case 4 -> new SchemeVS2019();
-                case 5 -> new SchemeNotepadXX();
-                default -> new EditorColorScheme();
-            };
+        switch (which) {
+            case 0 -> scheme = new EditorColorScheme();
+            case 1 -> scheme = new SchemeGitHub();
+            case 2 -> scheme = new SchemeEclipse();
+            case 3 -> scheme = new SchemeDarcula();
+            case 4 -> scheme = new SchemeVS2019();
+            case 5 -> scheme = new SchemeNotepadXX();
+            case 6 -> scheme = CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_DRACULA);
+            case 7 -> scheme = CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_MONOKAI);
+            case 8 -> scheme = CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_SOLARIZED_DARK);
+            case 9 -> scheme = CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_ONE_DARK);
+            case 10 -> scheme = CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_NORD);
+            default -> {
+                if (which >= 6) {
+                    scheme = CodeEditorColorSchemes.loadTextMateColorScheme(CodeEditorColorSchemes.THEME_DRACULA);
+                } else {
+                    scheme = new SchemeDarcula();
+                }
+            }
         }
-
         ed.setColorScheme(scheme);
     }
 

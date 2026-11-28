@@ -42,6 +42,8 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import a.a.a.lC;
+import a.a.a.oB;
+import a.a.a.vB;
 import a.a.a.yB;
 import mod.hey.studios.editor.manage.block.ExtraBlockInfo;
 import mod.hey.studios.editor.manage.block.v2.BlockLoader;
@@ -100,6 +102,23 @@ public class BackupFactory {
     }
 
     private static HashMap<String, Object> getProject(File file) {
+        if (file == null || !file.exists()) {
+            return null;
+        }
+        try {
+            oB oBVar = new oB();
+            byte[] decrypted = oBVar.h(file.getAbsolutePath());
+            if (decrypted != null) {
+                String decompressed = oBVar.a(decrypted);
+                if (decompressed != null && !decompressed.isEmpty()) {
+                    HashMap<String, Object> map = vB.a(decompressed);
+                    if (map != null && !map.isEmpty()) {
+                        return map;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             byte[] key = "sketchwaresecure".getBytes();
@@ -153,35 +172,47 @@ public class BackupFactory {
     /************************ UTILITIES ************************/
 
     public static boolean unzip(File zipFile, File destinationDir) {
+        return unzip(zipFile, destinationDir, false);
+    }
+
+    public static boolean unzip(File zipFile, File destinationDir, boolean force) {
         int DEFAULT_BUFFER = 2048;
+        boolean extractedAny = false;
         try (ZipFile zip = new ZipFile(zipFile)) {
             destinationDir.mkdirs();
             Enumeration<? extends ZipEntry> zipFileEntries = zip.entries();
             while (zipFileEntries.hasMoreElements()) {
-                ZipEntry entry = zipFileEntries.nextElement();
-                String entryName = entry.getName();
-                File destFile = new File(destinationDir, entryName);
-                File destinationParent = destFile.getParentFile();
-                if (destinationParent != null && !destinationParent.exists()) {
-                    destinationParent.mkdirs();
-                }
-                if (!entry.isDirectory()) {
-                    try (BufferedInputStream is = new BufferedInputStream(zip.getInputStream(entry))) {
-                        int currentByte;
-                        byte[] data = new byte[DEFAULT_BUFFER];
-                        try (FileOutputStream fos = new FileOutputStream(destFile)) {
-                            try (BufferedOutputStream dest = new BufferedOutputStream(fos, DEFAULT_BUFFER)) {
-                                while ((currentByte = is.read(data, 0, DEFAULT_BUFFER)) != -1 /*EOF*/) {
-                                    dest.write(data, 0, currentByte);
+                try {
+                    ZipEntry entry = zipFileEntries.nextElement();
+                    String entryName = entry.getName();
+                    File destFile = new File(destinationDir, entryName);
+                    File destinationParent = destFile.getParentFile();
+                    if (destinationParent != null && !destinationParent.exists()) {
+                        destinationParent.mkdirs();
+                    }
+                    if (!entry.isDirectory()) {
+                        try (BufferedInputStream is = new BufferedInputStream(zip.getInputStream(entry))) {
+                            int currentByte;
+                            byte[] data = new byte[DEFAULT_BUFFER];
+                            try (FileOutputStream fos = new FileOutputStream(destFile)) {
+                                try (BufferedOutputStream dest = new BufferedOutputStream(fos, DEFAULT_BUFFER)) {
+                                    while ((currentByte = is.read(data, 0, DEFAULT_BUFFER)) != -1 /*EOF*/) {
+                                        dest.write(data, 0, currentByte);
+                                    }
+                                    dest.flush();
                                 }
-                                dest.flush();
                             }
+                            extractedAny = true;
                         }
+                    }
+                } catch (Exception e) {
+                    if (!force) {
+                        return false;
                     }
                 }
             }
         } catch (IOException e) {
-            return false;
+            return force && extractedAny;
         }
         return true;
     }
@@ -558,15 +589,19 @@ public class BackupFactory {
     /************************ RESTORE ************************/
 
     public void restore(File swbPath) {
+        restore(swbPath, false);
+    }
+
+    public void restore(File swbPath, boolean forceRestore) {
         String name = swbPath.getName();
         if (name.contains(".")) {
             name = name.substring(0, name.lastIndexOf("."));
         }
 
-        restore(swbPath, name);
+        restore(swbPath, name, forceRestore);
     }
 
-    private void restore(File swbPath, String name) {
+    private void restore(File swbPath, String name, boolean forceRestore) {
 
         createBackupsFolder();
 
@@ -576,16 +611,19 @@ public class BackupFactory {
 
         // Create a duplicate if already exists
         if (outFolder.exists()) {
-            restore(swbPath, name + "_d");
+            restore(swbPath, name + "_d", forceRestore);
             return;
         }
 
         reportProgress(10, "Extracting backup archive...");
         // Unzip
-        if (!unzip(swbPath, outFolder)) {
+        boolean unzipSuccess = unzip(swbPath, outFolder, forceRestore);
+        if (!unzipSuccess && !forceRestore) {
             error = "couldn't unzip the backup";
             restoreSuccess = false;
             return;
+        } else if (!unzipSuccess) {
+            error = "Warning: Failed to unzip some contents of the backup archive.";
         }
 
         // Init files
@@ -597,24 +635,48 @@ public class BackupFactory {
         HashMap<String, Object> map = getProject(project);
 
         if (map == null) {
-            error = "couldn't read the project file";
-            restoreSuccess = false;
-            return;
+            if (!forceRestore) {
+                error = "couldn't read the project file";
+                restoreSuccess = false;
+                return;
+            } else {
+                map = createFallbackProjectMap();
+                error = (error.isEmpty() ? "" : error + "\n") + "Project configuration file couldn't be read. Created fallback project configuration.";
+            }
         }
 
         // Put new sc_id
-        map.put("sc_id", sc_id);
+        map.put("sc_id", String.valueOf(sc_id));
 
-        // Write new file
-        if (!writeEncrypted(project, new Gson().toJson(map))) {
-            error = "couldn't write to the project file";
-            restoreSuccess = false;
-            return;
+        // Save project configuration using Sketchware's native encoder
+        try {
+            lC.a(sc_id, map);
+        } catch (Exception e) {
+            if (!forceRestore) {
+                error = "couldn't write to the project file: " + e.getMessage();
+                restoreSuccess = false;
+                return;
+            }
         }
+
+        // Also write fallback file in temp project directory
+        writeEncrypted(project, new Gson().toJson(map));
 
         // Copy data
         reportProgress(50, "Restoring project data...");
-        copy(data, getDataDir());
+        File dataDir = getDataDir();
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
+        try {
+            copy(data, dataDir);
+        } catch (Exception e) {
+            if (!forceRestore) {
+                error = "Failed to copy project data: " + e.getMessage();
+                restoreSuccess = false;
+                return;
+            }
+        }
 
         // Copy res
         for (int i = 0; i < resSubfolders.length; i++) {
@@ -623,35 +685,60 @@ public class BackupFactory {
             reportProgress(pct, "Restoring " + subfolder + "...");
             File subf = new File(res, subfolder);
 
-            copySafe(subf, getResDir(subfolder));
+            try {
+                copySafe(subf, getResDir(subfolder));
+            } catch (Exception e) {
+                if (!forceRestore) {
+                    error = "Failed to copy resources (" + subfolder + "): " + e.getMessage();
+                    restoreSuccess = false;
+                    return;
+                }
+            }
         }
 
         // Create parent folder
         getProjectPath().getParentFile().mkdirs();
 
         // Copy project
-        copy(project, getProjectPath());
+        try {
+            copy(project, getProjectPath());
+        } catch (Exception e) {
+            if (!forceRestore) {
+                error = "Failed to copy project configuration: " + e.getMessage();
+                restoreSuccess = false;
+                return;
+            }
+        }
 
         // Copy local libs if they do not exist
         if (backupLocalLibs) {
             reportProgress(85, "Restoring local libraries...");
-            File local_libs = new File(outFolder, "local_libs");
+            try {
+                File local_libs = new File(outFolder, "local_libs");
 
-            if (local_libs.exists()) {
-                File[] local_libs_content = local_libs.listFiles();
-                if (local_libs_content != null) {
+                if (local_libs.exists() && local_libs.isDirectory()) {
+                    File[] local_libs_content = local_libs.listFiles();
+                    if (local_libs_content != null) {
+                        for (File local_lib : local_libs_content) {
+                            try {
+                                File local_lib_real_path = new File(getAllLocalLibsDir(), local_lib.getName());
 
-                    for (File local_lib : local_libs_content) {
-
-                        File local_lib_real_path = new File(getAllLocalLibsDir(), local_lib.getName());
-
-                        if (!local_lib_real_path.exists()) {
-                            local_lib_real_path.mkdirs();
-                            copy(local_lib, local_lib_real_path);
+                                if (!local_lib_real_path.exists()) {
+                                    local_lib_real_path.mkdirs();
+                                    copy(local_lib, local_lib_real_path);
+                                }
+                            } catch (Exception ignored) {
+                            }
                         }
                     }
                 }
+            } catch (Exception ignored) {
             }
+        }
+
+        // In force restore mode, sanitize local_library config file if any declared local libraries are missing from disk
+        if (forceRestore) {
+            sanitizeMissingLocalLibraries();
         }
 
         // Delete temp folder
@@ -659,6 +746,48 @@ public class BackupFactory {
 
         restoreSuccess = true;
         reportProgress(100, "Restore complete!");
+    }
+
+    private void sanitizeMissingLocalLibraries() {
+        try {
+            File localLibFile = getLocalLibsPath();
+            if (localLibFile.exists()) {
+                String content = FileUtil.readFile(localLibFile.getAbsolutePath());
+                if (!content.isEmpty()) {
+                    ArrayList<HashMap<String, Object>> libs = new Gson().fromJson(content, Helper.TYPE_MAP_LIST);
+                    if (libs != null) {
+                        boolean modified = libs.removeIf(libMap -> {
+                            Object nameObj = libMap.get("name");
+                            if (nameObj != null) {
+                                String libName = nameObj.toString();
+                                File libDir = new File(getAllLocalLibsDir(), libName);
+                                return !libDir.exists() || !libDir.isDirectory();
+                            }
+                            return true;
+                        });
+                        if (modified) {
+                            FileUtil.writeFile(localLibFile.getAbsolutePath(), new Gson().toJson(libs));
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private HashMap<String, Object> createFallbackProjectMap() {
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("sc_id", sc_id);
+        map.put("my_ws_name", "Restored_" + sc_id);
+        map.put("my_app_name", "Restored App " + sc_id);
+        map.put("my_sc_pkg_name", "com.restored.app" + sc_id);
+        map.put("sc_ver_code", "1");
+        map.put("sc_ver_name", "1.0");
+        map.put("sketchware_ver", "150");
+        map.put("color_primary", "-16742704");
+        map.put("color_primary_dark", "-16748856");
+        map.put("color_accent", "-16742704");
+        return map;
     }
 
     public String getError() {
