@@ -114,6 +114,10 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
         editor.setTextSize(14);
         editor.setText(content);
         EditorUtils.loadXmlConfig(editor);
+        if (!(editor.getComponent(io.github.rosemoe.sora.widget.component.EditorAutoCompletion.class) instanceof sketchware.plus.utility.SmartEditorAutoCompletion)) {
+            editor.replaceComponent(io.github.rosemoe.sora.widget.component.EditorAutoCompletion.class, new sketchware.plus.utility.SmartEditorAutoCompletion(editor));
+        }
+        editor.getComponent(io.github.rosemoe.sora.widget.component.EditorAutoCompletion.class).setMaxHeight((int) (130 * editor.getDpUnit()));
         if (projectFile.fileType == ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY
                 && projectLibrary.isEnabled()) {
             setNote("Use AppCompat Manager to modify attributes for CoordinatorLayout, Toolbar, and other appcompat layout/widget.");

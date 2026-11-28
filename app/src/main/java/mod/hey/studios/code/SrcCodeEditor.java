@@ -150,7 +150,12 @@ public class SrcCodeEditor extends BaseAppCompatActivity implements SkAssistantD
         ed.setTextSize(text_size);
         ed.setWordwrap(word_wrap);
         ed.getProps().symbolPairAutoCompletion = auto_complete_symbol_pairs;
-        ed.getComponent(EditorAutoCompletion.class).setEnabled(auto_c);
+        if (!(ed.getComponent(EditorAutoCompletion.class) instanceof sketchware.plus.utility.SmartEditorAutoCompletion)) {
+            ed.replaceComponent(EditorAutoCompletion.class, new sketchware.plus.utility.SmartEditorAutoCompletion(ed));
+        }
+        EditorAutoCompletion ac = ed.getComponent(EditorAutoCompletion.class);
+        ac.setEnabled(auto_c);
+        ac.setMaxHeight((int) (130 * ed.getDpUnit()));
     }
 
     public static void selectTheme(CodeEditor ed, int which) {

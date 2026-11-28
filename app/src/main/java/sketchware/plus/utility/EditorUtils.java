@@ -14,6 +14,7 @@ import com.google.android.material.color.MaterialColors;
 import io.github.rosemoe.sora.lang.Language;
 import io.github.rosemoe.sora.langs.java.JavaLanguage;
 import io.github.rosemoe.sora.widget.CodeEditor;
+import io.github.rosemoe.sora.widget.component.EditorAutoCompletion;
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme;
 import io.github.rosemoe.sora.widget.schemes.SchemeDarcula;
 import mod.jbk.code.CodeEditorColorSchemes;
@@ -96,5 +97,9 @@ public class EditorUtils {
         }
         editor.setColorScheme(getMaterialStyledScheme(editor));
         editor.setPinLineNumber(true);
+        if (!(editor.getComponent(EditorAutoCompletion.class) instanceof SmartEditorAutoCompletion)) {
+            editor.replaceComponent(EditorAutoCompletion.class, new SmartEditorAutoCompletion(editor));
+        }
+        editor.getComponent(EditorAutoCompletion.class).setMaxHeight((int) (130 * editor.getDpUnit()));
     }
 }
