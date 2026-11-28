@@ -192,12 +192,6 @@ public class BuildService extends Service implements BuildProgressReceiver {
             var fileManager = jC.b(sc_id);
             var dataManager = jC.a(sc_id);
             var libraryManager = jC.c(sc_id);
-            com.besome.sketch.beans.ProjectLibraryBean fb = libraryManager.d();
-            com.besome.sketch.beans.ProjectLibraryBean compat = libraryManager.c();
-            LogUtil.e("BuildService", "[DATA FLOW 4] Retrieved libraryManager = jC.c(" + sc_id + "): Firebase slot (useYn=" +
-                    (fb != null ? fb.useYn : "null") + ", data=" + (fb != null ? fb.data : "null") +
-                    ", r1=" + (fb != null ? fb.reserved1 : "null") + ", r2=" + (fb != null ? fb.reserved2 : "null") +
-                    ", r3=" + (fb != null ? fb.reserved3 : "null") + "), Compat slot (r1=" + (compat != null ? compat.reserved1 : "null") + ")");
             q.a(libraryManager, fileManager, dataManager);
             builder.buildBuiltInLibraryInformation();
             q.b(fileManager, dataManager, libraryManager, builder.getBuiltInLibraryManager());

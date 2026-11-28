@@ -122,14 +122,9 @@ public class jC {
             ProjectLibraryBean diskBean = loadFirebaseLibraryFromDisk(sc_id);
             if (diskBean != null) {
                 boolean diskHasData = diskBean.useYn != null && (diskBean.useYn.equals("Y") || !cleanStringValue(diskBean.reserved1).isEmpty() || !cleanStringValue(diskBean.reserved2).isEmpty());
-                android.util.Log.e("jC_DEBUG", "[MUTATE c] loadFirebaseLibraryFromDisk: diskHasData=" + diskHasData + 
-                        ", useYn=" + diskBean.useYn + ", r1=" + diskBean.reserved1 + 
-                        "\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
                 if (diskHasData) {
                     libraryManager.c = diskBean;
                 }
-            } else {
-                android.util.Log.e("jC_DEBUG", "[MUTATE c] loadFirebaseLibraryFromDisk: diskBean is null\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
             }
         }
     }

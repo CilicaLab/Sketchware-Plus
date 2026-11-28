@@ -209,9 +209,6 @@ public class ProjectSnapshot {
 
                     libraryManager.a(admob);
                     libraryManager.b(compat);
-                    android.util.Log.e("jC_DEBUG", "[MUTATE c] ProjectSnapshot: r1=" + 
-                            (firebase != null ? firebase.reserved1 : "null") + 
-                            "\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
                     libraryManager.c = firebase;  // iC.c is the Firebase slot; iC.c(bean) wrongly writes compat slot
                     libraryManager.d(googleMap);
                     if (rootLayout != null) {

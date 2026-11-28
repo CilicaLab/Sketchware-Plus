@@ -39,7 +39,6 @@ import sketchware.plus.filepicker.FilePickerCallback;
 import sketchware.plus.filepicker.FilePickerDialogFragment;
 import sketchware.plus.filepicker.FilePickerOptions;
 import mod.hey.studios.util.Helper;
-import mod.jbk.util.LogUtil;
 import sketchware.plus.R;
 import sketchware.plus.utility.FileUtil;
 import sketchware.plus.utility.SketchwareUtil;
@@ -135,12 +134,6 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
     }
 
     private void finishWithResult() {
-        LogUtil.e("ManageFirebaseActivity", "[DATA FLOW 1] Outputting firebaseLibraryBean to RESULT_OK: useYn=" +
-                (firebaseLibraryBean != null ? firebaseLibraryBean.useYn : "null") +
-                ", data(db/projId)=" + (firebaseLibraryBean != null ? firebaseLibraryBean.data : "null") +
-                ", reserved1(appId)=" + (firebaseLibraryBean != null ? firebaseLibraryBean.reserved1 : "null") +
-                ", reserved2(apiKey)=" + (firebaseLibraryBean != null ? firebaseLibraryBean.reserved2 : "null") +
-                ", reserved3(storage)=" + (firebaseLibraryBean != null ? firebaseLibraryBean.reserved3 : "null"));
         Intent i = new Intent();
         i.putExtra("firebase", firebaseLibraryBean);
         setResult(RESULT_OK, i);
@@ -297,7 +290,6 @@ public class ManageFirebaseActivity extends BaseAppCompatActivity implements Vie
         } else {
             value = "";
         }
-        LogUtil.e("ManageFirebaseActivity", "[DATA FLOW 1] Input setting " + type + " = " + value);
         switch (type) {
             case realtime_db:
                 firebaseLibraryBean.data = value;

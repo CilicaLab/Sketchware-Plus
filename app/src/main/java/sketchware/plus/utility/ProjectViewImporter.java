@@ -439,9 +439,6 @@ public class ProjectViewImporter {
                         .setPositiveButton("Enable Firebase", (dialog, which) -> {
                             ProjectLibraryBean lib = jC.c(targetScId).d();
                             lib.useYn = ProjectLibraryBean.LIB_USE_Y;
-                            android.util.Log.e("jC_DEBUG", "[MUTATE c] ProjectViewImporter: r1=" + 
-                                    (lib != null ? lib.reserved1 : "null") + 
-                                    "\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
                             jC.c(targetScId).c = lib;  // iC.c is the Firebase slot; iC.c(bean) wrongly writes compat slot
                             jC.c(targetScId).k();
                             jC.saveFirebaseLibraryToDisk(targetScId, lib);

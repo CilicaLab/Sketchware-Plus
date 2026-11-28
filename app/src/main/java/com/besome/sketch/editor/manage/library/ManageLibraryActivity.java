@@ -39,7 +39,6 @@ import mod.jbk.editor.manage.library.ExcludeBuiltInLibrariesActivity;
 import mod.jbk.editor.manage.library.ExcludeBuiltInLibrariesLibraryItemView;
 import mod.jbk.editor.manage.library.IncludeBuiltInLibrariesActivity;
 import mod.jbk.editor.manage.library.IncludeBuiltInLibrariesLibraryItemView;
-import mod.jbk.util.LogUtil;
 import sketchware.plus.R;
 import sketchware.plus.utility.UI;
 
@@ -202,17 +201,7 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
     }
 
     private void saveLibraryConfiguration() {
-        LogUtil.e("ManageLibraryActivity", "[DATA FLOW 2] Saving library configuration to jC.c(" + sc_id + ").k(): firebase (useYn=" +
-                (firebaseLibraryBean != null ? firebaseLibraryBean.useYn : "null") +
-                ", data=" + (firebaseLibraryBean != null ? firebaseLibraryBean.data : "null") +
-                ", r1=" + (firebaseLibraryBean != null ? firebaseLibraryBean.reserved1 : "null") +
-                ", r2=" + (firebaseLibraryBean != null ? firebaseLibraryBean.reserved2 : "null") +
-                ", r3=" + (firebaseLibraryBean != null ? firebaseLibraryBean.reserved3 : "null") +
-                "), compat (r1=" + (compatLibraryBean != null ? compatLibraryBean.reserved1 : "null") + ")");
         jC.c(sc_id).d = compatLibraryBean;    // iC.d = compat slot (iC.c() getter returns this)
-        android.util.Log.e("jC_DEBUG", "[MUTATE c] ManageLibraryActivity.saveLibraryConfiguration: r1=" + 
-                (firebaseLibraryBean != null ? firebaseLibraryBean.reserved1 : "null") + 
-                "\nStack: " + android.util.Log.getStackTraceString(new Throwable()));
         jC.c(sc_id).c = firebaseLibraryBean;  // iC.c = firebase slot (iC.d() getter returns this)
         jC.c(sc_id).a(admobLibraryBean);
         jC.c(sc_id).d(googleMapLibraryBean);
@@ -233,12 +222,6 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
             switch (requestCode) {
                 case REQUEST_CODE_FIREBASE_ACTIVITY:
                     ProjectLibraryBean libraryBean = data.getParcelableExtra("firebase");
-                    LogUtil.e("ManageLibraryActivity", "[DATA FLOW 2] Received onActivityResult FIREBASE: useYn=" +
-                            (libraryBean != null ? libraryBean.useYn : "null") +
-                            ", data=" + (libraryBean != null ? libraryBean.data : "null") +
-                            ", r1=" + (libraryBean != null ? libraryBean.reserved1 : "null") +
-                            ", r2=" + (libraryBean != null ? libraryBean.reserved2 : "null") +
-                            ", r3=" + (libraryBean != null ? libraryBean.reserved3 : "null"));
                     initializeLibrary(libraryBean);
                     if (libraryBean.useYn.equals("Y") && !compatLibraryBean.useYn.equals("Y")) {
                         libraryBean = compatLibraryBean;
@@ -393,10 +376,6 @@ public class ManageLibraryActivity extends BaseAppCompatActivity implements View
             }
 
             originalFirebaseUseYn = firebaseLibraryBean.useYn;
-
-            LogUtil.e("ManageLibraryActivity", "[DATA FLOW 2] Loaded onPostCreate: firebaseLibraryBean (useYn=" + firebaseLibraryBean.useYn +
-                    ", data=" + firebaseLibraryBean.data + ", r1=" + firebaseLibraryBean.reserved1 + ", r2=" + firebaseLibraryBean.reserved2 +
-                    ", r3=" + firebaseLibraryBean.reserved3 + "), compatLibraryBean (r1=" + compatLibraryBean.reserved1 + ")");
 
             admobLibraryBean = jC.c(sc_id).b();
             if (admobLibraryBean == null) {
