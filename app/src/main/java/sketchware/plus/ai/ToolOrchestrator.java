@@ -847,26 +847,62 @@ public class ToolOrchestrator {
 
             case "add_sketchware_component":
             case "add_component": {
-                int typeId = args.getInt("type");
+                int typeId = args.optInt("type", -1);
+                if (typeId == -1) {
+                    typeId = args.optInt("componentType", -1);
+                }
                 if (!ComponentSpecialist.isValidComponentType(typeId)) {
                     return "Error: Component type ID " + typeId + " does not exist. Please use list_components to check valid component types.";
                 }
                 fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
                 fragment.setUndoVisible(true);
-                String requestedId = args.getString("id");
+                String requestedId = args.optString("id", null);
+                if (requestedId != null && requestedId.trim().isEmpty()) {
+                    requestedId = null;
+                }
+                String compTargetJava = args.optString("javaName", null);
                 int count = args.optInt("count", 1);
                 
                 final List<String> addedIds = new ArrayList<>();
+                final String finalTargetJava = compTargetJava;
+                final int finalTypeId = typeId;
+                final String finalRequestedId = requestedId;
                 runOnMainSync(() -> {
-                    addedIds.addAll(fragment.componentSpecialist.applyBatchAddComponent(typeId, requestedId, count));
+                    addedIds.addAll(fragment.componentSpecialist.applyBatchAddComponent(finalTargetJava, finalTypeId, finalRequestedId, count, null));
                     fragment.refreshDesigner();
                 });
                 
                 String typeName = ComponentBean.getComponentTypeName(typeId);
-                if (addedIds.size() == 1) {
+                if (addedIds.isEmpty()) {
+                    return "Failed to add component (" + typeName + ").";
+                } else if (addedIds.size() == 1) {
                     return "Component '" + addedIds.get(0) + "' (" + typeName + ") added successfully.";
                 } else {
                     return "Successfully added " + addedIds.size() + " " + typeName + " components in batch: " + addedIds.toString() + ".";
+                }
+            }
+
+            case "remove_sketchware_component":
+            case "remove_component":
+            case "delete_component": {
+                String componentId = args.optString("componentId", args.optString("id", null));
+                if (componentId == null || componentId.trim().isEmpty()) {
+                    return "Error: Component ID is required to remove a component.";
+                }
+                String remTargetJava = args.optString("javaName", null);
+                fragment.undoSnapshot = new ProjectSnapshot(fragment.scId, fragment.projectFile != null ? fragment.projectFile.getXmlName() : "main.xml");
+                fragment.setUndoVisible(true);
+                
+                final boolean[] removed = new boolean[1];
+                runOnMainSync(() -> {
+                    removed[0] = fragment.componentSpecialist.applyRemoveComponent(remTargetJava, componentId);
+                    fragment.refreshDesigner();
+                });
+
+                if (removed[0]) {
+                    return "Component '" + componentId + "' removed successfully.";
+                } else {
+                    return "Error: Component '" + componentId + "' was not found in the activity.";
                 }
             }
 

@@ -2720,6 +2720,10 @@ public class SkAssistantFragment extends Fragment {
             case "add_sketchware_component":
             case "add_component":
                 return "Adding Sketchware component";
+            case "remove_sketchware_component":
+            case "remove_component":
+            case "delete_component":
+                return "Removing Sketchware component";
             case "list_components":
             case "list_available_components":
                 return "Listing components";

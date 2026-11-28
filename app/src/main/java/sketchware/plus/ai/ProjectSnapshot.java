@@ -227,7 +227,7 @@ public class ProjectSnapshot {
                                     }
                                 }
                             }
-                            this.componentsMap.put(entry.getKey(), list);
+                            dataManager.h.put(entry.getKey(), list);
                         }
                     }
 

@@ -62,14 +62,21 @@ public class ComponentSpecialist extends BaseSpecialist {
     @Override
     public void handleAction(JSONObject action) throws JSONException {
         log("[ComponentSpecialist.handleAction] ENTRY - action: " + action);
-        if ("ADD_COMPONENT".equals(fragment.normalizeActionType(action.optString("type")))) {
+        String normType = fragment.normalizeActionType(action.optString("type"));
+        if ("ADD_COMPONENT".equals(normType)) {
             List<String> params = new ArrayList<>();
             JSONArray jParams = action.optJSONArray("params");
             if (jParams != null) {
                 for (int j = 0; j < jParams.length(); j++) params.add(jParams.getString(j));
             }
             int count = action.optInt("count", 1);
-            applyAddComponent(action.getString("componentType"), action.getString("id"), params, count);
+            String typeStr = action.optString("componentType", action.optString("type", ""));
+            String id = action.optString("id", null);
+            applyAddComponent(typeStr, id, params, count);
+        } else if ("REMOVE_COMPONENT".equals(normType) || "DELETE_COMPONENT".equals(normType)) {
+            String componentId = action.optString("componentId", action.optString("id", null));
+            String javaName = action.optString("javaName", null);
+            applyRemoveComponent(javaName, componentId);
         }
     }
 
@@ -121,7 +128,11 @@ public class ComponentSpecialist extends BaseSpecialist {
     }
 
     public List<String> applyBatchAddComponent(int type, String baseId, int count) {
-        return applyBatchAddComponent(type, baseId, count, null);
+        return applyBatchAddComponent(null, type, baseId, count, null);
+    }
+
+    public List<String> applyBatchAddComponent(int type, String baseId, int count, List<String> customParams) {
+        return applyBatchAddComponent(null, type, baseId, count, customParams);
     }
 
     public static boolean isValidComponentType(int type) {
@@ -134,8 +145,11 @@ public class ComponentSpecialist extends BaseSpecialist {
         }
     }
 
-    public List<String> applyBatchAddComponent(int type, String baseId, int count, List<String> customParams) {
-        log("[ComponentSpecialist.applyBatchAddComponent] ENTRY - type: " + type + ", baseId: " + baseId + ", count: " + count);
+    public List<String> applyBatchAddComponent(String rawJavaName, int type, String baseId, int count, List<String> customParams) {
+        log("[ComponentSpecialist.applyBatchAddComponent] ENTRY - javaName: " + rawJavaName + ", type: " + type + ", baseId: " + baseId + ", count: " + count);
+        String defaultJava = getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java";
+        String javaName = sketchware.plus.ai.ProjectStructureAide.findActivityJavaName(getScId(), rawJavaName, defaultJava);
+        if (javaName == null) javaName = defaultJava;
         if (baseId == null || baseId.trim().isEmpty()) {
             String typeName = ComponentBean.getComponentTypeName(type);
             baseId = typeName != null && !typeName.isEmpty() ? typeName.toLowerCase().replaceAll("[^a-zA-Z0-9]", "") : "comp";
@@ -149,10 +163,9 @@ public class ComponentSpecialist extends BaseSpecialist {
         }
         try {
             eC dataManager = jC.a(getScId());
-            String javaName = getProjectFile().getJavaName();
             String typeName = ComponentBean.getComponentTypeName(type);
 
-            fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile().getXmlName());
+            fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
 
             int actualCount = Math.max(1, Math.min(count, 1000));
 
@@ -191,15 +204,67 @@ public class ComponentSpecialist extends BaseSpecialist {
             }
 
             if (actualCount == 1) {
-                fragment.addSystemMessage("Component '" + addedIds.get(0) + "' (" + typeName + ") added.");
+                fragment.addSystemMessage("Component '" + addedIds.get(0) + "' (" + typeName + ") added to " + javaName + ".");
             } else {
-                fragment.addSystemMessage("Added " + actualCount + " " + typeName + " components ('" + addedIds.get(0) + "' to '" + addedIds.get(addedIds.size() - 1) + "').");
+                fragment.addSystemMessage("Added " + actualCount + " " + typeName + " components ('" + addedIds.get(0) + "' to '" + addedIds.get(addedIds.size() - 1) + "') to " + javaName + ".");
             }
             fragment.setUndoVisible(true);
         } catch (Exception e) {
             fragment.addSystemMessage("Error adding components: " + e.getMessage());
         }
         return addedIds;
+    }
+
+    public boolean applyRemoveComponent(String rawJavaName, String componentId) {
+        log("[ComponentSpecialist.applyRemoveComponent] ENTRY - javaName: " + rawJavaName + ", componentId: " + componentId);
+        if (componentId == null || componentId.trim().isEmpty()) {
+            log("[ComponentSpecialist.applyRemoveComponent] ERROR: Empty componentId");
+            return false;
+        }
+        String defaultJava = getProjectFile() != null ? getProjectFile().getJavaName() : "MainActivity.java";
+        String javaName = sketchware.plus.ai.ProjectStructureAide.findActivityJavaName(getScId(), rawJavaName, defaultJava);
+        if (javaName == null) javaName = defaultJava;
+
+        try {
+            eC dataManager = jC.a(getScId());
+            if (dataManager == null) return false;
+
+            ArrayList<ComponentBean> existing = dataManager.e(javaName);
+            if (existing == null || existing.isEmpty()) {
+                log("[ComponentSpecialist.applyRemoveComponent] No components in " + javaName);
+                return false;
+            }
+
+            ComponentBean toRemove = null;
+            for (ComponentBean cb : existing) {
+                if (cb != null && componentId.equalsIgnoreCase(cb.componentId)) {
+                    toRemove = cb;
+                    break;
+                }
+            }
+
+            if (toRemove != null) {
+                fragment.undoSnapshot = new ProjectSnapshot(getScId(), getProjectFile() != null ? getProjectFile().getXmlName() : "main.xml");
+                dataManager.b(javaName, toRemove);
+                dataManager.k();
+
+                Activity activity = fragment.getActivity();
+                if (activity instanceof DesignActivity da) {
+                    da.refreshComponents();
+                }
+
+                fragment.addSystemMessage("Component '" + toRemove.componentId + "' removed from " + javaName + ".");
+                fragment.setUndoVisible(true);
+                return true;
+            } else {
+                log("[ComponentSpecialist.applyRemoveComponent] Component '" + componentId + "' not found in " + javaName);
+                return false;
+            }
+        } catch (Exception e) {
+            log("[ComponentSpecialist.applyRemoveComponent] ERROR: " + e.getMessage());
+            fragment.addSystemMessage("Error removing component: " + e.getMessage());
+            return false;
+        }
     }
 
     public static String resolveUniqueComponentId(String scId, String javaName, String requestedId) {

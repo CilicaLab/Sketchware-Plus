@@ -114,7 +114,14 @@ public class AssistantToolRegistry {
                         .addProperty("type", "integer", "type ID from list_components")
                         .addProperty("id", "string", "optional name/prefix, auto-generated if empty")
                         .addProperty("count", "integer", "optional batch count, default 1")
+                        .addProperty("javaName", "string", "optional activity, e.g. MainActivity.java")
                         .setRequired("type").build()));
+
+        t.put(createTool("remove_sketchware_component", "Remove a component from an activity",
+                new ParameterBuilder()
+                        .addProperty("componentId", "string", "ID of component to remove, e.g. sharedpref1, timer1, fauth")
+                        .addProperty("javaName", "string", "optional target activity, e.g. MainActivity.java")
+                        .setRequired("componentId").build()));
 
         t.put(createTool("list_components", "List built-in + custom components",
                 new ParameterBuilder().build()));
